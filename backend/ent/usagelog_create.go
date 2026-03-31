@@ -449,6 +449,20 @@ func (_c *UsageLogCreate) SetNillableCacheTTLOverridden(v *bool) *UsageLogCreate
 	return _c
 }
 
+// SetBillingModel sets the "billing_model" field.
+func (_c *UsageLogCreate) SetBillingModel(v string) *UsageLogCreate {
+	_c.mutation.SetBillingModel(v)
+	return _c
+}
+
+// SetNillableBillingModel sets the "billing_model" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingModel(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingModel(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UsageLogCreate) SetCreatedAt(v time.Time) *UsageLogCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -705,6 +719,11 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.CacheTTLOverridden(); !ok {
 		return &ValidationError{Name: "cache_ttl_overridden", err: errors.New(`ent: missing required field "UsageLog.cache_ttl_overridden"`)}
 	}
+	if v, ok := _c.mutation.BillingModel(); ok {
+		if err := usagelog.BillingModelValidator(v); err != nil {
+			return &ValidationError{Name: "billing_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_model": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UsageLog.created_at"`)}
 	}
@@ -855,6 +874,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
 		_node.CacheTTLOverridden = value
+	}
+	if value, ok := _c.mutation.BillingModel(); ok {
+		_spec.SetField(usagelog.FieldBillingModel, field.TypeString, value)
+		_node.BillingModel = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagelog.FieldCreatedAt, field.TypeTime, value)
@@ -1567,6 +1590,24 @@ func (u *UsageLogUpsert) UpdateCacheTTLOverridden() *UsageLogUpsert {
 	return u
 }
 
+// SetBillingModel sets the "billing_model" field.
+func (u *UsageLogUpsert) SetBillingModel(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingModel, v)
+	return u
+}
+
+// UpdateBillingModel sets the "billing_model" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingModel() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingModel)
+	return u
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (u *UsageLogUpsert) ClearBillingModel() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBillingModel)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -2274,6 +2315,27 @@ func (u *UsageLogUpsertOne) SetCacheTTLOverridden(v bool) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateCacheTTLOverridden() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheTTLOverridden()
+	})
+}
+
+// SetBillingModel sets the "billing_model" field.
+func (u *UsageLogUpsertOne) SetBillingModel(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingModel(v)
+	})
+}
+
+// UpdateBillingModel sets the "billing_model" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingModel() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingModel()
+	})
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (u *UsageLogUpsertOne) ClearBillingModel() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingModel()
 	})
 }
 
@@ -3150,6 +3212,27 @@ func (u *UsageLogUpsertBulk) SetCacheTTLOverridden(v bool) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateCacheTTLOverridden() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheTTLOverridden()
+	})
+}
+
+// SetBillingModel sets the "billing_model" field.
+func (u *UsageLogUpsertBulk) SetBillingModel(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingModel(v)
+	})
+}
+
+// UpdateBillingModel sets the "billing_model" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingModel() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingModel()
+	})
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (u *UsageLogUpsertBulk) ClearBillingModel() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingModel()
 	})
 }
 

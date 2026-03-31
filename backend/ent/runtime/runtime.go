@@ -951,8 +951,12 @@ func init() {
 	usagelogDescCacheTTLOverridden := usagelogFields[32].Descriptor()
 	// usagelog.DefaultCacheTTLOverridden holds the default value on creation for the cache_ttl_overridden field.
 	usagelog.DefaultCacheTTLOverridden = usagelogDescCacheTTLOverridden.Default.(bool)
+	// usagelogDescBillingModel is the schema descriptor for billing_model field.
+	usagelogDescBillingModel := usagelogFields[33].Descriptor()
+	// usagelog.BillingModelValidator is a validator for the "billing_model" field. It is called by the builders before save.
+	usagelog.BillingModelValidator = usagelogDescBillingModel.Validators[0].(func(string) error)
 	// usagelogDescCreatedAt is the schema descriptor for created_at field.
-	usagelogDescCreatedAt := usagelogFields[33].Descriptor()
+	usagelogDescCreatedAt := usagelogFields[34].Descriptor()
 	// usagelog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagelog.DefaultCreatedAt = usagelogDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()

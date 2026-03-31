@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -315,31 +316,159 @@ func (s *PricingService) downloadPricingData() error {
 	return nil
 }
 
-// parsePricingData 解析价格数据（处理各种格式）
+// parsePricingData 解析价格数据（支持 models.dev 和 LiteLLM 两种格式）
 func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModelPricing, error) {
-	// 首先解析为 map[string]json.RawMessage
 	var rawData map[string]json.RawMessage
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		return nil, fmt.Errorf("parse raw JSON: %w", err)
 	}
 
+	// 检测格式：models.dev 的顶层 key 是 provider（含 "models" 子对象），
+	// LiteLLM 的顶层 key 是模型名（直接含 input_cost_per_token 等字段）。
+	if s.isModelsDevFormat(rawData) {
+		return s.parseModelsDevData(rawData)
+	}
+	return s.parseLiteLLMData(rawData)
+}
+
+// isModelsDevFormat 检测是否为 models.dev 格式（provider → models → model）
+func (s *PricingService) isModelsDevFormat(rawData map[string]json.RawMessage) bool {
+	// models.dev 格式：顶层 value 是对象且含 "models" key
+	for _, raw := range rawData {
+		var probe struct {
+			Models json.RawMessage `json:"models"`
+		}
+		if json.Unmarshal(raw, &probe) == nil && len(probe.Models) > 2 {
+			return true
+		}
+		break // 只检查第一个
+	}
+	return false
+}
+
+// modelsDevCost models.dev 的 cost 结构
+type modelsDevCost struct {
+	Input      float64 `json:"input"`       // $/MTok
+	Output     float64 `json:"output"`      // $/MTok
+	CacheRead  float64 `json:"cache_read"`  // $/MTok
+	CacheWrite float64 `json:"cache_write"` // $/MTok (= cache_creation)
+	Reasoning  float64 `json:"reasoning"`   // $/MTok
+}
+
+// modelsDevContextOverCost 长上下文加价
+type modelsDevContextOverCost struct {
+	Input     float64 `json:"input"`
+	Output    float64 `json:"output"`
+	CacheRead float64 `json:"cache_read"`
+}
+
+type modelsDevModel struct {
+	ID   string        `json:"id"`
+	Name string        `json:"name"`
+	Cost modelsDevCost `json:"cost"`
+	// 长上下文加价（如 GPT-5.4 的 context_over_200k）
+	CostContextOver json.RawMessage `json:"-"` // 动态 key，手动解析
+	Limit           struct {
+		Context int `json:"context"`
+		Output  int `json:"output"`
+	} `json:"limit"`
+}
+
+// parseModelsDevData 解析 models.dev 格式的价格数据
+func (s *PricingService) parseModelsDevData(rawData map[string]json.RawMessage) (map[string]*LiteLLMModelPricing, error) {
+	result := make(map[string]*LiteLLMModelPricing)
+
+	for providerName, providerRaw := range rawData {
+		var provider struct {
+			Models map[string]json.RawMessage `json:"models"`
+		}
+		if err := json.Unmarshal(providerRaw, &provider); err != nil || len(provider.Models) == 0 {
+			continue
+		}
+
+		for modelName, modelRaw := range provider.Models {
+			var model modelsDevModel
+			if err := json.Unmarshal(modelRaw, &model); err != nil {
+				continue
+			}
+			if model.Cost.Input == 0 && model.Cost.Output == 0 {
+				continue
+			}
+
+			// models.dev 价格单位是 $/MTok，转换为 $/token
+			pricing := &LiteLLMModelPricing{
+				InputCostPerToken:           model.Cost.Input / 1e6,
+				OutputCostPerToken:          model.Cost.Output / 1e6,
+				CacheReadInputTokenCost:     model.Cost.CacheRead / 1e6,
+				CacheCreationInputTokenCost: model.Cost.CacheWrite / 1e6,
+				LiteLLMProvider:             providerName,
+				Mode:                        "chat",
+				SupportsPromptCaching:       model.Cost.CacheRead > 0 || model.Cost.CacheWrite > 0,
+			}
+
+			// 解析长上下文加价（cost 对象中的 context_over_* 字段）
+			var rawMap map[string]json.RawMessage
+			if json.Unmarshal(modelRaw, &rawMap) == nil {
+				if costBytes, ok := rawMap["cost"]; ok {
+					var costMap map[string]json.RawMessage
+					if json.Unmarshal(costBytes, &costMap) == nil {
+						for key, val := range costMap {
+							if !strings.HasPrefix(key, "context_over_") {
+								continue
+							}
+							var overCost modelsDevContextOverCost
+							if json.Unmarshal(val, &overCost) != nil || overCost.Input <= 0 {
+								continue
+							}
+							thresholdStr := strings.TrimSuffix(strings.TrimPrefix(key, "context_over_"), "k")
+							if threshold, err := strconv.Atoi(thresholdStr); err == nil {
+								pricing.LongContextInputTokenThreshold = threshold * 1000
+								if model.Cost.Input > 0 {
+									pricing.LongContextInputCostMultiplier = overCost.Input / model.Cost.Input
+								}
+								if model.Cost.Output > 0 {
+									pricing.LongContextOutputCostMultiplier = overCost.Output / model.Cost.Output
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// 用 provider/model 和 model 两种 key 注册
+			modelLower := strings.ToLower(modelName)
+			providerModel := strings.ToLower(providerName) + "/" + modelLower
+			result[providerModel] = pricing
+			// 也用纯模型名注册（如果不冲突）
+			if _, exists := result[modelLower]; !exists {
+				result[modelLower] = pricing
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no valid pricing entries found")
+	}
+
+	logger.LegacyPrintf("service.pricing", "[Pricing] Parsed models.dev format: %d model entries from %d providers",
+		len(result), len(rawData))
+	return result, nil
+}
+
+// parseLiteLLMData 解析 LiteLLM 格式的价格数据（向后兼容）
+func (s *PricingService) parseLiteLLMData(rawData map[string]json.RawMessage) (map[string]*LiteLLMModelPricing, error) {
 	result := make(map[string]*LiteLLMModelPricing)
 	skipped := 0
 
 	for modelName, rawEntry := range rawData {
-		// 跳过 sample_spec 等文档条目
 		if modelName == "sample_spec" {
 			continue
 		}
-
-		// 尝试解析每个条目
 		var entry LiteLLMRawEntry
 		if err := json.Unmarshal(rawEntry, &entry); err != nil {
 			skipped++
 			continue
 		}
-
-		// 只保留有有效价格的条目
 		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil {
 			continue
 		}
@@ -350,7 +479,6 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			SupportsPromptCaching: entry.SupportsPromptCaching,
 			SupportsServiceTier:   entry.SupportsServiceTier,
 		}
-
 		if entry.InputCostPerToken != nil {
 			pricing.InputCostPerToken = *entry.InputCostPerToken
 		}
@@ -378,18 +506,15 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		if entry.OutputCostPerImage != nil {
 			pricing.OutputCostPerImage = *entry.OutputCostPerImage
 		}
-
 		result[modelName] = pricing
 	}
 
 	if skipped > 0 {
 		logger.LegacyPrintf("service.pricing", "[Pricing] Skipped %d invalid entries", skipped)
 	}
-
 	if len(result) == 0 {
 		return nil, fmt.Errorf("no valid pricing entries found")
 	}
-
 	return result, nil
 }
 

@@ -58,6 +58,7 @@ type AccountHandler struct {
 	sessionLimitCache       service.SessionLimitCache
 	rpmCache                service.RPMCache
 	tokenCacheInvalidator   service.TokenCacheInvalidator
+	billingService          *service.BillingService
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -75,6 +76,7 @@ func NewAccountHandler(
 	sessionLimitCache service.SessionLimitCache,
 	rpmCache service.RPMCache,
 	tokenCacheInvalidator service.TokenCacheInvalidator,
+	billingService *service.BillingService,
 ) *AccountHandler {
 	return &AccountHandler{
 		adminService:            adminService,
@@ -90,6 +92,7 @@ func NewAccountHandler(
 		sessionLimitCache:       sessionLimitCache,
 		rpmCache:                rpmCache,
 		tokenCacheInvalidator:   tokenCacheInvalidator,
+		billingService:          billingService,
 	}
 }
 
@@ -2150,4 +2153,43 @@ func sanitizeExtraBaseRPM(extra map[string]any) {
 		v = 10000
 	}
 	extra["base_rpm"] = v
+}
+
+// LookupModelPricing 查询模型定价（供前端实时查询 LiteLLM 价格）
+// GET /api/v1/admin/accounts/lookup-model-pricing?model=minimax-m2.5
+func (h *AccountHandler) LookupModelPricing(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	if model == "" {
+		response.BadRequest(c, "model parameter is required")
+		return
+	}
+
+	if h.billingService == nil {
+		response.InternalError(c, "billing service not available")
+		return
+	}
+
+	pricing, err := h.billingService.GetModelPricing(model)
+	if err != nil || pricing == nil {
+		// LiteLLM 查不到，返回空结果而非错误（前端据此提示手动填写）
+		c.JSON(http.StatusOK, gin.H{
+			"found": false,
+			"model": model,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"found": true,
+		"model": model,
+		"pricing": gin.H{
+			"input_cost_per_token":              pricing.InputPricePerToken,
+			"input_cost_per_token_priority":     pricing.InputPricePerTokenPriority,
+			"output_cost_per_token":             pricing.OutputPricePerToken,
+			"output_cost_per_token_priority":    pricing.OutputPricePerTokenPriority,
+			"cache_creation_input_token_cost":   pricing.CacheCreationPricePerToken,
+			"cache_read_input_token_cost":       pricing.CacheReadPricePerToken,
+			"cache_read_input_token_cost_priority": pricing.CacheReadPricePerTokenPriority,
+		},
+	})
 }

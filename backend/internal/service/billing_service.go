@@ -381,6 +381,15 @@ func (s *BillingService) CalculateCostWithServiceTier(model string, tokens Usage
 	if err != nil {
 		return nil, err
 	}
+	return s.CalculateCostWithPricing(pricing, tokens, rateMultiplier, serviceTier), nil
+}
+
+// CalculateCostWithPricing 使用给定的 ModelPricing 计算费用（不查价，由调用方提供定价）。
+// 用于计费协议与定价模型解耦场景：调用方通过 ResolveModelPricing 获取定价后传入。
+func (s *BillingService) CalculateCostWithPricing(pricing *ModelPricing, tokens UsageTokens, rateMultiplier float64, serviceTier string) *CostBreakdown {
+	if pricing == nil {
+		return &CostBreakdown{}
+	}
 
 	breakdown := &CostBreakdown{}
 	inputPricePerToken := pricing.InputPricePerToken
@@ -445,7 +454,7 @@ func (s *BillingService) CalculateCostWithServiceTier(model string, tokens Usage
 	}
 	breakdown.ActualCost = breakdown.TotalCost * rateMultiplier
 
-	return breakdown, nil
+	return breakdown
 }
 
 func (s *BillingService) applyModelSpecificPricingPolicy(model string, pricing *ModelPricing) *ModelPricing {
@@ -566,6 +575,66 @@ func (s *BillingService) CalculateCostWithLongContext(model string, tokens Usage
 		TotalCost:         inRangeCost.TotalCost + outRangeCost.TotalCost,
 		ActualCost:        inRangeCost.ActualCost + outRangeCost.ActualCost,
 	}, nil
+}
+
+// CalculateCostWithPricingAndLongContext 使用给定的 ModelPricing 计算费用，支持长上下文双倍计费。
+// 与 CalculateCostWithLongContext 逻辑相同，但不自己查价。
+func (s *BillingService) CalculateCostWithPricingAndLongContext(pricing *ModelPricing, tokens UsageTokens, rateMultiplier float64, threshold int, extraMultiplier float64) *CostBreakdown {
+	if pricing == nil {
+		return &CostBreakdown{}
+	}
+
+	// 未启用长上下文计费，直接走正常计费
+	if threshold <= 0 || extraMultiplier <= 1 {
+		return s.CalculateCostWithPricing(pricing, tokens, rateMultiplier, "")
+	}
+
+	// 计算总输入 token（缓存读取 + 新输入）
+	total := tokens.CacheReadTokens + tokens.InputTokens
+	if total <= threshold {
+		return s.CalculateCostWithPricing(pricing, tokens, rateMultiplier, "")
+	}
+
+	// 拆分成范围内和范围外
+	var inRangeCacheTokens, inRangeInputTokens int
+	var outRangeCacheTokens, outRangeInputTokens int
+
+	if tokens.CacheReadTokens >= threshold {
+		inRangeCacheTokens = threshold
+		inRangeInputTokens = 0
+		outRangeCacheTokens = tokens.CacheReadTokens - threshold
+		outRangeInputTokens = tokens.InputTokens
+	} else {
+		inRangeCacheTokens = tokens.CacheReadTokens
+		inRangeInputTokens = threshold - tokens.CacheReadTokens
+		outRangeCacheTokens = 0
+		outRangeInputTokens = tokens.InputTokens - inRangeInputTokens
+	}
+
+	inRangeTokens := UsageTokens{
+		InputTokens:           inRangeInputTokens,
+		OutputTokens:          tokens.OutputTokens,
+		CacheCreationTokens:   tokens.CacheCreationTokens,
+		CacheReadTokens:       inRangeCacheTokens,
+		CacheCreation5mTokens: tokens.CacheCreation5mTokens,
+		CacheCreation1hTokens: tokens.CacheCreation1hTokens,
+	}
+	inRangeCost := s.CalculateCostWithPricing(pricing, inRangeTokens, rateMultiplier, "")
+
+	outRangeTokens := UsageTokens{
+		InputTokens:     outRangeInputTokens,
+		CacheReadTokens: outRangeCacheTokens,
+	}
+	outRangeCost := s.CalculateCostWithPricing(pricing, outRangeTokens, rateMultiplier*extraMultiplier, "")
+
+	return &CostBreakdown{
+		InputCost:         inRangeCost.InputCost + outRangeCost.InputCost,
+		OutputCost:        inRangeCost.OutputCost,
+		CacheCreationCost: inRangeCost.CacheCreationCost,
+		CacheReadCost:     inRangeCost.CacheReadCost + outRangeCost.CacheReadCost,
+		TotalCost:         inRangeCost.TotalCost + outRangeCost.TotalCost,
+		ActualCost:        inRangeCost.ActualCost + outRangeCost.ActualCost,
+	}
 }
 
 // ListSupportedModels 列出所有支持的模型（现在总是返回true，因为有模糊匹配）

@@ -140,6 +140,14 @@ func (UsageLog) Fields() []ent.Field {
 		field.Bool("cache_ttl_overridden").
 			Default(false),
 
+		// billing_model: 实际用于定价查询的模型名
+		// 可能与 model（客户端请求）和 upstream_model（上游返回）不同
+		// 用于计费协议与定价模型解耦（如 Anthropic 协议代理 MiniMax 模型时按 MiniMax 定价）
+		field.String("billing_model").
+			MaxLen(200).
+			Optional().
+			Nillable(),
+
 		// 时间戳（只有 created_at，日志不可修改）
 		field.Time("created_at").
 			Default(time.Now).

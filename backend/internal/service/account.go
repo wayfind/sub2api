@@ -63,6 +63,11 @@ type Account struct {
 	modelMappingCacheRawPtr         uintptr
 	modelMappingCacheRawLen         int
 	modelMappingCacheRawSig         uint64
+
+	// model_pricing 热路径缓存（非持久化字段）
+	modelPricingCache      map[string]*ModelPricing // key: 小写模型名
+	modelPricingCacheReady bool
+	modelPricingCacheExtra uintptr // Extra map 指针，用于检测变化
 }
 
 type TempUnschedulableRule struct {
@@ -1558,6 +1563,149 @@ func ValidateQuotaResetConfig(extra map[string]any) error {
 // HasAnyQuotaLimit 检查是否配置了任一维度的配额限制
 func (a *Account) HasAnyQuotaLimit() bool {
 	return a.GetQuotaLimit() > 0 || a.GetQuotaDailyLimit() > 0 || a.GetQuotaWeeklyLimit() > 0
+}
+
+// GetModelPricingOverride 从 Account.Extra["model_pricing"] 中获取指定模型的人工确认定价。
+// 返回 nil 表示该模型未配置定价覆盖。
+// 结果按 Account 实例缓存，Extra 指针变化时自动失效。
+func (a *Account) GetModelPricingOverride(model string) *ModelPricing {
+	if a == nil || a.Extra == nil {
+		return nil
+	}
+	model = strings.ToLower(strings.TrimSpace(model))
+	if model == "" {
+		return nil
+	}
+
+	// 缓存检查：Extra 指针不变时复用
+	extraPtr := reflect.ValueOf(a.Extra).Pointer()
+	if a.modelPricingCacheReady && a.modelPricingCacheExtra == extraPtr {
+		return a.modelPricingCache[model] // nil = 该模型未配置
+	}
+
+	// 重建缓存
+	a.modelPricingCache = make(map[string]*ModelPricing)
+	a.modelPricingCacheExtra = extraPtr
+	a.modelPricingCacheReady = true
+
+	raw, ok := a.Extra["model_pricing"]
+	if !ok || raw == nil {
+		return nil
+	}
+	allPricing, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	for modelKey, entry := range allPricing {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		pricing := &ModelPricing{
+			InputPricePerToken:             parseExtraFloat64(m["input_cost_per_token"]),
+			InputPricePerTokenPriority:     parseExtraFloat64(m["input_cost_per_token_priority"]),
+			OutputPricePerToken:            parseExtraFloat64(m["output_cost_per_token"]),
+			OutputPricePerTokenPriority:    parseExtraFloat64(m["output_cost_per_token_priority"]),
+			CacheCreationPricePerToken:     parseExtraFloat64(m["cache_creation_input_token_cost"]),
+			CacheReadPricePerToken:         parseExtraFloat64(m["cache_read_input_token_cost"]),
+			CacheReadPricePerTokenPriority: parseExtraFloat64(m["cache_read_input_token_cost_priority"]),
+		}
+		// 至少有一个价格维度 > 0 才视为有效
+		if pricing.InputPricePerToken > 0 || pricing.OutputPricePerToken > 0 {
+			a.modelPricingCache[strings.ToLower(strings.TrimSpace(modelKey))] = pricing
+		}
+	}
+
+	return a.modelPricingCache[model]
+}
+
+// HasModelPricingOverride 检查指定模型是否配置了定价覆盖
+func (a *Account) HasModelPricingOverride(model string) bool {
+	return a.GetModelPricingOverride(model) != nil
+}
+
+// GetBillingModelOverride 获取 Account 级计费模型映射。
+// 将上游号称的模型名映射到实际的计费模型名。
+// 典型场景：MiniMax 为兼容 Claude Code 号称 sonnet/opus，但实际是不同的 MiniMax 模型。
+//
+// 支持精确匹配和通配符（*），与 GetMappedModel 规则一致。
+// Extra["billing_model_mapping"] 格式：{"claude-sonnet-4": "minimax-m2.5", "*": "minimax-m2.5-default"}
+// 返回空字符串表示未配置或未命中。
+func (a *Account) GetBillingModelOverride(requestedModel string) string {
+	if a == nil || a.Extra == nil {
+		return ""
+	}
+	raw, ok := a.Extra["billing_model_mapping"]
+	if !ok || raw == nil {
+		// 兼容单值 billing_model（简单场景：所有模型统一覆盖）
+		if v, ok := a.Extra["billing_model"]; ok {
+			if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
+			}
+		}
+		return ""
+	}
+	mapping, ok := raw.(map[string]any)
+	if !ok || len(mapping) == 0 {
+		return ""
+	}
+
+	requestedModel = strings.ToLower(strings.TrimSpace(requestedModel))
+	if requestedModel == "" {
+		return ""
+	}
+
+	// 精确匹配
+	if v, ok := mapping[requestedModel]; ok {
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+	}
+
+	// 通配符匹配（最长匹配优先）
+	var bestMatch string
+	var bestLen int
+	for pattern, v := range mapping {
+		s, ok := v.(string)
+		if !ok || strings.TrimSpace(s) == "" {
+			continue
+		}
+		if pattern == "*" {
+			if bestLen == 0 {
+				bestMatch = strings.TrimSpace(s)
+				// bestLen 保持 0，让更精确的匹配优先
+			}
+			continue
+		}
+
+		prefixWild := strings.HasPrefix(pattern, "*")
+		suffixWild := strings.HasSuffix(pattern, "*")
+
+		if prefixWild && suffixWild {
+			// *keyword* — contains 匹配
+			keyword := strings.TrimSuffix(strings.TrimPrefix(pattern, "*"), "*")
+			if keyword != "" && strings.Contains(requestedModel, strings.ToLower(keyword)) && len(keyword) > bestLen {
+				bestMatch = strings.TrimSpace(s)
+				bestLen = len(keyword)
+			}
+		} else if suffixWild {
+			// prefix* — 前缀匹配
+			prefix := strings.TrimSuffix(pattern, "*")
+			if strings.HasPrefix(requestedModel, prefix) && len(prefix) > bestLen {
+				bestMatch = strings.TrimSpace(s)
+				bestLen = len(prefix)
+			}
+		} else if prefixWild {
+			// *suffix — 后缀匹配
+			suffix := strings.TrimPrefix(pattern, "*")
+			if strings.HasSuffix(requestedModel, suffix) && len(suffix) > bestLen {
+				bestMatch = strings.TrimSpace(s)
+				bestLen = len(suffix)
+			}
+		}
+	}
+	return bestMatch
 }
 
 // isPeriodExpired 检查指定周期（自 periodStart 起经过 dur）是否已过期

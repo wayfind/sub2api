@@ -686,6 +686,26 @@ func (_u *UsageLogUpdate) SetNillableCacheTTLOverridden(v *bool) *UsageLogUpdate
 	return _u
 }
 
+// SetBillingModel sets the "billing_model" field.
+func (_u *UsageLogUpdate) SetBillingModel(v string) *UsageLogUpdate {
+	_u.mutation.SetBillingModel(v)
+	return _u
+}
+
+// SetNillableBillingModel sets the "billing_model" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingModel(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingModel(*v)
+	}
+	return _u
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (_u *UsageLogUpdate) ClearBillingModel() *UsageLogUpdate {
+	_u.mutation.ClearBillingModel()
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UsageLogUpdate) SetUser(v *User) *UsageLogUpdate {
 	return _u.SetUserID(v.ID)
@@ -813,6 +833,11 @@ func (_u *UsageLogUpdate) check() error {
 	if v, ok := _u.mutation.MediaType(); ok {
 		if err := usagelog.MediaTypeValidator(v); err != nil {
 			return &ValidationError{Name: "media_type", err: fmt.Errorf(`ent: validator failed for field "UsageLog.media_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingModel(); ok {
+		if err := usagelog.BillingModelValidator(v); err != nil {
+			return &ValidationError{Name: "billing_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_model": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -1003,6 +1028,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingModel(); ok {
+		_spec.SetField(usagelog.FieldBillingModel, field.TypeString, value)
+	}
+	if _u.mutation.BillingModelCleared() {
+		_spec.ClearField(usagelog.FieldBillingModel, field.TypeString)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1823,6 +1854,26 @@ func (_u *UsageLogUpdateOne) SetNillableCacheTTLOverridden(v *bool) *UsageLogUpd
 	return _u
 }
 
+// SetBillingModel sets the "billing_model" field.
+func (_u *UsageLogUpdateOne) SetBillingModel(v string) *UsageLogUpdateOne {
+	_u.mutation.SetBillingModel(v)
+	return _u
+}
+
+// SetNillableBillingModel sets the "billing_model" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingModel(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingModel(*v)
+	}
+	return _u
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (_u *UsageLogUpdateOne) ClearBillingModel() *UsageLogUpdateOne {
+	_u.mutation.ClearBillingModel()
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *UsageLogUpdateOne) SetUser(v *User) *UsageLogUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -1963,6 +2014,11 @@ func (_u *UsageLogUpdateOne) check() error {
 	if v, ok := _u.mutation.MediaType(); ok {
 		if err := usagelog.MediaTypeValidator(v); err != nil {
 			return &ValidationError{Name: "media_type", err: fmt.Errorf(`ent: validator failed for field "UsageLog.media_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingModel(); ok {
+		if err := usagelog.BillingModelValidator(v); err != nil {
+			return &ValidationError{Name: "billing_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_model": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -2170,6 +2226,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingModel(); ok {
+		_spec.SetField(usagelog.FieldBillingModel, field.TypeString, value)
+	}
+	if _u.mutation.BillingModelCleared() {
+		_spec.ClearField(usagelog.FieldBillingModel, field.TypeString)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

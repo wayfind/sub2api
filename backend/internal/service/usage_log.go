@@ -148,6 +148,10 @@ type UsageLog struct {
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool
 
+	// BillingModel 实际用于定价查询的模型名（可能与 Model/UpstreamModel 不同）
+	// nil 表示使用默认的 forwardResultBillingModel 逻辑（向后兼容历史数据）
+	BillingModel *string
+
 	// 图片生成字段
 	ImageCount int
 	ImageSize  *string

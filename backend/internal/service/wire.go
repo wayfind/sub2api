@@ -262,6 +262,18 @@ func ProvideOpsAlertEvaluatorService(
 	return svc
 }
 
+// ProvideAccountPricingSyncService creates and starts AccountPricingSyncService.
+func ProvideAccountPricingSyncService(
+	accountRepo AccountRepository,
+	pricingService *PricingService,
+	opsService *OpsService,
+	timingWheel *TimingWheelService,
+) *AccountPricingSyncService {
+	svc := NewAccountPricingSyncService(accountRepo, pricingService, opsService, timingWheel)
+	svc.Start()
+	return svc
+}
+
 // ProvideOpsCleanupService creates and starts OpsCleanupService (cron scheduled).
 func ProvideOpsCleanupService(
 	opsRepo OpsRepository,
@@ -456,6 +468,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsMetricsCollector,
 	ProvideOpsAggregationService,
 	ProvideOpsAlertEvaluatorService,
+	ProvideAccountPricingSyncService,
 	ProvideOpsCleanupService,
 	ProvideOpsScheduledReportService,
 	NewEmailService,

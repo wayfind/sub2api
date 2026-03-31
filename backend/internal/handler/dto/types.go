@@ -382,6 +382,9 @@ type UsageLog struct {
 	// Cache TTL Override 标记
 	CacheTTLOverridden bool `json:"cache_ttl_overridden"`
 
+	// BillingModel 实际用于定价查询的模型名（可能与请求模型不同）
+	BillingModel *string `json:"billing_model,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 
 	User         *User             `json:"user,omitempty"`

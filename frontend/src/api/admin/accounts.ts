@@ -674,7 +674,29 @@ export const accountsAPI = {
   getAntigravityDefaultModelMapping,
   batchClearError,
   batchRefresh,
-  setPrivacy
+  setPrivacy,
+  lookupModelPricing
+}
+
+export interface ModelPricingLookupResult {
+  found: boolean
+  model: string
+  pricing?: {
+    input_cost_per_token: number
+    input_cost_per_token_priority: number
+    output_cost_per_token: number
+    output_cost_per_token_priority: number
+    cache_creation_input_token_cost: number
+    cache_read_input_token_cost: number
+    cache_read_input_token_cost_priority: number
+  }
+}
+
+async function lookupModelPricing(model: string): Promise<ModelPricingLookupResult> {
+  const { data } = await apiClient.get<ModelPricingLookupResult>('/admin/accounts/lookup-model-pricing', {
+    params: { model }
+  })
+  return data
 }
 
 export default accountsAPI

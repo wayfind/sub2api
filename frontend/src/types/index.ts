@@ -1026,6 +1026,9 @@ export interface UsageLog {
   // Cache TTL Override
   cache_ttl_overridden: boolean
 
+  // 实际用于定价查询的模型名（可能与请求模型不同）
+  billing_model?: string | null
+
   created_at: string
 
   user?: User

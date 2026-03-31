@@ -156,8 +156,16 @@
             }}</span>
           </template>
 
-          <template #cell-model="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <template #cell-model="{ row }">
+            <div v-if="row.billing_model && row.billing_model !== row.model" class="space-y-0.5 text-xs">
+              <div class="break-all font-medium text-gray-900 dark:text-white">
+                {{ row.model }}
+              </div>
+              <div class="break-all text-amber-600 dark:text-amber-400">
+                <span class="mr-0.5">$</span>{{ row.billing_model }}
+              </div>
+            </div>
+            <span v-else class="font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
           </template>
 
           <template #cell-reasoning_effort="{ row }">

@@ -1179,6 +1179,23 @@
         />
       </div>
 
+      <!-- 模型定价覆盖 -->
+      <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+        <div class="mb-3">
+          <h3 class="input-label mb-0 text-base font-semibold">{{ t('admin.accounts.modelPricing', 'Billing Model & Pricing') }}</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.modelPricingHint', 'Map upstream-claimed model names to actual models, and configure per-token pricing. Prices are auto-fetched from LiteLLM when available.') }}
+          </p>
+        </div>
+
+        <ModelPricingCard
+          :billingModelMapping="editBillingModelMapping"
+          :modelPricing="editModelPricing"
+          @update:billingModelMapping="editBillingModelMapping = $event"
+          @update:modelPricing="editModelPricing = $event"
+        />
+      </div>
+
       <!-- OpenAI OAuth Codex 官方客户端限制开关 -->
       <div
         v-if="account?.platform === 'openai' && account?.type === 'oauth'"
@@ -1725,6 +1742,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
+import ModelPricingCard from '@/components/account/ModelPricingCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -1861,6 +1879,8 @@ const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
+const editBillingModelMapping = ref<Record<string, string>>({})
+const editModelPricing = ref<Record<string, any>>({})
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -2051,6 +2071,18 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
     anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
   }
+
+  // Load model pricing overrides
+  const rawMapping = extra?.billing_model_mapping as Record<string, string> | undefined
+  if (rawMapping && typeof rawMapping === 'object') {
+    editBillingModelMapping.value = { ...rawMapping }
+  } else if (typeof extra?.billing_model === 'string' && extra.billing_model) {
+    // 兼容旧的单值 billing_model：转为 * 通配符映射
+    editBillingModelMapping.value = { '*': extra.billing_model as string }
+  } else {
+    editBillingModelMapping.value = {}
+  }
+  editModelPricing.value = (extra?.model_pricing as Record<string, any>) || {}
 
   // Load quota limit for apikey/bedrock accounts (bedrock quota is also loaded in its own branch above)
   if (newAccount.type === 'apikey' || newAccount.type === 'bedrock') {
@@ -3027,6 +3059,25 @@ const handleSubmit = async () => {
         }
       }
 
+      updatePayload.extra = newExtra
+    }
+
+    // Save model pricing overrides to extra
+    {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) || {}
+      const newExtra: Record<string, unknown> = { ...currentExtra }
+      if (Object.keys(editBillingModelMapping.value).length > 0) {
+        newExtra.billing_model_mapping = editBillingModelMapping.value
+      } else {
+        delete newExtra.billing_model_mapping
+      }
+      delete newExtra.billing_model // 清理旧的单值字段
+      if (Object.keys(editModelPricing.value).length > 0) {
+        newExtra.model_pricing = editModelPricing.value
+      } else {
+        delete newExtra.model_pricing
+      }
       updatePayload.extra = newExtra
     }
 

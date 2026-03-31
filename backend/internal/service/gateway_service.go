@@ -7643,6 +7643,16 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 
 	var cost *CostBreakdown
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	// 整合 Account model_mapping：如果账号配置了模型映射，用映射后的模型名查价
+	if account != nil {
+		if mapped := account.GetMappedModel(billingModel); mapped != billingModel {
+			billingModel = mapped
+		}
+		// Account 级计费模型覆盖：将上游号称的模型名映射到实际计费模型
+		if override := account.GetBillingModelOverride(billingModel); override != "" {
+			billingModel = override
+		}
+	}
 
 	// 根据请求类型选择计费方式
 	if result.MediaType == "image" || result.MediaType == "video" {
@@ -7683,10 +7693,11 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 			CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
 			CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
 		}
-		var err error
-		cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
-		if err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
+		// 三级瀑布定价：Account 覆盖 → LiteLLM → 硬编码回退
+		if pricing := ResolveModelPricing(account, billingModel, s.billingService); pricing != nil {
+			cost = s.billingService.CalculateCostWithPricing(pricing, tokens, multiplier, "")
+		} else {
+			logger.LegacyPrintf("service.gateway", "Pricing not found for model: %s (account=%d)", billingModel, account.ID)
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
@@ -7743,6 +7754,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		ImageSize:             imageSize,
 		MediaType:             mediaType,
 		CacheTTLOverridden:    cacheTTLOverridden,
+		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
 		CreatedAt:             time.Now(),
 	}
 
@@ -7848,6 +7860,16 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 
 	var cost *CostBreakdown
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	// 整合 Account model_mapping
+	if account != nil {
+		if mapped := account.GetMappedModel(billingModel); mapped != billingModel {
+			billingModel = mapped
+		}
+		// Account 级计费模型覆盖
+		if override := account.GetBillingModelOverride(billingModel); override != "" {
+			billingModel = override
+		}
+	}
 
 	// 根据请求类型选择计费方式
 	if result.ImageCount > 0 {
@@ -7871,10 +7893,11 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 			CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
 			CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
 		}
-		var err error
-		cost, err = s.billingService.CalculateCostWithLongContext(billingModel, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
-		if err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
+		// 三级瀑布定价：Account 覆盖 → LiteLLM → 硬编码回退
+		if pricing := ResolveModelPricing(account, billingModel, s.billingService); pricing != nil {
+			cost = s.billingService.CalculateCostWithPricingAndLongContext(pricing, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
+		} else {
+			logger.LegacyPrintf("service.gateway", "Pricing not found for model: %s (account=%d)", billingModel, account.ID)
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
@@ -7926,6 +7949,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		ImageCount:            result.ImageCount,
 		ImageSize:             imageSize,
 		CacheTTLOverridden:    cacheTTLOverridden,
+		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
 		CreatedAt:             time.Now(),
 	}
 

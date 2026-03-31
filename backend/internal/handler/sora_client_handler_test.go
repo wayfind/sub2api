@@ -2081,6 +2081,9 @@ func (r *stubAccountRepoForHandler) ListByGroup(context.Context, int64) ([]servi
 func (r *stubAccountRepoForHandler) ListActive(context.Context) ([]service.Account, error) {
 	return nil, nil
 }
+func (r *stubAccountRepoForHandler) ListWithModelPricing(context.Context) ([]service.Account, error) {
+	return nil, nil
+}
 func (r *stubAccountRepoForHandler) ListByPlatform(context.Context, string) ([]service.Account, error) {
 	return nil, nil
 }

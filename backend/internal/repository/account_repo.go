@@ -55,6 +55,7 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 	"codex_primary_",
 	"codex_secondary_",
 	"codex_5h_",
+	"model_pricing",
 	"codex_7d_",
 	"passive_usage_",
 }
@@ -62,6 +63,8 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 var schedulerNeutralExtraKeys = map[string]struct{}{
 	"codex_usage_updated_at":     {},
 	"session_window_utilization": {},
+	"billing_model":              {},
+	"billing_model_mapping":      {},
 }
 
 // NewAccountRepository 创建账户仓储实例。
@@ -540,6 +543,23 @@ func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, 
 	accounts, err := r.client.Account.Query().
 		Where(dbaccount.StatusEQ(service.StatusActive)).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.accountsToService(ctx, accounts)
+}
+
+func (r *accountRepository) ListWithModelPricing(ctx context.Context) ([]service.Account, error) {
+	accounts, err := r.client.Account.Query().
+		Where(
+			dbaccount.StatusEQ(service.StatusActive),
+			dbaccount.DeletedAtIsNil(),
+			// extra->'model_pricing' 存在性检查（隐含 extra IS NOT NULL）
+			dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(sqljson.HasKey(dbaccount.FieldExtra, sqljson.Path("model_pricing")))
+			}),
+		).
 		All(ctx)
 	if err != nil {
 		return nil, err

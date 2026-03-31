@@ -19659,6 +19659,7 @@ type UsageLogMutation struct {
 	image_size                  *string
 	media_type                  *string
 	cache_ttl_overridden        *bool
+	billing_model               *string
 	created_at                  *time.Time
 	clearedFields               map[string]struct{}
 	user                        *int64
@@ -21468,6 +21469,55 @@ func (m *UsageLogMutation) ResetCacheTTLOverridden() {
 	m.cache_ttl_overridden = nil
 }
 
+// SetBillingModel sets the "billing_model" field.
+func (m *UsageLogMutation) SetBillingModel(s string) {
+	m.billing_model = &s
+}
+
+// BillingModel returns the value of the "billing_model" field in the mutation.
+func (m *UsageLogMutation) BillingModel() (r string, exists bool) {
+	v := m.billing_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingModel returns the old "billing_model" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBillingModel(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingModel: %w", err)
+	}
+	return oldValue.BillingModel, nil
+}
+
+// ClearBillingModel clears the value of the "billing_model" field.
+func (m *UsageLogMutation) ClearBillingModel() {
+	m.billing_model = nil
+	m.clearedFields[usagelog.FieldBillingModel] = struct{}{}
+}
+
+// BillingModelCleared returns if the "billing_model" field was cleared in this mutation.
+func (m *UsageLogMutation) BillingModelCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldBillingModel]
+	return ok
+}
+
+// ResetBillingModel resets all changes to the "billing_model" field.
+func (m *UsageLogMutation) ResetBillingModel() {
+	m.billing_model = nil
+	delete(m.clearedFields, usagelog.FieldBillingModel)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UsageLogMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -21673,7 +21723,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 34)
+	fields := make([]string, 0, 35)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -21773,6 +21823,9 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.cache_ttl_overridden != nil {
 		fields = append(fields, usagelog.FieldCacheTTLOverridden)
 	}
+	if m.billing_model != nil {
+		fields = append(fields, usagelog.FieldBillingModel)
+	}
 	if m.created_at != nil {
 		fields = append(fields, usagelog.FieldCreatedAt)
 	}
@@ -21850,6 +21903,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.MediaType()
 	case usagelog.FieldCacheTTLOverridden:
 		return m.CacheTTLOverridden()
+	case usagelog.FieldBillingModel:
+		return m.BillingModel()
 	case usagelog.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -21927,6 +21982,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldMediaType(ctx)
 	case usagelog.FieldCacheTTLOverridden:
 		return m.OldCacheTTLOverridden(ctx)
+	case usagelog.FieldBillingModel:
+		return m.OldBillingModel(ctx)
 	case usagelog.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -22168,6 +22225,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCacheTTLOverridden(v)
+		return nil
+	case usagelog.FieldBillingModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingModel(v)
 		return nil
 	case usagelog.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -22458,6 +22522,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldMediaType) {
 		fields = append(fields, usagelog.FieldMediaType)
 	}
+	if m.FieldCleared(usagelog.FieldBillingModel) {
+		fields = append(fields, usagelog.FieldBillingModel)
+	}
 	return fields
 }
 
@@ -22504,6 +22571,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldMediaType:
 		m.ClearMediaType()
+		return nil
+	case usagelog.FieldBillingModel:
+		m.ClearBillingModel()
 		return nil
 	}
 	return fmt.Errorf("unknown UsageLog nullable field %s", name)
@@ -22611,6 +22681,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldCacheTTLOverridden:
 		m.ResetCacheTTLOverridden()
+		return nil
+	case usagelog.FieldBillingModel:
+		m.ResetBillingModel()
 		return nil
 	case usagelog.FieldCreatedAt:
 		m.ResetCreatedAt()

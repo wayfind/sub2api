@@ -80,6 +80,8 @@ const (
 	FieldMediaType = "media_type"
 	// FieldCacheTTLOverridden holds the string denoting the cache_ttl_overridden field in the database.
 	FieldCacheTTLOverridden = "cache_ttl_overridden"
+	// FieldBillingModel holds the string denoting the billing_model field in the database.
+	FieldBillingModel = "billing_model"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -167,6 +169,7 @@ var Columns = []string{
 	FieldImageSize,
 	FieldMediaType,
 	FieldCacheTTLOverridden,
+	FieldBillingModel,
 	FieldCreatedAt,
 }
 
@@ -231,6 +234,8 @@ var (
 	MediaTypeValidator func(string) error
 	// DefaultCacheTTLOverridden holds the default value on creation for the "cache_ttl_overridden" field.
 	DefaultCacheTTLOverridden bool
+	// BillingModelValidator is a validator for the "billing_model" field. It is called by the builders before save.
+	BillingModelValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -406,6 +411,11 @@ func ByMediaType(opts ...sql.OrderTermOption) OrderOption {
 // ByCacheTTLOverridden orders the results by the cache_ttl_overridden field.
 func ByCacheTTLOverridden(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheTTLOverridden, opts...).ToFunc()
+}
+
+// ByBillingModel orders the results by the billing_model field.
+func ByBillingModel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingModel, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

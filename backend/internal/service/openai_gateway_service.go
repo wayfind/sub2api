@@ -4156,12 +4156,25 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result.BillingModel != "" {
 		billingModel = strings.TrimSpace(result.BillingModel)
 	}
+	// 整合 Account model_mapping
+	if account != nil {
+		if mapped := account.GetMappedModel(billingModel); mapped != billingModel {
+			billingModel = mapped
+		}
+		// Account 级计费模型覆盖
+		if override := account.GetBillingModelOverride(billingModel); override != "" {
+			billingModel = override
+		}
+	}
 	serviceTier := ""
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
-	cost, err := s.billingService.CalculateCostWithServiceTier(billingModel, tokens, multiplier, serviceTier)
-	if err != nil {
+	// 三级瀑布定价：Account 覆盖 → LiteLLM → 硬编码回退
+	var cost *CostBreakdown
+	if pricing := ResolveModelPricing(account, billingModel, s.billingService); pricing != nil {
+		cost = s.billingService.CalculateCostWithPricing(pricing, tokens, multiplier, serviceTier)
+	} else {
 		cost = &CostBreakdown{ActualCost: 0}
 	}
 
@@ -4205,6 +4218,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		OpenAIWSMode:          result.OpenAIWSMode,
 		DurationMs:            &durationMs,
 		FirstTokenMs:          result.FirstTokenMs,
+		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
 		CreatedAt:             time.Now(),
 	}
 	// 添加 UserAgent

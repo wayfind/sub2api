@@ -1586,6 +1586,22 @@
         />
       </div>
 
+      <!-- 模型定价覆盖 -->
+      <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
+        <div class="mb-3">
+          <h3 class="input-label mb-0 text-base font-semibold">{{ t('admin.accounts.modelPricing', 'Billing Model & Pricing') }}</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.modelPricingHint', 'Map upstream-claimed model names to actual models, and configure per-token pricing.') }}
+          </p>
+        </div>
+        <ModelPricingCard
+          :billingModelMapping="editBillingModelMapping"
+          :modelPricing="editModelPricing"
+          @update:billingModelMapping="editBillingModelMapping = $event"
+          @update:modelPricing="editModelPricing = $event"
+        />
+      </div>
+
       <!-- OpenAI OAuth Model Mapping (OAuth 类型没有 apikey 容器，需要独立的模型映射区域) -->
       <div
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
@@ -2878,6 +2894,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
+import ModelPricingCard from '@/components/account/ModelPricingCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -3004,6 +3021,8 @@ const apiKeyValue = ref('')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
+const editBillingModelMapping = ref<Record<string, string>>({})
+const editModelPricing = ref<Record<string, any>>({})
 const editDailyResetMode = ref<'rolling' | 'fixed' | null>(null)
 const editDailyResetHour = ref<number | null>(null)
 const editWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
@@ -4251,6 +4270,19 @@ const createAccountAndFinish = async (
     }
     if (Object.keys(quotaExtra).length > 0) {
       finalExtra = quotaExtra
+    }
+  }
+  // Inject billing model mapping and pricing
+  {
+    const billingExtra: Record<string, unknown> = { ...(finalExtra || {}) }
+    if (Object.keys(editBillingModelMapping.value).length > 0) {
+      billingExtra.billing_model_mapping = editBillingModelMapping.value
+    }
+    if (Object.keys(editModelPricing.value).length > 0) {
+      billingExtra.model_pricing = editModelPricing.value
+    }
+    if (Object.keys(billingExtra).length > (finalExtra ? Object.keys(finalExtra).length : 0)) {
+      finalExtra = billingExtra
     }
   }
   await doCreateAccount({
