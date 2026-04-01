@@ -675,7 +675,8 @@ export const accountsAPI = {
   batchClearError,
   batchRefresh,
   setPrivacy,
-  lookupModelPricing
+  lookupModelPricing,
+  searchPricingModels
 }
 
 export interface ModelPricingLookupResult {
@@ -695,6 +696,13 @@ export interface ModelPricingLookupResult {
 async function lookupModelPricing(model: string): Promise<ModelPricingLookupResult> {
   const { data } = await apiClient.get<ModelPricingLookupResult>('/admin/accounts/lookup-model-pricing', {
     params: { model }
+  })
+  return data
+}
+
+async function searchPricingModels(query: string, limit: number = 15): Promise<string[]> {
+  const { data } = await apiClient.get<string[]>('/admin/accounts/search-pricing-models', {
+    params: { q: query, limit }
   })
   return data
 }

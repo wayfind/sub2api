@@ -257,6 +257,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/lookup-model-pricing", h.Admin.Account.LookupModelPricing)
+		accounts.GET("/search-pricing-models", h.Admin.Account.SearchPricingModels)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/check-mixed-channel", h.Admin.Account.CheckMixedChannel)

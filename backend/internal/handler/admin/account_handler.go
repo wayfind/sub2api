@@ -2193,3 +2193,31 @@ func (h *AccountHandler) LookupModelPricing(c *gin.Context) {
 		},
 	})
 }
+
+// SearchPricingModels 模糊搜索定价模型名称（供前端 autocomplete）
+// GET /api/v1/admin/accounts/search-pricing-models?q=minimax&limit=10
+func (h *AccountHandler) SearchPricingModels(c *gin.Context) {
+	q := strings.TrimSpace(c.Query("q"))
+	if q == "" {
+		response.Success(c, []string{})
+		return
+	}
+
+	limit := 15
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
+			limit = parsed
+		}
+	}
+
+	if h.billingService == nil {
+		response.Success(c, []string{})
+		return
+	}
+
+	results := h.billingService.SearchPricingModels(q, limit)
+	if results == nil {
+		results = []string{}
+	}
+	response.Success(c, results)
+}

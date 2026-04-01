@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -961,4 +962,44 @@ func isNumeric(s string) bool {
 		}
 	}
 	return true
+}
+
+// SearchModels 模糊搜索定价模型名称
+func (s *PricingService) SearchModels(query string, limit int) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if query == "" || limit <= 0 {
+		return nil
+	}
+
+	queryLower := strings.ToLower(strings.TrimSpace(query))
+	if queryLower == "" {
+		return nil
+	}
+
+	var results []string
+	for name := range s.pricingData {
+		if strings.Contains(name, queryLower) {
+			results = append(results, name)
+			if len(results) >= limit*3 { // 多取一些用于排序
+				break
+			}
+		}
+	}
+
+	// 排序：前缀匹配优先，然后按长度升序
+	sort.Slice(results, func(i, j int) bool {
+		iPre := strings.HasPrefix(results[i], queryLower)
+		jPre := strings.HasPrefix(results[j], queryLower)
+		if iPre != jPre {
+			return iPre
+		}
+		return len(results[i]) < len(results[j])
+	})
+
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results
 }

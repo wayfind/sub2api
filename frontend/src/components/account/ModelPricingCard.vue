@@ -39,14 +39,54 @@ const newActual = ref('')
 const lookupLoading = ref(false)
 const lookupResult = ref<ModelPricingLookupResult | null>(null)
 
+// 模糊搜索
+const searchResults = ref<string[]>([])
+const searchLoading = ref(false)
+const showSearchDropdown = ref(false)
+
 let lookupTimer: ReturnType<typeof setTimeout> | null = null
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 function onActualInput() {
   lookupResult.value = null
   if (lookupTimer) clearTimeout(lookupTimer)
+  if (searchTimer) clearTimeout(searchTimer)
+
   const model = newActual.value.trim()
-  if (!model) return
-  lookupTimer = setTimeout(() => doLookup(model), 500)
+  if (!model || model.length < 2) {
+    searchResults.value = []
+    showSearchDropdown.value = false
+    return
+  }
+
+  // 模糊搜索（300ms debounce）
+  searchTimer = setTimeout(() => doSearch(model), 300)
+}
+
+async function doSearch(query: string) {
+  searchLoading.value = true
+  try {
+    searchResults.value = await accountsAPI.searchPricingModels(query, 15)
+    showSearchDropdown.value = searchResults.value.length > 0
+  } catch {
+    searchResults.value = []
+    showSearchDropdown.value = false
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+function selectSearchResult(model: string) {
+  newActual.value = model
+  searchResults.value = []
+  showSearchDropdown.value = false
+  // 选中后立即查询完整定价
+  doLookup(model)
+}
+
+function onActualBlur() {
+  // 延迟关闭以允许点击搜索结果
+  setTimeout(() => { showSearchDropdown.value = false }, 200)
 }
 
 async function doLookup(model: string) {
@@ -197,10 +237,31 @@ function formatPricePerMTok(v: number): string {
           placeholder="Claimed name (e.g. claude-sonnet-4)"
           @keydown.enter.prevent="addMapping" />
         <span class="text-gray-400">→</span>
-        <input v-model="newActual" type="text" class="input-field text-xs"
-          placeholder="Actual model (e.g. minimax-m2.5)"
-          @input="onActualInput"
-          @keydown.enter.prevent="addMapping" />
+        <div class="relative flex-1">
+          <input v-model="newActual" type="text" class="input-field text-xs w-full"
+            placeholder="Search billing model..."
+            @input="onActualInput"
+            @focus="newActual.trim().length >= 2 && searchResults.length > 0 && (showSearchDropdown = true)"
+            @blur="onActualBlur"
+            @keydown.enter.prevent="addMapping"
+            @keydown.escape="showSearchDropdown = false" />
+          <div v-if="searchLoading" class="absolute right-2 top-1/2 -translate-y-1/2">
+            <span class="block h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent"></span>
+          </div>
+          <!-- 搜索结果下拉 -->
+          <div v-if="showSearchDropdown && searchResults.length > 0"
+            class="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-500 dark:bg-dark-800">
+            <button
+              v-for="result in searchResults"
+              :key="result"
+              type="button"
+              class="block w-full px-3 py-1.5 text-left text-xs hover:bg-primary-50 dark:hover:bg-dark-600"
+              @mousedown.prevent="selectSearchResult(result)"
+            >
+              <span class="text-gray-900 dark:text-white">{{ result }}</span>
+            </button>
+          </div>
+        </div>
         <button type="button"
           class="whitespace-nowrap rounded-md bg-primary-600 px-3 py-1.5 text-xs text-white hover:bg-primary-700 disabled:opacity-50"
           :disabled="!newClaimed.trim() || !newActual.trim() || lookupLoading"

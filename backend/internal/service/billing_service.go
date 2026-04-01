@@ -684,6 +684,14 @@ func (s *BillingService) GetPricingServiceStatus() map[string]any {
 	}
 }
 
+// SearchPricingModels 模糊搜索定价模型名称
+func (s *BillingService) SearchPricingModels(query string, limit int) []string {
+	if s.pricingService == nil {
+		return nil
+	}
+	return s.pricingService.SearchModels(query, limit)
+}
+
 // ForceUpdatePricing 强制更新价格数据
 func (s *BillingService) ForceUpdatePricing() error {
 	if s.pricingService != nil {
