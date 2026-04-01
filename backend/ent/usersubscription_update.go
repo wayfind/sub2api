@@ -11,8 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -71,16 +71,16 @@ func (_u *UserSubscriptionUpdate) SetNillableUserID(v *int64) *UserSubscriptionU
 	return _u
 }
 
-// SetGroupID sets the "group_id" field.
-func (_u *UserSubscriptionUpdate) SetGroupID(v int64) *UserSubscriptionUpdate {
-	_u.mutation.SetGroupID(v)
+// SetPlanID sets the "plan_id" field.
+func (_u *UserSubscriptionUpdate) SetPlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.SetPlanID(v)
 	return _u
 }
 
-// SetNillableGroupID sets the "group_id" field if the given value is not nil.
-func (_u *UserSubscriptionUpdate) SetNillableGroupID(v *int64) *UserSubscriptionUpdate {
+// SetNillablePlanID sets the "plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillablePlanID(v *int64) *UserSubscriptionUpdate {
 	if v != nil {
-		_u.SetGroupID(*v)
+		_u.SetPlanID(*v)
 	}
 	return _u
 }
@@ -309,9 +309,9 @@ func (_u *UserSubscriptionUpdate) SetUser(v *User) *UserSubscriptionUpdate {
 	return _u.SetUserID(v.ID)
 }
 
-// SetGroup sets the "group" edge to the Group entity.
-func (_u *UserSubscriptionUpdate) SetGroup(v *Group) *UserSubscriptionUpdate {
-	return _u.SetGroupID(v.ID)
+// SetPlan sets the "plan" edge to the SubscriptionPlan entity.
+func (_u *UserSubscriptionUpdate) SetPlan(v *SubscriptionPlan) *UserSubscriptionUpdate {
+	return _u.SetPlanID(v.ID)
 }
 
 // SetAssignedByUserID sets the "assigned_by_user" edge to the User entity by ID.
@@ -359,9 +359,9 @@ func (_u *UserSubscriptionUpdate) ClearUser() *UserSubscriptionUpdate {
 	return _u
 }
 
-// ClearGroup clears the "group" edge to the Group entity.
-func (_u *UserSubscriptionUpdate) ClearGroup() *UserSubscriptionUpdate {
-	_u.mutation.ClearGroup()
+// ClearPlan clears the "plan" edge to the SubscriptionPlan entity.
+func (_u *UserSubscriptionUpdate) ClearPlan() *UserSubscriptionUpdate {
+	_u.mutation.ClearPlan()
 	return _u
 }
 
@@ -444,8 +444,8 @@ func (_u *UserSubscriptionUpdate) check() error {
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "UserSubscription.user"`)
 	}
-	if _u.mutation.GroupCleared() && len(_u.mutation.GroupIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserSubscription.group"`)
+	if _u.mutation.PlanCleared() && len(_u.mutation.PlanIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "UserSubscription.plan"`)
 	}
 	return nil
 }
@@ -554,28 +554,28 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupCleared() {
+	if _u.mutation.PlanCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   usersubscription.GroupTable,
-			Columns: []string{usersubscription.GroupColumn},
+			Table:   usersubscription.PlanTable,
+			Columns: []string{usersubscription.PlanColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionplan.FieldID, field.TypeInt64),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.PlanIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   usersubscription.GroupTable,
-			Columns: []string{usersubscription.GroupColumn},
+			Table:   usersubscription.PlanTable,
+			Columns: []string{usersubscription.PlanColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionplan.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -717,16 +717,16 @@ func (_u *UserSubscriptionUpdateOne) SetNillableUserID(v *int64) *UserSubscripti
 	return _u
 }
 
-// SetGroupID sets the "group_id" field.
-func (_u *UserSubscriptionUpdateOne) SetGroupID(v int64) *UserSubscriptionUpdateOne {
-	_u.mutation.SetGroupID(v)
+// SetPlanID sets the "plan_id" field.
+func (_u *UserSubscriptionUpdateOne) SetPlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.SetPlanID(v)
 	return _u
 }
 
-// SetNillableGroupID sets the "group_id" field if the given value is not nil.
-func (_u *UserSubscriptionUpdateOne) SetNillableGroupID(v *int64) *UserSubscriptionUpdateOne {
+// SetNillablePlanID sets the "plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillablePlanID(v *int64) *UserSubscriptionUpdateOne {
 	if v != nil {
-		_u.SetGroupID(*v)
+		_u.SetPlanID(*v)
 	}
 	return _u
 }
@@ -955,9 +955,9 @@ func (_u *UserSubscriptionUpdateOne) SetUser(v *User) *UserSubscriptionUpdateOne
 	return _u.SetUserID(v.ID)
 }
 
-// SetGroup sets the "group" edge to the Group entity.
-func (_u *UserSubscriptionUpdateOne) SetGroup(v *Group) *UserSubscriptionUpdateOne {
-	return _u.SetGroupID(v.ID)
+// SetPlan sets the "plan" edge to the SubscriptionPlan entity.
+func (_u *UserSubscriptionUpdateOne) SetPlan(v *SubscriptionPlan) *UserSubscriptionUpdateOne {
+	return _u.SetPlanID(v.ID)
 }
 
 // SetAssignedByUserID sets the "assigned_by_user" edge to the User entity by ID.
@@ -1005,9 +1005,9 @@ func (_u *UserSubscriptionUpdateOne) ClearUser() *UserSubscriptionUpdateOne {
 	return _u
 }
 
-// ClearGroup clears the "group" edge to the Group entity.
-func (_u *UserSubscriptionUpdateOne) ClearGroup() *UserSubscriptionUpdateOne {
-	_u.mutation.ClearGroup()
+// ClearPlan clears the "plan" edge to the SubscriptionPlan entity.
+func (_u *UserSubscriptionUpdateOne) ClearPlan() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearPlan()
 	return _u
 }
 
@@ -1103,8 +1103,8 @@ func (_u *UserSubscriptionUpdateOne) check() error {
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "UserSubscription.user"`)
 	}
-	if _u.mutation.GroupCleared() && len(_u.mutation.GroupIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "UserSubscription.group"`)
+	if _u.mutation.PlanCleared() && len(_u.mutation.PlanIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "UserSubscription.plan"`)
 	}
 	return nil
 }
@@ -1230,28 +1230,28 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.GroupCleared() {
+	if _u.mutation.PlanCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   usersubscription.GroupTable,
-			Columns: []string{usersubscription.GroupColumn},
+			Table:   usersubscription.PlanTable,
+			Columns: []string{usersubscription.PlanColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionplan.FieldID, field.TypeInt64),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.GroupIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.PlanIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   usersubscription.GroupTable,
-			Columns: []string{usersubscription.GroupColumn},
+			Table:   usersubscription.PlanTable,
+			Columns: []string{usersubscription.PlanColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionplan.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

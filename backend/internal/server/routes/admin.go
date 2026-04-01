@@ -70,6 +70,9 @@ func RegisterAdminRoutes(
 		// 订阅管理
 		registerSubscriptionRoutes(admin, h)
 
+		// 订阅计划管理
+		registerSubscriptionPlanRoutes(admin, h)
+
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
 
@@ -503,8 +506,11 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		subscriptions.DELETE("/:id", h.Admin.Subscription.Revoke)
 	}
 
-	// 分组下的订阅列表
+	// 分组下的订阅列表（兼容旧路由）
 	admin.GET("/groups/:id/subscriptions", h.Admin.Subscription.ListByGroup)
+
+	// 计划下的订阅列表
+	admin.GET("/subscription-plans/:id/subscriptions", h.Admin.Subscription.ListByGroup)
 
 	// 用户下的订阅列表
 	admin.GET("/users/:id/subscriptions", h.Admin.Subscription.ListByUser)
@@ -566,5 +572,17 @@ func registerTLSFingerprintProfileRoutes(admin *gin.RouterGroup, h *handler.Hand
 		profiles.POST("", h.Admin.TLSFingerprintProfile.Create)
 		profiles.PUT("/:id", h.Admin.TLSFingerprintProfile.Update)
 		profiles.DELETE("/:id", h.Admin.TLSFingerprintProfile.Delete)
+	}
+}
+
+func registerSubscriptionPlanRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	plans := admin.Group("/subscription-plans")
+	{
+		plans.GET("", h.Admin.SubscriptionPlan.List)
+		plans.GET("/all", h.Admin.SubscriptionPlan.ListAll)
+		plans.GET("/:id", h.Admin.SubscriptionPlan.GetByID)
+		plans.POST("", h.Admin.SubscriptionPlan.Create)
+		plans.PUT("/:id", h.Admin.SubscriptionPlan.Update)
+		plans.DELETE("/:id", h.Admin.SubscriptionPlan.Delete)
 	}
 }

@@ -361,10 +361,7 @@
               <GroupBadge
                 v-for="sub in row.subscriptions"
                 :key="sub.id"
-                :name="sub.group?.name || ''"
-                :platform="sub.group?.platform"
-                :subscription-type="sub.group?.subscription_type"
-                :rate-multiplier="sub.group?.rate_multiplier"
+                :name="sub.plan?.name || ''"
                 :days-remaining="sub.expires_at ? getDaysRemaining(sub.expires_at) : null"
                 :title="sub.expires_at ? formatDateTime(sub.expires_at) : ''"
               />
@@ -790,7 +787,7 @@ const getUserGroups = (user: AdminUser) => {
   const exclusive: AdminGroup[] = []
   const publicGroups: AdminGroup[] = []
   for (const g of allGroups.value) {
-    if (g.status !== 'active' || g.subscription_type !== 'standard') continue
+    if (g.status !== 'active') continue
     if (g.is_exclusive) {
       if (user.allowed_groups?.includes(g.id)) {
         exclusive.push(g)
@@ -808,7 +805,7 @@ const groupFilterOptions = computed(() => {
     { value: '', label: t('admin.users.allGroups') }
   ]
   for (const g of allGroups.value) {
-    if (g.status !== 'active' || !g.is_exclusive || g.subscription_type !== 'standard') continue
+    if (g.status !== 'active' || !g.is_exclusive) continue
     options.push({ value: g.name, label: g.name })
   }
   return options

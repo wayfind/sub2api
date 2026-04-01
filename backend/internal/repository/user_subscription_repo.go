@@ -5,7 +5,6 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -27,7 +26,7 @@ func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.Us
 	client := clientFromContext(ctx, r.client)
 	builder := client.UserSubscription.Create().
 		SetUserID(sub.UserID).
-		SetGroupID(sub.GroupID).
+		SetPlanID(sub.PlanID).
 		SetExpiresAt(sub.ExpiresAt).
 		SetNillableDailyWindowStart(sub.DailyWindowStart).
 		SetNillableWeeklyWindowStart(sub.WeeklyWindowStart).
@@ -63,7 +62,7 @@ func (r *userSubscriptionRepository) GetByID(ctx context.Context, id int64) (*se
 	m, err := client.UserSubscription.Query().
 		Where(usersubscription.IDEQ(id)).
 		WithUser().
-		WithGroup().
+		WithPlan().
 		WithAssignedByUser().
 		Only(ctx)
 	if err != nil {
@@ -72,11 +71,11 @@ func (r *userSubscriptionRepository) GetByID(ctx context.Context, id int64) (*se
 	return userSubscriptionEntityToService(m), nil
 }
 
-func (r *userSubscriptionRepository) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (r *userSubscriptionRepository) GetByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
 	m, err := client.UserSubscription.Query().
-		Where(usersubscription.UserIDEQ(userID), usersubscription.GroupIDEQ(groupID)).
-		WithGroup().
+		Where(usersubscription.UserIDEQ(userID), usersubscription.PlanIDEQ(planID)).
+		WithPlan().
 		Only(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
@@ -84,16 +83,16 @@ func (r *userSubscriptionRepository) GetByUserIDAndGroupID(ctx context.Context, 
 	return userSubscriptionEntityToService(m), nil
 }
 
-func (r *userSubscriptionRepository) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (r *userSubscriptionRepository) GetActiveByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
 	m, err := client.UserSubscription.Query().
 		Where(
 			usersubscription.UserIDEQ(userID),
-			usersubscription.GroupIDEQ(groupID),
+			usersubscription.PlanIDEQ(planID),
 			usersubscription.StatusEQ(service.SubscriptionStatusActive),
 			usersubscription.ExpiresAtGT(time.Now()),
 		).
-		WithGroup().
+		WithPlan().
 		Only(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
@@ -109,7 +108,7 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 	client := clientFromContext(ctx, r.client)
 	builder := client.UserSubscription.UpdateOneID(sub.ID).
 		SetUserID(sub.UserID).
-		SetGroupID(sub.GroupID).
+		SetPlanID(sub.PlanID).
 		SetStartsAt(sub.StartsAt).
 		SetExpiresAt(sub.ExpiresAt).
 		SetStatus(sub.Status).
@@ -142,7 +141,7 @@ func (r *userSubscriptionRepository) ListByUserID(ctx context.Context, userID in
 	client := clientFromContext(ctx, r.client)
 	subs, err := client.UserSubscription.Query().
 		Where(usersubscription.UserIDEQ(userID)).
-		WithGroup().
+		WithPlan().
 		Order(dbent.Desc(usersubscription.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
@@ -159,7 +158,7 @@ func (r *userSubscriptionRepository) ListActiveByUserID(ctx context.Context, use
 			usersubscription.StatusEQ(service.SubscriptionStatusActive),
 			usersubscription.ExpiresAtGT(time.Now()),
 		).
-		WithGroup().
+		WithPlan().
 		Order(dbent.Desc(usersubscription.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
@@ -168,9 +167,9 @@ func (r *userSubscriptionRepository) ListActiveByUserID(ctx context.Context, use
 	return userSubscriptionEntitiesToService(subs), nil
 }
 
-func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *userSubscriptionRepository) ListByPlanID(ctx context.Context, planID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	client := clientFromContext(ctx, r.client)
-	q := client.UserSubscription.Query().Where(usersubscription.GroupIDEQ(groupID))
+	q := client.UserSubscription.Query().Where(usersubscription.PlanIDEQ(planID))
 
 	total, err := q.Clone().Count(ctx)
 	if err != nil {
@@ -179,7 +178,7 @@ func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID 
 
 	subs, err := q.
 		WithUser().
-		WithGroup().
+		WithPlan().
 		Order(dbent.Desc(usersubscription.FieldCreatedAt)).
 		Offset(params.Offset()).
 		Limit(params.Limit()).
@@ -191,17 +190,14 @@ func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID 
 	return userSubscriptionEntitiesToService(subs), paginationResultFromTotal(int64(total), params), nil
 }
 
-func (r *userSubscriptionRepository) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *userSubscriptionRepository) List(ctx context.Context, params pagination.PaginationParams, userID, planID *int64, status, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	client := clientFromContext(ctx, r.client)
 	q := client.UserSubscription.Query()
 	if userID != nil {
 		q = q.Where(usersubscription.UserIDEQ(*userID))
 	}
-	if groupID != nil {
-		q = q.Where(usersubscription.GroupIDEQ(*groupID))
-	}
-	if platform != "" {
-		q = q.Where(usersubscription.HasGroupWith(group.PlatformEQ(platform)))
+	if planID != nil {
+		q = q.Where(usersubscription.PlanIDEQ(*planID))
 	}
 
 	// Status filtering with real-time expiration check
@@ -237,7 +233,7 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 	}
 
 	// Apply sorting
-	q = q.WithUser().WithGroup().WithAssignedByUser()
+	q = q.WithUser().WithPlan().WithAssignedByUser()
 
 	// Determine sort field
 	var field string
@@ -268,10 +264,10 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 	return userSubscriptionEntitiesToService(subs), paginationResultFromTotal(int64(total), params), nil
 }
 
-func (r *userSubscriptionRepository) ExistsByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (bool, error) {
+func (r *userSubscriptionRepository) ExistsByUserIDAndPlanID(ctx context.Context, userID, planID int64) (bool, error) {
 	client := clientFromContext(ctx, r.client)
 	return client.UserSubscription.Query().
-		Where(usersubscription.UserIDEQ(userID), usersubscription.GroupIDEQ(groupID)).
+		Where(usersubscription.UserIDEQ(userID), usersubscription.PlanIDEQ(planID)).
 		Exist(ctx)
 }
 
@@ -341,17 +337,14 @@ func (r *userSubscriptionRepository) ResetMonthlyUsage(ctx context.Context, id i
 // 此处仅负责记录实际消费，确保消费数据的完整性。
 func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int64, costUSD float64) error {
 	const updateSQL = `
-		UPDATE user_subscriptions us
+		UPDATE user_subscriptions
 		SET
-			daily_usage_usd = us.daily_usage_usd + $1,
-			weekly_usage_usd = us.weekly_usage_usd + $1,
-			monthly_usage_usd = us.monthly_usage_usd + $1,
+			daily_usage_usd = daily_usage_usd + $1,
+			weekly_usage_usd = weekly_usage_usd + $1,
+			monthly_usage_usd = monthly_usage_usd + $1,
 			updated_at = NOW()
-		FROM groups g
-		WHERE us.id = $2
-			AND us.deleted_at IS NULL
-			AND us.group_id = g.id
-			AND g.deleted_at IS NULL
+		WHERE id = $2
+			AND deleted_at IS NULL
 	`
 
 	client := clientFromContext(ctx, r.client)
@@ -401,17 +394,17 @@ func (r *userSubscriptionRepository) ListExpired(ctx context.Context) ([]service
 	return userSubscriptionEntitiesToService(subs), nil
 }
 
-func (r *userSubscriptionRepository) CountByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (r *userSubscriptionRepository) CountByPlanID(ctx context.Context, planID int64) (int64, error) {
 	client := clientFromContext(ctx, r.client)
-	count, err := client.UserSubscription.Query().Where(usersubscription.GroupIDEQ(groupID)).Count(ctx)
+	count, err := client.UserSubscription.Query().Where(usersubscription.PlanIDEQ(planID)).Count(ctx)
 	return int64(count), err
 }
 
-func (r *userSubscriptionRepository) CountActiveByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (r *userSubscriptionRepository) CountActiveByPlanID(ctx context.Context, planID int64) (int64, error) {
 	client := clientFromContext(ctx, r.client)
 	count, err := client.UserSubscription.Query().
 		Where(
-			usersubscription.GroupIDEQ(groupID),
+			usersubscription.PlanIDEQ(planID),
 			usersubscription.StatusEQ(service.SubscriptionStatusActive),
 			usersubscription.ExpiresAtGT(time.Now()),
 		).
@@ -419,9 +412,9 @@ func (r *userSubscriptionRepository) CountActiveByGroupID(ctx context.Context, g
 	return int64(count), err
 }
 
-func (r *userSubscriptionRepository) DeleteByGroupID(ctx context.Context, groupID int64) (int64, error) {
+func (r *userSubscriptionRepository) DeleteByPlanID(ctx context.Context, planID int64) (int64, error) {
 	client := clientFromContext(ctx, r.client)
-	n, err := client.UserSubscription.Delete().Where(usersubscription.GroupIDEQ(groupID)).Exec(ctx)
+	n, err := client.UserSubscription.Delete().Where(usersubscription.PlanIDEQ(planID)).Exec(ctx)
 	return int64(n), err
 }
 
@@ -432,7 +425,7 @@ func userSubscriptionEntityToService(m *dbent.UserSubscription) *service.UserSub
 	out := &service.UserSubscription{
 		ID:                 m.ID,
 		UserID:             m.UserID,
-		GroupID:            m.GroupID,
+		PlanID:             m.PlanID,
 		StartsAt:           m.StartsAt,
 		ExpiresAt:          m.ExpiresAt,
 		Status:             m.Status,
@@ -451,8 +444,8 @@ func userSubscriptionEntityToService(m *dbent.UserSubscription) *service.UserSub
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
 	}
-	if m.Edges.Group != nil {
-		out.Group = groupEntityToService(m.Edges.Group)
+	if m.Edges.Plan != nil {
+		out.Plan = subscriptionPlanEntityToService(m.Edges.Plan)
 	}
 	if m.Edges.AssignedByUser != nil {
 		out.AssignedByUser = userEntityToService(m.Edges.AssignedByUser)
@@ -477,4 +470,25 @@ func applyUserSubscriptionEntityToService(dst *service.UserSubscription, src *db
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+}
+
+func subscriptionPlanEntityToService(m *dbent.SubscriptionPlan) *service.SubscriptionPlan {
+	if m == nil {
+		return nil
+	}
+	return &service.SubscriptionPlan{
+		ID:                  m.ID,
+		Name:                m.Name,
+		Description:         derefString(m.Description),
+		Visibility:          m.Visibility,
+		Status:              m.Status,
+		DailyLimitUSD:       m.DailyLimitUsd,
+		WeeklyLimitUSD:      m.WeeklyLimitUsd,
+		MonthlyLimitUSD:     m.MonthlyLimitUsd,
+		DefaultValidityDays: m.DefaultValidityDays,
+		Price:               m.Price,
+		SortOrder:           m.SortOrder,
+		CreatedAt:           m.CreatedAt,
+		UpdatedAt:           m.UpdatedAt,
+	}
 }

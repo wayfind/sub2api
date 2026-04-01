@@ -7,7 +7,8 @@ import { apiClient } from '../client'
 import type { CustomMenuItem, CustomEndpoint } from '@/types'
 
 export interface DefaultSubscriptionSetting {
-  group_id: number
+  plan_id: number
+  group_id?: number // backward compat: old data may have group_id
   validity_days: number
 }
 

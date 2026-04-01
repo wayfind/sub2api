@@ -187,8 +187,8 @@ func (s *BillingCacheService) cacheWriteWorker(ch <-chan cacheWriteTask) {
 			s.setSubscriptionCache(ctx, task.userID, task.groupID, task.subscriptionData)
 		case cacheWriteUpdateSubscriptionUsage:
 			if s.cache != nil {
-				if err := s.cache.UpdateSubscriptionUsage(ctx, task.userID, task.groupID, task.amount); err != nil {
-					logger.LegacyPrintf("service.billing_cache", "Warning: update subscription cache failed for user %d group %d: %v", task.userID, task.groupID, err)
+				if err := s.cache.UpdateSubscriptionUsage(ctx, task.userID, task.amount); err != nil {
+					logger.LegacyPrintf("service.billing_cache", "Warning: update subscription cache failed for user %d: %v", task.userID, err)
 				}
 			}
 		case cacheWriteDeductBalance:
@@ -375,19 +375,19 @@ func (s *BillingCacheService) InvalidateUserBalance(ctx context.Context, userID 
 // ============================================
 
 // GetSubscriptionStatus 获取订阅状态（优先从缓存读取）
-func (s *BillingCacheService) GetSubscriptionStatus(ctx context.Context, userID, groupID int64) (*subscriptionCacheData, error) {
+func (s *BillingCacheService) GetSubscriptionStatus(ctx context.Context, userID, planID int64) (*subscriptionCacheData, error) {
 	if s.cache == nil {
-		return s.getSubscriptionFromDB(ctx, userID, groupID)
+		return s.getSubscriptionFromDB(ctx, userID, planID)
 	}
 
 	// 尝试从缓存读取
-	cacheData, err := s.cache.GetSubscriptionCache(ctx, userID, groupID)
+	cacheData, err := s.cache.GetSubscriptionCache(ctx, userID)
 	if err == nil && cacheData != nil {
 		return s.convertFromPortsData(cacheData), nil
 	}
 
 	// 缓存未命中，从数据库读取
-	data, err := s.getSubscriptionFromDB(ctx, userID, groupID)
+	data, err := s.getSubscriptionFromDB(ctx, userID, planID)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func (s *BillingCacheService) GetSubscriptionStatus(ctx context.Context, userID,
 	_ = s.enqueueCacheWrite(cacheWriteTask{
 		kind:             cacheWriteSetSubscription,
 		userID:           userID,
-		groupID:          groupID,
+		groupID:          planID,
 		subscriptionData: data,
 	})
 
@@ -426,8 +426,8 @@ func (s *BillingCacheService) convertToPortsData(data *subscriptionCacheData) *S
 }
 
 // getSubscriptionFromDB 从数据库获取订阅数据
-func (s *BillingCacheService) getSubscriptionFromDB(ctx context.Context, userID, groupID int64) (*subscriptionCacheData, error) {
-	sub, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
+func (s *BillingCacheService) getSubscriptionFromDB(ctx context.Context, userID, planID int64) (*subscriptionCacheData, error) {
+	sub, err := s.subRepo.GetActiveByUserIDAndPlanID(ctx, userID, planID)
 	if err != nil {
 		return nil, fmt.Errorf("get subscription: %w", err)
 	}
@@ -443,25 +443,25 @@ func (s *BillingCacheService) getSubscriptionFromDB(ctx context.Context, userID,
 }
 
 // setSubscriptionCache 设置订阅缓存
-func (s *BillingCacheService) setSubscriptionCache(ctx context.Context, userID, groupID int64, data *subscriptionCacheData) {
+func (s *BillingCacheService) setSubscriptionCache(ctx context.Context, userID, planID int64, data *subscriptionCacheData) {
 	if s.cache == nil || data == nil {
 		return
 	}
-	if err := s.cache.SetSubscriptionCache(ctx, userID, groupID, s.convertToPortsData(data)); err != nil {
-		logger.LegacyPrintf("service.billing_cache", "Warning: set subscription cache failed for user %d group %d: %v", userID, groupID, err)
+	if err := s.cache.SetSubscriptionCache(ctx, userID, s.convertToPortsData(data)); err != nil {
+		logger.LegacyPrintf("service.billing_cache", "Warning: set subscription cache failed for user %d plan %d: %v", userID, planID, err)
 	}
 }
 
 // UpdateSubscriptionUsage 更新订阅用量缓存（同步调用）
-func (s *BillingCacheService) UpdateSubscriptionUsage(ctx context.Context, userID, groupID int64, costUSD float64) error {
+func (s *BillingCacheService) UpdateSubscriptionUsage(ctx context.Context, userID int64, costUSD float64) error {
 	if s.cache == nil {
 		return nil
 	}
-	return s.cache.UpdateSubscriptionUsage(ctx, userID, groupID, costUSD)
+	return s.cache.UpdateSubscriptionUsage(ctx, userID, costUSD)
 }
 
 // QueueUpdateSubscriptionUsage 异步更新订阅用量缓存
-func (s *BillingCacheService) QueueUpdateSubscriptionUsage(userID, groupID int64, costUSD float64) {
+func (s *BillingCacheService) QueueUpdateSubscriptionUsage(userID int64, costUSD float64) {
 	if s.cache == nil {
 		return
 	}
@@ -469,25 +469,24 @@ func (s *BillingCacheService) QueueUpdateSubscriptionUsage(userID, groupID int64
 	if s.enqueueCacheWrite(cacheWriteTask{
 		kind:    cacheWriteUpdateSubscriptionUsage,
 		userID:  userID,
-		groupID: groupID,
 		amount:  costUSD,
 	}) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
 	defer cancel()
-	if err := s.UpdateSubscriptionUsage(ctx, userID, groupID, costUSD); err != nil {
-		logger.LegacyPrintf("service.billing_cache", "Warning: update subscription cache fallback failed for user %d group %d: %v", userID, groupID, err)
+	if err := s.UpdateSubscriptionUsage(ctx, userID, costUSD); err != nil {
+		logger.LegacyPrintf("service.billing_cache", "Warning: update subscription cache fallback failed for user %d: %v", userID, err)
 	}
 }
 
 // InvalidateSubscription 失效指定订阅缓存
-func (s *BillingCacheService) InvalidateSubscription(ctx context.Context, userID, groupID int64) error {
+func (s *BillingCacheService) InvalidateSubscription(ctx context.Context, userID, planID int64) error {
 	if s.cache == nil {
 		return nil
 	}
-	if err := s.cache.InvalidateSubscriptionCache(ctx, userID, groupID); err != nil {
-		logger.LegacyPrintf("service.billing_cache", "Warning: invalidate subscription cache failed for user %d group %d: %v", userID, groupID, err)
+	if err := s.cache.InvalidateSubscriptionCache(ctx, userID); err != nil {
+		logger.LegacyPrintf("service.billing_cache", "Warning: invalidate subscription cache failed for user %d plan %d: %v", userID, planID, err)
 		return err
 	}
 	return nil
@@ -645,10 +644,10 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	}
 
 	// 判断计费模式
-	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
+	isSubscriptionMode := subscription != nil
 
 	if isSubscriptionMode {
-		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
+		if err := s.checkSubscriptionEligibility(ctx, user.ID, subscription); err != nil {
 			return err
 		}
 	} else {
@@ -689,14 +688,21 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格
-func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, userID int64, group *Group, subscription *UserSubscription) error {
+// 注意：限额检查已在 middleware 的 ValidateMergedState 中完成（合并多订阅后检查），
+// 此处仅做状态和过期时间的二次确认，避免多订阅场景下单订阅限额判断导致 false rejection。
+func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, userID int64, subscription *UserSubscription) error {
+	plan := subscription.Plan
+	if plan == nil {
+		return ErrSubscriptionInvalid
+	}
+
 	// 获取订阅缓存数据
-	subData, err := s.GetSubscriptionStatus(ctx, userID, group.ID)
+	subData, err := s.GetSubscriptionStatus(ctx, userID, subscription.PlanID)
 	if err != nil {
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.OnFailure(err)
 		}
-		logger.LegacyPrintf("service.billing_cache", "ALERT: billing subscription check failed for user %d group %d: %v", userID, group.ID, err)
+		logger.LegacyPrintf("service.billing_cache", "ALERT: billing subscription check failed for user %d plan %d: %v", userID, subscription.PlanID, err)
 		return ErrBillingServiceUnavailable.WithCause(err)
 	}
 	if s.circuitBreaker != nil {
@@ -713,19 +719,7 @@ func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, 
 		return ErrSubscriptionInvalid
 	}
 
-	// 检查限额（使用传入的Group限额配置）
-	if group.HasDailyLimit() && subData.DailyUsage >= *group.DailyLimitUSD {
-		return ErrDailyLimitExceeded
-	}
-
-	if group.HasWeeklyLimit() && subData.WeeklyUsage >= *group.WeeklyLimitUSD {
-		return ErrWeeklyLimitExceeded
-	}
-
-	if group.HasMonthlyLimit() && subData.MonthlyUsage >= *group.MonthlyLimitUSD {
-		return ErrMonthlyLimitExceeded
-	}
-
+	// 限额检查由 middleware ValidateMergedState 负责（合并多订阅后判断），此处不做单订阅限额检查
 	return nil
 }
 

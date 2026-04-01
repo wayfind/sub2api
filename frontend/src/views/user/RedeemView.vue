@@ -412,7 +412,7 @@ const formatHistoryValue = (item: RedeemHistoryItem) => {
   } else if (isSubscriptionType(item.type)) {
     // 订阅类型显示有效天数和分组名称
     const days = item.validity_days || Math.round(item.value)
-    const groupName = item.group?.name || ''
+    const groupName = item.plan?.name || ''
     return groupName ? `${days}${t('redeem.days')} - ${groupName}` : `${days}${t('redeem.days')}`
   } else {
     const sign = item.value >= 0 ? '+' : ''

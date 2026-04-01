@@ -165,10 +165,6 @@ func groupFromServiceBase(g *service.Group) Group {
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,
 		Status:                          g.Status,
-		SubscriptionType:                g.SubscriptionType,
-		DailyLimitUSD:                   g.DailyLimitUSD,
-		WeeklyLimitUSD:                  g.WeeklyLimitUSD,
-		MonthlyLimitUSD:                 g.MonthlyLimitUSD,
 		ImagePrice1K:                    g.ImagePrice1K,
 		ImagePrice2K:                    g.ImagePrice2K,
 		ImagePrice4K:                    g.ImagePrice4K,
@@ -495,10 +491,10 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		UsedBy:       rc.UsedBy,
 		UsedAt:       rc.UsedAt,
 		CreatedAt:    rc.CreatedAt,
-		GroupID:      rc.GroupID,
+		PlanID:       rc.PlanID,
 		ValidityDays: rc.ValidityDays,
 		User:         UserFromServiceShallow(rc.User),
-		Group:        GroupFromServiceShallow(rc.Group),
+		Plan:         SubscriptionPlanFromService(rc.Plan),
 	}
 
 	// For admin_balance/admin_concurrency types, include notes so users can see
@@ -679,7 +675,7 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 	return UserSubscription{
 		ID:                 sub.ID,
 		UserID:             sub.UserID,
-		GroupID:            sub.GroupID,
+		PlanID:             sub.PlanID,
 		StartsAt:           sub.StartsAt,
 		ExpiresAt:          sub.ExpiresAt,
 		Status:             sub.Status,
@@ -692,7 +688,7 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 		CreatedAt:          sub.CreatedAt,
 		UpdatedAt:          sub.UpdatedAt,
 		User:               UserFromServiceShallow(sub.User),
-		Group:              GroupFromServiceShallow(sub.Group),
+		Plan:               SubscriptionPlanFromService(sub.Plan),
 	}
 }
 
@@ -748,5 +744,27 @@ func PromoCodeUsageFromService(u *service.PromoCodeUsage) *PromoCodeUsage {
 		BonusAmount: u.BonusAmount,
 		UsedAt:      u.UsedAt,
 		User:        UserFromServiceShallow(u.User),
+	}
+}
+
+// SubscriptionPlanFromService 将 service.SubscriptionPlan 转换为 DTO
+func SubscriptionPlanFromService(p *service.SubscriptionPlan) *SubscriptionPlan {
+	if p == nil {
+		return nil
+	}
+	return &SubscriptionPlan{
+		ID:                  p.ID,
+		Name:                p.Name,
+		Description:         p.Description,
+		Visibility:          p.Visibility,
+		Status:              p.Status,
+		DailyLimitUSD:       p.DailyLimitUSD,
+		WeeklyLimitUSD:      p.WeeklyLimitUSD,
+		MonthlyLimitUSD:     p.MonthlyLimitUSD,
+		DefaultValidityDays: p.DefaultValidityDays,
+		Price:               p.Price,
+		SortOrder:           p.SortOrder,
+		CreatedAt:           p.CreatedAt,
+		UpdatedAt:           p.UpdatedAt,
 	}
 }

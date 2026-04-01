@@ -30,7 +30,7 @@
               </optgroup>
               <optgroup v-if="subscriptionOptions.length" :label="t('sora.subscriptions')">
                 <option v-for="s in subscriptionOptions" :key="'s'+s.id" :value="-s.id">
-                  {{ s.group?.name || t('sora.subscription') }}
+                  {{ s.plan?.name || t('sora.subscription') }}
                 </option>
               </optgroup>
             </select>
@@ -293,11 +293,11 @@ async function loadSoraCredentials() {
     apiKeyOptions.value = (keysRes.items || []).filter(
       (k: ApiKey) => k.status === 'active' && k.group?.platform === 'sora'
     )
-    // 加载活跃订阅，筛选 sora 平台
+    // 加载活跃订阅（订阅现在是全局的，不再按平台区分）
     const subStore = useSubscriptionStore()
     const subs = await subStore.fetchActiveSubscriptions()
     subscriptionOptions.value = subs.filter(
-      (s: UserSubscription) => s.status === 'active' && s.group?.platform === 'sora'
+      (s: UserSubscription) => s.status === 'active'
     )
     // 自动选择第一个
     if (apiKeyOptions.value.length > 0) {

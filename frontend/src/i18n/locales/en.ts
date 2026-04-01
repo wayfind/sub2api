@@ -336,6 +336,7 @@ export default {
     users: 'Users',
     groups: 'Groups',
     subscriptions: 'Subscriptions',
+    subscriptionPlans: 'Subscription Plans',
     accounts: 'Accounts',
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
@@ -1719,6 +1720,70 @@ export default {
       }
     },
 
+    // Subscription Plans
+    subscriptionPlans: {
+      title: 'Subscription Plans',
+      description: 'Manage subscription plan templates',
+      searchPlans: 'Search plans...',
+      createPlan: 'Create Plan',
+      editPlan: 'Edit Plan',
+      deletePlan: 'Delete Plan',
+      allStatus: 'All Status',
+      allVisibility: 'All Visibility',
+      unlimited: 'Unlimited',
+      days: 'days',
+      notForSale: 'Not for sale',
+      creating: 'Creating...',
+      saving: 'Saving...',
+      planCreated: 'Plan created successfully',
+      planUpdated: 'Plan updated successfully',
+      planDeleted: 'Plan deleted successfully',
+      failedToLoad: 'Failed to load plans',
+      failedToCreate: 'Failed to create plan',
+      failedToUpdate: 'Failed to update plan',
+      failedToDelete: 'Failed to delete plan',
+      noPlansYet: 'No subscription plans yet',
+      createFirstPlan: 'Create your first subscription plan to get started',
+      deleteConfirm: 'Are you sure you want to delete plan "{name}"? This action cannot be undone.',
+      visibility: {
+        public: 'Public',
+        hidden: 'Hidden'
+      },
+      status: {
+        active: 'Active',
+        inactive: 'Inactive'
+      },
+      columns: {
+        name: 'Name',
+        visibility: 'Visibility',
+        status: 'Status',
+        dailyLimit: 'Daily Limit',
+        weeklyLimit: 'Weekly Limit',
+        monthlyLimit: 'Monthly Limit',
+        validityDays: 'Validity',
+        price: 'Price',
+        actions: 'Actions'
+      },
+      form: {
+        name: 'Name',
+        namePlaceholder: 'Enter plan name',
+        description: 'Description',
+        descriptionPlaceholder: 'Enter plan description',
+        visibility: 'Visibility',
+        status: 'Status',
+        dailyLimit: 'Daily Limit (USD)',
+        weeklyLimit: 'Weekly Limit (USD)',
+        monthlyLimit: 'Monthly Limit (USD)',
+        limitPlaceholder: 'Empty=unlimited',
+        limitHint: 'Leave empty for unlimited',
+        validityDays: 'Validity (days)',
+        price: 'Price (USD)',
+        pricePlaceholder: 'Empty=not for sale',
+        priceHint: 'Users can self-purchase when set',
+        sortOrder: 'Sort Order'
+      }
+    },
+
     // Subscriptions
     subscriptions: {
       title: 'Subscription Management',
@@ -1728,6 +1793,7 @@ export default {
       revokeSubscription: 'Revoke Subscription',
       allStatus: 'All Status',
       allGroups: 'All Groups',
+      allPlans: 'All Plans',
       allPlatforms: 'All Platforms',
       daily: 'Daily',
       weekly: 'Weekly',
@@ -1750,6 +1816,7 @@ export default {
       columns: {
         user: 'User',
         group: 'Group',
+        plan: 'Plan',
         usage: 'Usage',
         expires: 'Expires',
         status: 'Status',
@@ -1758,12 +1825,15 @@ export default {
       form: {
         user: 'User',
         group: 'Subscription Group',
+        plan: 'Subscription Plan',
         validityDays: 'Validity (Days)',
         adjustDays: 'Adjust by (Days)'
       },
       selectUser: 'Select a user',
       selectGroup: 'Select a subscription group',
+      selectPlan: 'Select a subscription plan',
       groupHint: 'Only groups with subscription billing type are shown',
+      planHint: 'Select the subscription plan to assign',
       validityHint: 'Number of days the subscription will be valid',
       adjustingFor: 'Adjusting subscription for',
       currentExpiration: 'Current expiration',
@@ -1792,6 +1862,7 @@ export default {
       adjustOutOfRange: 'Adjustment days must be between -36500 and 36500',
       pleaseSelectUser: 'Please select a user',
       pleaseSelectGroup: 'Please select a group',
+      pleaseSelectPlan: 'Please select a subscription plan',
       validityDaysRequired: 'Please enter a valid number of days (at least 1)',
       revokeConfirm:
         "Are you sure you want to revoke the subscription for '{user}'? This action cannot be undone.",
@@ -3075,8 +3146,11 @@ export default {
       },
       selectGroup: 'Select Group',
       selectGroupPlaceholder: 'Choose a subscription group',
+      selectPlan: 'Select Plan',
+      selectPlanPlaceholder: 'Choose a subscription plan',
       validityDays: 'Validity Days',
       groupRequired: 'Please select a subscription group',
+      planRequired: 'Please select a subscription plan',
       days: ' days',
       status: {
         unused: 'Unused',
@@ -4157,6 +4231,7 @@ export default {
         defaultSubscriptionsDuplicate:
           'Duplicate subscription group: {groupId}. Each group can only appear once.',
         subscriptionGroup: 'Subscription Group',
+        subscriptionPlan: 'Subscription Plan',
         subscriptionValidityDays: 'Validity (days)'
       },
       claudeCode: {
@@ -4761,7 +4836,17 @@ export default {
     expiresOn: 'Expires on {date}',
     resetIn: 'Resets in {time}',
     windowNotActive: 'Awaiting first use',
-    usageOf: '{used} of {limit}'
+    usageOf: '{used} of {limit}',
+    availablePlans: 'Available Plans',
+    purchase: 'Purchase',
+    purchaseConfirm: 'Purchase "{name}" using your balance?\nPrice: ${price}\nValidity: {days} days',
+    purchaseSuccess: 'Successfully purchased "{name}"',
+    purchaseFailed: 'Purchase failed',
+    dailyLimit: 'Daily limit',
+    weeklyLimit: 'Weekly limit',
+    monthlyLimit: 'Monthly limit',
+    validity: 'Validity',
+    days: 'days'
   },
 
   // Onboarding Tour

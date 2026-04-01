@@ -20,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -420,46 +421,36 @@ func init() {
 	group.DefaultPlatform = groupDescPlatform.Default.(string)
 	// group.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	group.PlatformValidator = groupDescPlatform.Validators[0].(func(string) error)
-	// groupDescSubscriptionType is the schema descriptor for subscription_type field.
-	groupDescSubscriptionType := groupFields[6].Descriptor()
-	// group.DefaultSubscriptionType holds the default value on creation for the subscription_type field.
-	group.DefaultSubscriptionType = groupDescSubscriptionType.Default.(string)
-	// group.SubscriptionTypeValidator is a validator for the "subscription_type" field. It is called by the builders before save.
-	group.SubscriptionTypeValidator = groupDescSubscriptionType.Validators[0].(func(string) error)
-	// groupDescDefaultValidityDays is the schema descriptor for default_validity_days field.
-	groupDescDefaultValidityDays := groupFields[10].Descriptor()
-	// group.DefaultDefaultValidityDays holds the default value on creation for the default_validity_days field.
-	group.DefaultDefaultValidityDays = groupDescDefaultValidityDays.Default.(int)
 	// groupDescSoraStorageQuotaBytes is the schema descriptor for sora_storage_quota_bytes field.
-	groupDescSoraStorageQuotaBytes := groupFields[18].Descriptor()
+	groupDescSoraStorageQuotaBytes := groupFields[13].Descriptor()
 	// group.DefaultSoraStorageQuotaBytes holds the default value on creation for the sora_storage_quota_bytes field.
 	group.DefaultSoraStorageQuotaBytes = groupDescSoraStorageQuotaBytes.Default.(int64)
 	// groupDescClaudeCodeOnly is the schema descriptor for claude_code_only field.
-	groupDescClaudeCodeOnly := groupFields[19].Descriptor()
+	groupDescClaudeCodeOnly := groupFields[14].Descriptor()
 	// group.DefaultClaudeCodeOnly holds the default value on creation for the claude_code_only field.
 	group.DefaultClaudeCodeOnly = groupDescClaudeCodeOnly.Default.(bool)
 	// groupDescModelRoutingEnabled is the schema descriptor for model_routing_enabled field.
-	groupDescModelRoutingEnabled := groupFields[23].Descriptor()
+	groupDescModelRoutingEnabled := groupFields[18].Descriptor()
 	// group.DefaultModelRoutingEnabled holds the default value on creation for the model_routing_enabled field.
 	group.DefaultModelRoutingEnabled = groupDescModelRoutingEnabled.Default.(bool)
 	// groupDescMcpXMLInject is the schema descriptor for mcp_xml_inject field.
-	groupDescMcpXMLInject := groupFields[24].Descriptor()
+	groupDescMcpXMLInject := groupFields[19].Descriptor()
 	// group.DefaultMcpXMLInject holds the default value on creation for the mcp_xml_inject field.
 	group.DefaultMcpXMLInject = groupDescMcpXMLInject.Default.(bool)
 	// groupDescSupportedModelScopes is the schema descriptor for supported_model_scopes field.
-	groupDescSupportedModelScopes := groupFields[25].Descriptor()
+	groupDescSupportedModelScopes := groupFields[20].Descriptor()
 	// group.DefaultSupportedModelScopes holds the default value on creation for the supported_model_scopes field.
 	group.DefaultSupportedModelScopes = groupDescSupportedModelScopes.Default.([]string)
 	// groupDescSortOrder is the schema descriptor for sort_order field.
-	groupDescSortOrder := groupFields[26].Descriptor()
+	groupDescSortOrder := groupFields[21].Descriptor()
 	// group.DefaultSortOrder holds the default value on creation for the sort_order field.
 	group.DefaultSortOrder = groupDescSortOrder.Default.(int)
 	// groupDescAllowMessagesDispatch is the schema descriptor for allow_messages_dispatch field.
-	groupDescAllowMessagesDispatch := groupFields[27].Descriptor()
+	groupDescAllowMessagesDispatch := groupFields[22].Descriptor()
 	// group.DefaultAllowMessagesDispatch holds the default value on creation for the allow_messages_dispatch field.
 	group.DefaultAllowMessagesDispatch = groupDescAllowMessagesDispatch.Default.(bool)
 	// groupDescDefaultMappedModel is the schema descriptor for default_mapped_model field.
-	groupDescDefaultMappedModel := groupFields[28].Descriptor()
+	groupDescDefaultMappedModel := groupFields[23].Descriptor()
 	// group.DefaultDefaultMappedModel holds the default value on creation for the default_mapped_model field.
 	group.DefaultDefaultMappedModel = groupDescDefaultMappedModel.Default.(string)
 	// group.DefaultMappedModelValidator is a validator for the "default_mapped_model" field. It is called by the builders before save.
@@ -747,6 +738,63 @@ func init() {
 	setting.DefaultUpdatedAt = settingDescUpdatedAt.Default.(func() time.Time)
 	// setting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	setting.UpdateDefaultUpdatedAt = settingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	subscriptionplanMixin := schema.SubscriptionPlan{}.Mixin()
+	subscriptionplanMixinHooks1 := subscriptionplanMixin[1].Hooks()
+	subscriptionplan.Hooks[0] = subscriptionplanMixinHooks1[0]
+	subscriptionplanMixinInters1 := subscriptionplanMixin[1].Interceptors()
+	subscriptionplan.Interceptors[0] = subscriptionplanMixinInters1[0]
+	subscriptionplanMixinFields0 := subscriptionplanMixin[0].Fields()
+	_ = subscriptionplanMixinFields0
+	subscriptionplanFields := schema.SubscriptionPlan{}.Fields()
+	_ = subscriptionplanFields
+	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
+	subscriptionplanDescCreatedAt := subscriptionplanMixinFields0[0].Descriptor()
+	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
+	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
+	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
+	subscriptionplanDescUpdatedAt := subscriptionplanMixinFields0[1].Descriptor()
+	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
+	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	subscriptionplan.UpdateDefaultUpdatedAt = subscriptionplanDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// subscriptionplanDescName is the schema descriptor for name field.
+	subscriptionplanDescName := subscriptionplanFields[0].Descriptor()
+	// subscriptionplan.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	subscriptionplan.NameValidator = func() func(string) error {
+		validators := subscriptionplanDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// subscriptionplanDescVisibility is the schema descriptor for visibility field.
+	subscriptionplanDescVisibility := subscriptionplanFields[2].Descriptor()
+	// subscriptionplan.DefaultVisibility holds the default value on creation for the visibility field.
+	subscriptionplan.DefaultVisibility = subscriptionplanDescVisibility.Default.(string)
+	// subscriptionplan.VisibilityValidator is a validator for the "visibility" field. It is called by the builders before save.
+	subscriptionplan.VisibilityValidator = subscriptionplanDescVisibility.Validators[0].(func(string) error)
+	// subscriptionplanDescStatus is the schema descriptor for status field.
+	subscriptionplanDescStatus := subscriptionplanFields[3].Descriptor()
+	// subscriptionplan.DefaultStatus holds the default value on creation for the status field.
+	subscriptionplan.DefaultStatus = subscriptionplanDescStatus.Default.(string)
+	// subscriptionplan.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	subscriptionplan.StatusValidator = subscriptionplanDescStatus.Validators[0].(func(string) error)
+	// subscriptionplanDescDefaultValidityDays is the schema descriptor for default_validity_days field.
+	subscriptionplanDescDefaultValidityDays := subscriptionplanFields[7].Descriptor()
+	// subscriptionplan.DefaultDefaultValidityDays holds the default value on creation for the default_validity_days field.
+	subscriptionplan.DefaultDefaultValidityDays = subscriptionplanDescDefaultValidityDays.Default.(int)
+	// subscriptionplanDescSortOrder is the schema descriptor for sort_order field.
+	subscriptionplanDescSortOrder := subscriptionplanFields[9].Descriptor()
+	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
+	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
 	tlsfingerprintprofileMixin := schema.TLSFingerprintProfile{}.Mixin()
 	tlsfingerprintprofileMixinFields0 := tlsfingerprintprofileMixin[0].Fields()
 	_ = tlsfingerprintprofileMixinFields0

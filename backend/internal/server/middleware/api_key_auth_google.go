@@ -69,41 +69,51 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
-		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
-		if isSubscriptionType && subscriptionService != nil {
-			subscription, err := subscriptionService.GetActiveSubscription(
+		// 加载用户活跃订阅
+		var subscription *service.UserSubscription
+		var mergedState *service.MergedSubscriptionState
+		if subscriptionService != nil {
+			mergedState, _ = subscriptionService.GetMergedSubscriptionState(
 				c.Request.Context(),
 				apiKey.User.ID,
-				apiKey.Group.ID,
 			)
-			if err != nil {
-				abortWithGoogleError(c, 403, "No active subscription found for this group")
-				return
+			if mergedState != nil && mergedState.FIFOTarget != nil {
+				subscription = mergedState.FIFOTarget
 			}
+		}
 
-			needsMaintenance, err := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
+		if mergedState != nil && subscription != nil {
+			needsMaintenance, err := subscriptionService.ValidateMergedState(mergedState)
 			if err != nil {
-				status := 403
+				// 订阅超限 → fallback 到余额
+				subscription = nil
 				if errors.Is(err, service.ErrDailyLimitExceeded) ||
 					errors.Is(err, service.ErrWeeklyLimitExceeded) ||
 					errors.Is(err, service.ErrMonthlyLimitExceeded) {
-					status = 429
+					c.Set(string(ContextKeyBillingFallback), true)
 				}
-				abortWithGoogleError(c, status, err.Error())
-				return
+			} else {
+				c.Set(string(ContextKeySubscription), subscription)
+				if needsMaintenance {
+					for i := range mergedState.ActiveSubscriptions {
+						maintenanceCopy := mergedState.ActiveSubscriptions[i]
+						subscriptionService.DoWindowMaintenance(&maintenanceCopy)
+					}
+				}
 			}
+		}
 
-			c.Set(string(ContextKeySubscription), subscription)
-
-			if needsMaintenance {
-				maintenanceCopy := *subscription
-				subscriptionService.DoWindowMaintenance(&maintenanceCopy)
-			}
-		} else {
+		if subscription == nil {
 			if apiKey.User.Balance <= 0 {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
 			}
+		}
+
+		if subscription != nil {
+			c.Header("X-Billing-Type", "subscription")
+		} else {
+			c.Header("X-Billing-Type", "balance")
 		}
 
 		c.Set(string(ContextKeyAPIKey), apiKey)

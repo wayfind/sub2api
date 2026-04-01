@@ -33,6 +33,7 @@ func ProvideAdminHandlers(
 	tlsFingerprintProfileHandler *admin.TLSFingerprintProfileHandler,
 	apiKeyHandler *admin.AdminAPIKeyHandler,
 	scheduledTestHandler *admin.ScheduledTestHandler,
+	subscriptionPlanHandler *admin.SubscriptionPlanHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:             dashboardHandler,
@@ -59,6 +60,7 @@ func ProvideAdminHandlers(
 		TLSFingerprintProfile: tlsFingerprintProfileHandler,
 		APIKey:                apiKeyHandler,
 		ScheduledTest:         scheduledTestHandler,
+		SubscriptionPlan:      subscriptionPlanHandler,
 	}
 }
 
@@ -150,6 +152,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewTLSFingerprintProfileHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,
+	admin.NewSubscriptionPlanHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

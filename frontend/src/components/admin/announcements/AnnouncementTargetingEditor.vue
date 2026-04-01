@@ -105,7 +105,7 @@
                 <label class="input-label">{{ t('admin.announcements.form.selectPackages') }}</label>
                 <GroupSelector
                   v-model="subscriptionSelections[groupIndex][condIndex]"
-                  :groups="groups"
+                  :plans="plans"
                 />
               </div>
 
@@ -168,7 +168,7 @@
 import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
-  AdminGroup,
+  SubscriptionPlan,
   AnnouncementTargeting,
   AnnouncementCondition,
   AnnouncementConditionGroup,
@@ -184,7 +184,7 @@ const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: AnnouncementTargeting
-  groups: AdminGroup[]
+  plans: SubscriptionPlan[]
 }>()
 
 const emit = defineEmits<{

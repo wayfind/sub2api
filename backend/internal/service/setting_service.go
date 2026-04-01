@@ -584,11 +584,7 @@ func (s *SettingService) validateDefaultSubscriptionGroups(ctx context.Context, 
 			}
 			return fmt.Errorf("get default subscription group %d: %w", item.GroupID, err)
 		}
-		if !group.IsSubscriptionType() {
-			return ErrDefaultSubGroupInvalid.WithMetadata(map[string]string{
-				"group_id": strconv.FormatInt(item.GroupID, 10),
-			})
-		}
+		_ = group // TODO: 后续迁移为 planRepo 校验
 	}
 
 	return nil

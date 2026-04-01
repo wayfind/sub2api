@@ -24,7 +24,7 @@ type fakeAPIKeyRepo struct {
 }
 
 type fakeGoogleSubscriptionRepo struct {
-	getActive      func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
+	listActive     func(ctx context.Context, userID int64) ([]service.UserSubscription, error)
 	updateStatus   func(ctx context.Context, subscriptionID int64, status string) error
 	activateWindow func(ctx context.Context, id int64, start time.Time) error
 	resetDaily     func(ctx context.Context, id int64, start time.Time) error
@@ -114,13 +114,10 @@ func (f fakeGoogleSubscriptionRepo) Create(ctx context.Context, sub *service.Use
 func (f fakeGoogleSubscriptionRepo) GetByID(ctx context.Context, id int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
-func (f fakeGoogleSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (f fakeGoogleSubscriptionRepo) GetByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
-func (f fakeGoogleSubscriptionRepo) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
-	if f.getActive != nil {
-		return f.getActive(ctx, userID, groupID)
-	}
+func (f fakeGoogleSubscriptionRepo) GetActiveByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 func (f fakeGoogleSubscriptionRepo) Update(ctx context.Context, sub *service.UserSubscription) error {
@@ -133,15 +130,18 @@ func (f fakeGoogleSubscriptionRepo) ListByUserID(ctx context.Context, userID int
 	return nil, errors.New("not implemented")
 }
 func (f fakeGoogleSubscriptionRepo) ListActiveByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+	if f.listActive != nil {
+		return f.listActive(ctx, userID)
+	}
 	return nil, errors.New("not implemented")
 }
-func (f fakeGoogleSubscriptionRepo) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (f fakeGoogleSubscriptionRepo) ListByPlanID(ctx context.Context, planID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
-func (f fakeGoogleSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (f fakeGoogleSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, planID *int64, status, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
-func (f fakeGoogleSubscriptionRepo) ExistsByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (bool, error) {
+func (f fakeGoogleSubscriptionRepo) ExistsByUserIDAndPlanID(ctx context.Context, userID, planID int64) (bool, error) {
 	return false, errors.New("not implemented")
 }
 func (f fakeGoogleSubscriptionRepo) ExtendExpiry(ctx context.Context, subscriptionID int64, newExpiresAt time.Time) error {
@@ -185,6 +185,9 @@ func (f fakeGoogleSubscriptionRepo) IncrementUsage(ctx context.Context, id int64
 }
 func (f fakeGoogleSubscriptionRepo) BatchUpdateExpiredStatus(ctx context.Context) (int64, error) {
 	return 0, errors.New("not implemented")
+}
+func (f fakeGoogleSubscriptionRepo) CountActiveByPlanID(ctx context.Context, planID int64) (int64, error) {
+	return 0, nil
 }
 
 type googleErrorResponse struct {
@@ -616,8 +619,6 @@ func TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLimitExceededReturns429(t 
 		Status:           service.StatusActive,
 		Platform:         service.PlatformGemini,
 		Hydrated:         true,
-		SubscriptionType: service.SubscriptionTypeSubscription,
-		DailyLimitUSD:    &limit,
 	}
 	user := &service.User{
 		ID:          999,
@@ -647,29 +648,34 @@ func TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLimitExceededReturns429(t 
 	})
 
 	now := time.Now()
+	plan := &service.SubscriptionPlan{
+		ID:            1,
+		DailyLimitUSD: &limit,
+	}
 	sub := &service.UserSubscription{
 		ID:               601,
 		UserID:           user.ID,
-		GroupID:          group.ID,
+		PlanID:           plan.ID,
 		Status:           service.SubscriptionStatusActive,
 		ExpiresAt:        now.Add(24 * time.Hour),
 		DailyWindowStart: &now,
 		DailyUsageUSD:    10,
+		Plan:             plan,
 	}
 	subscriptionService := service.NewSubscriptionService(nil, fakeGoogleSubscriptionRepo{
-		getActive: func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
-			if userID != user.ID || groupID != group.ID {
+		listActive: func(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+			if userID != user.ID {
 				return nil, service.ErrSubscriptionNotFound
 			}
 			clone := *sub
-			return &clone, nil
+			return []service.UserSubscription{clone}, nil
 		},
 		updateStatus:   func(ctx context.Context, subscriptionID int64, status string) error { return nil },
 		activateWindow: func(ctx context.Context, id int64, start time.Time) error { return nil },
 		resetDaily:     func(ctx context.Context, id int64, start time.Time) error { return nil },
 		resetWeekly:    func(ctx context.Context, id int64, start time.Time) error { return nil },
 		resetMonthly:   func(ctx context.Context, id int64, start time.Time) error { return nil },
-	}, nil, nil, &config.Config{RunMode: config.RunModeStandard})
+	}, nil, nil, nil, &config.Config{RunMode: config.RunModeStandard})
 
 	r := gin.New()
 	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, &config.Config{RunMode: config.RunModeStandard}))

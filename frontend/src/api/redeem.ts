@@ -17,9 +17,9 @@ export interface RedeemHistoryItem {
   // Notes from admin for admin_balance/admin_concurrency types
   notes?: string
   // Subscription-specific fields
-  group_id?: number
+  plan_id?: number
   validity_days?: number
-  group?: {
+  plan?: {
     id: number
     name: string
   }

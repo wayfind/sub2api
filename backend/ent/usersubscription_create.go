@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -73,9 +73,9 @@ func (_c *UserSubscriptionCreate) SetUserID(v int64) *UserSubscriptionCreate {
 	return _c
 }
 
-// SetGroupID sets the "group_id" field.
-func (_c *UserSubscriptionCreate) SetGroupID(v int64) *UserSubscriptionCreate {
-	_c.mutation.SetGroupID(v)
+// SetPlanID sets the "plan_id" field.
+func (_c *UserSubscriptionCreate) SetPlanID(v int64) *UserSubscriptionCreate {
+	_c.mutation.SetPlanID(v)
 	return _c
 }
 
@@ -236,9 +236,9 @@ func (_c *UserSubscriptionCreate) SetUser(v *User) *UserSubscriptionCreate {
 	return _c.SetUserID(v.ID)
 }
 
-// SetGroup sets the "group" edge to the Group entity.
-func (_c *UserSubscriptionCreate) SetGroup(v *Group) *UserSubscriptionCreate {
-	return _c.SetGroupID(v.ID)
+// SetPlan sets the "plan" edge to the SubscriptionPlan entity.
+func (_c *UserSubscriptionCreate) SetPlan(v *SubscriptionPlan) *UserSubscriptionCreate {
+	return _c.SetPlanID(v.ID)
 }
 
 // SetAssignedByUserID sets the "assigned_by_user" edge to the User entity by ID.
@@ -363,8 +363,8 @@ func (_c *UserSubscriptionCreate) check() error {
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "UserSubscription.user_id"`)}
 	}
-	if _, ok := _c.mutation.GroupID(); !ok {
-		return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "UserSubscription.group_id"`)}
+	if _, ok := _c.mutation.PlanID(); !ok {
+		return &ValidationError{Name: "plan_id", err: errors.New(`ent: missing required field "UserSubscription.plan_id"`)}
 	}
 	if _, ok := _c.mutation.StartsAt(); !ok {
 		return &ValidationError{Name: "starts_at", err: errors.New(`ent: missing required field "UserSubscription.starts_at"`)}
@@ -395,8 +395,8 @@ func (_c *UserSubscriptionCreate) check() error {
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "UserSubscription.user"`)}
 	}
-	if len(_c.mutation.GroupIDs()) == 0 {
-		return &ValidationError{Name: "group", err: errors.New(`ent: missing required edge "UserSubscription.group"`)}
+	if len(_c.mutation.PlanIDs()) == 0 {
+		return &ValidationError{Name: "plan", err: errors.New(`ent: missing required edge "UserSubscription.plan"`)}
 	}
 	return nil
 }
@@ -498,21 +498,21 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.GroupIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.PlanIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   usersubscription.GroupTable,
-			Columns: []string{usersubscription.GroupColumn},
+			Table:   usersubscription.PlanTable,
+			Columns: []string{usersubscription.PlanColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+				IDSpec: sqlgraph.NewFieldSpec(subscriptionplan.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.GroupID = nodes[0]
+		_node.PlanID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.AssignedByUserIDs(); len(nodes) > 0 {
@@ -642,15 +642,15 @@ func (u *UserSubscriptionUpsert) UpdateUserID() *UserSubscriptionUpsert {
 	return u
 }
 
-// SetGroupID sets the "group_id" field.
-func (u *UserSubscriptionUpsert) SetGroupID(v int64) *UserSubscriptionUpsert {
-	u.Set(usersubscription.FieldGroupID, v)
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsert) SetPlanID(v int64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldPlanID, v)
 	return u
 }
 
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *UserSubscriptionUpsert) UpdateGroupID() *UserSubscriptionUpsert {
-	u.SetExcluded(usersubscription.FieldGroupID)
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdatePlanID() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldPlanID)
 	return u
 }
 
@@ -940,17 +940,17 @@ func (u *UserSubscriptionUpsertOne) UpdateUserID() *UserSubscriptionUpsertOne {
 	})
 }
 
-// SetGroupID sets the "group_id" field.
-func (u *UserSubscriptionUpsertOne) SetGroupID(v int64) *UserSubscriptionUpsertOne {
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsertOne) SetPlanID(v int64) *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
-		s.SetGroupID(v)
+		s.SetPlanID(v)
 	})
 }
 
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *UserSubscriptionUpsertOne) UpdateGroupID() *UserSubscriptionUpsertOne {
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdatePlanID() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
-		s.UpdateGroupID()
+		s.UpdatePlanID()
 	})
 }
 
@@ -1438,17 +1438,17 @@ func (u *UserSubscriptionUpsertBulk) UpdateUserID() *UserSubscriptionUpsertBulk 
 	})
 }
 
-// SetGroupID sets the "group_id" field.
-func (u *UserSubscriptionUpsertBulk) SetGroupID(v int64) *UserSubscriptionUpsertBulk {
+// SetPlanID sets the "plan_id" field.
+func (u *UserSubscriptionUpsertBulk) SetPlanID(v int64) *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
-		s.SetGroupID(v)
+		s.SetPlanID(v)
 	})
 }
 
-// UpdateGroupID sets the "group_id" field to the value that was provided on create.
-func (u *UserSubscriptionUpsertBulk) UpdateGroupID() *UserSubscriptionUpsertBulk {
+// UpdatePlanID sets the "plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdatePlanID() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
-		s.UpdateGroupID()
+		s.UpdatePlanID()
 	})
 }
 

@@ -743,11 +743,11 @@ func (s *AuthService) assignDefaultSubscriptions(ctx context.Context, userID int
 	for _, item := range items {
 		if _, _, err := s.defaultSubAssigner.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
 			UserID:       userID,
-			GroupID:      item.GroupID,
+			PlanID:       item.GroupID, // TODO: 迁移为 item.PlanID
 			ValidityDays: item.ValidityDays,
 			Notes:        "auto assigned by default user subscriptions setting",
 		}); err != nil {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to assign default subscription: user_id=%d group_id=%d err=%v", userID, item.GroupID, err)
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to assign default subscription: user_id=%d plan_id=%d err=%v", userID, item.GroupID, err)
 		}
 	}
 }

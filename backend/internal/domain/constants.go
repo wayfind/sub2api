@@ -60,6 +60,12 @@ const (
 	SubscriptionTypeSubscription = "subscription" // 订阅模式（按限额控制）
 )
 
+// Subscription plan visibility constants
+const (
+	VisibilityPublic  = "public"  // 所有用户可见
+	VisibilityPrivate = "private" // 仅管理员分配
+)
+
 // Subscription status constants
 const (
 	SubscriptionStatusActive    = "active"

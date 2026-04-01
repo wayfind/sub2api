@@ -283,8 +283,8 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	// 验证兑换码类型的前置条件
-	if redeemCode.Type == RedeemTypeSubscription && redeemCode.GroupID == nil {
-		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription redeem code: missing group_id")
+	if redeemCode.Type == RedeemTypeSubscription && redeemCode.PlanID == nil {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription redeem code: missing plan_id")
 	}
 
 	// 获取用户信息
@@ -334,7 +334,7 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 		}
 		_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
 			UserID:       userID,
-			GroupID:      *redeemCode.GroupID,
+			PlanID:       *redeemCode.PlanID,
 			ValidityDays: validityDays,
 			AssignedBy:   0, // 系统分配
 			Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
@@ -393,12 +393,12 @@ func (s *RedeemService) invalidateRedeemCaches(ctx context.Context, userID int64
 		if s.billingCacheService == nil {
 			return
 		}
-		if redeemCode.GroupID != nil {
-			groupID := *redeemCode.GroupID
+		if redeemCode.PlanID != nil {
+			planID := *redeemCode.PlanID
 			go func() {
 				cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
+				_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, planID)
 			}()
 		}
 	}

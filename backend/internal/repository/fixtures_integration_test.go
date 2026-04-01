@@ -78,28 +78,15 @@ func mustCreateGroup(t *testing.T, client *dbent.Client, g *service.Group) *serv
 	if g.Status == "" {
 		g.Status = service.StatusActive
 	}
-	if g.SubscriptionType == "" {
-		g.SubscriptionType = service.SubscriptionTypeStandard
-	}
 
 	create := client.Group.Create().
 		SetName(g.Name).
 		SetPlatform(g.Platform).
 		SetStatus(g.Status).
-		SetSubscriptionType(g.SubscriptionType).
 		SetRateMultiplier(g.RateMultiplier).
 		SetIsExclusive(g.IsExclusive)
 	if g.Description != "" {
 		create.SetDescription(g.Description)
-	}
-	if g.DailyLimitUSD != nil {
-		create.SetDailyLimitUsd(*g.DailyLimitUSD)
-	}
-	if g.WeeklyLimitUSD != nil {
-		create.SetWeeklyLimitUsd(*g.WeeklyLimitUSD)
-	}
-	if g.MonthlyLimitUSD != nil {
-		create.SetMonthlyLimitUsd(*g.MonthlyLimitUSD)
 	}
 	if !g.CreatedAt.IsZero() {
 		create.SetCreatedAt(g.CreatedAt)
@@ -344,8 +331,8 @@ func mustCreateRedeemCode(t *testing.T, client *dbent.Client, c *service.RedeemC
 	if c.UsedAt != nil {
 		create.SetUsedAt(*c.UsedAt)
 	}
-	if c.GroupID != nil {
-		create.SetGroupID(*c.GroupID)
+	if c.PlanID != nil {
+		create.SetPlanID(*c.PlanID)
 	}
 	if !c.CreatedAt.IsZero() {
 		create.SetCreatedAt(c.CreatedAt)
@@ -385,7 +372,7 @@ func mustCreateSubscription(t *testing.T, client *dbent.Client, s *service.UserS
 
 	create := client.UserSubscription.Create().
 		SetUserID(s.UserID).
-		SetGroupID(s.GroupID).
+		SetPlanID(s.PlanID).
 		SetStartsAt(s.StartsAt).
 		SetExpiresAt(s.ExpiresAt).
 		SetStatus(s.Status).

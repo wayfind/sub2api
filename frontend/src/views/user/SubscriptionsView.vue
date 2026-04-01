@@ -9,7 +9,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="subscriptions.length === 0" class="card p-12 text-center">
+      <div v-else-if="subscriptions.length === 0 && availablePlans.length === 0" class="card p-12 text-center">
         <div
           class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
         >
@@ -23,8 +23,64 @@
         </p>
       </div>
 
+      <template v-else>
+      <!-- Available Plans for Purchase -->
+      <div v-if="purchasablePlans.length > 0" class="space-y-3">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ t('userSubscriptions.availablePlans') }}
+        </h2>
+        <div class="grid gap-4 lg:grid-cols-3">
+          <div
+            v-for="plan in purchasablePlans"
+            :key="'plan-' + plan.id"
+            class="card p-4 transition-shadow hover:shadow-md"
+          >
+            <div class="mb-3">
+              <h3 class="font-semibold text-gray-900 dark:text-white">{{ plan.name }}</h3>
+              <p v-if="plan.description" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{ plan.description }}
+              </p>
+            </div>
+            <div class="mb-3 space-y-1 text-xs text-gray-600 dark:text-dark-300">
+              <div v-if="plan.daily_limit_usd" class="flex justify-between">
+                <span>{{ t('userSubscriptions.dailyLimit') }}</span>
+                <span class="font-medium">${{ plan.daily_limit_usd.toFixed(2) }}</span>
+              </div>
+              <div v-if="plan.weekly_limit_usd" class="flex justify-between">
+                <span>{{ t('userSubscriptions.weeklyLimit') }}</span>
+                <span class="font-medium">${{ plan.weekly_limit_usd.toFixed(2) }}</span>
+              </div>
+              <div v-if="plan.monthly_limit_usd" class="flex justify-between">
+                <span>{{ t('userSubscriptions.monthlyLimit') }}</span>
+                <span class="font-medium">${{ plan.monthly_limit_usd.toFixed(2) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>{{ t('userSubscriptions.validity') }}</span>
+                <span class="font-medium">{{ plan.default_validity_days }} {{ t('userSubscriptions.days') }}</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                ${{ plan.price?.toFixed(2) || '0.00' }}
+              </span>
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="purchasing === plan.id"
+                @click="handlePurchase(plan)"
+              >
+                <span v-if="purchasing === plan.id" class="flex items-center gap-1">
+                  <span class="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"></span>
+                  {{ t('common.processing') }}
+                </span>
+                <span v-else>{{ t('userSubscriptions.purchase') }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Subscriptions Grid -->
-      <div v-else class="grid gap-6 lg:grid-cols-2">
+      <div v-if="subscriptions.length > 0" class="grid gap-6 lg:grid-cols-2">
         <div
           v-for="subscription in subscriptions"
           :key="subscription.id"
@@ -42,10 +98,10 @@
               </div>
               <div>
                 <h3 class="font-semibold text-gray-900 dark:text-white">
-                  {{ subscription.group?.name || `Group #${subscription.group_id}` }}
+                  {{ subscription.plan?.name || `Plan #${subscription.plan_id}` }}
                 </h3>
                 <p class="text-xs text-gray-500 dark:text-dark-400">
-                  {{ subscription.group?.description || '' }}
+                  {{ subscription.plan?.description || '' }}
                 </p>
               </div>
             </div>
@@ -84,14 +140,14 @@
             </div>
 
             <!-- Daily Usage -->
-            <div v-if="subscription.group?.daily_limit_usd" class="space-y-2">
+            <div v-if="subscription.plan?.daily_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.daily') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
                   ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.daily_limit_usd.toFixed(2)
+                    subscription.plan.daily_limit_usd.toFixed(2)
                   }}
                 </span>
               </div>
@@ -101,13 +157,13 @@
                   :class="
                     getProgressBarClass(
                       subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
+                      subscription.plan.daily_limit_usd
                     )
                   "
                   :style="{
                     width: getProgressWidth(
                       subscription.daily_usage_usd,
-                      subscription.group.daily_limit_usd
+                      subscription.plan.daily_limit_usd
                     )
                   }"
                 ></div>
@@ -125,14 +181,14 @@
             </div>
 
             <!-- Weekly Usage -->
-            <div v-if="subscription.group?.weekly_limit_usd" class="space-y-2">
+            <div v-if="subscription.plan?.weekly_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.weekly') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
                   ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.weekly_limit_usd.toFixed(2)
+                    subscription.plan.weekly_limit_usd.toFixed(2)
                   }}
                 </span>
               </div>
@@ -142,13 +198,13 @@
                   :class="
                     getProgressBarClass(
                       subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
+                      subscription.plan.weekly_limit_usd
                     )
                   "
                   :style="{
                     width: getProgressWidth(
                       subscription.weekly_usage_usd,
-                      subscription.group.weekly_limit_usd
+                      subscription.plan.weekly_limit_usd
                     )
                   }"
                 ></div>
@@ -166,14 +222,14 @@
             </div>
 
             <!-- Monthly Usage -->
-            <div v-if="subscription.group?.monthly_limit_usd" class="space-y-2">
+            <div v-if="subscription.plan?.monthly_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.monthly') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
                   ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.group.monthly_limit_usd.toFixed(2)
+                    subscription.plan.monthly_limit_usd.toFixed(2)
                   }}
                 </span>
               </div>
@@ -183,13 +239,13 @@
                   :class="
                     getProgressBarClass(
                       subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
+                      subscription.plan.monthly_limit_usd
                     )
                   "
                   :style="{
                     width: getProgressWidth(
                       subscription.monthly_usage_usd,
-                      subscription.group.monthly_limit_usd
+                      subscription.plan.monthly_limit_usd
                     )
                   }"
                 ></div>
@@ -209,9 +265,9 @@
             <!-- No limits configured - Unlimited badge -->
             <div
               v-if="
-                !subscription.group?.daily_limit_usd &&
-                !subscription.group?.weekly_limit_usd &&
-                !subscription.group?.monthly_limit_usd
+                !subscription.plan?.daily_limit_usd &&
+                !subscription.plan?.weekly_limit_usd &&
+                !subscription.plan?.monthly_limit_usd
               "
               class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
             >
@@ -230,16 +286,18 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import subscriptionsAPI from '@/api/subscriptions'
-import type { UserSubscription } from '@/types'
+import { apiClient } from '@/api/client'
+import type { UserSubscription, SubscriptionPlan } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateOnly } from '@/utils/format'
@@ -248,17 +306,61 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const subscriptions = ref<UserSubscription[]>([])
+const availablePlans = ref<SubscriptionPlan[]>([])
 const loading = ref(true)
+const purchasing = ref<number | null>(null)
+
+// 可购买的计划：有价格且用户当前没有同 plan 的活跃订阅
+const purchasablePlans = computed(() => {
+  const activePlanIds = new Set(
+    subscriptions.value
+      .filter((s) => s.status === 'active')
+      .map((s) => s.plan_id)
+  )
+  return availablePlans.value.filter(
+    (p) => p.price != null && p.price > 0 && !activePlanIds.has(p.id)
+  )
+})
 
 async function loadSubscriptions() {
   try {
     loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
+    const [subs, plans] = await Promise.all([
+      subscriptionsAPI.getMySubscriptions(),
+      apiClient.get<SubscriptionPlan[]>('/subscription-plans').then((r) => r.data)
+    ])
+    subscriptions.value = subs
+    availablePlans.value = plans
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))
   } finally {
     loading.value = false
+  }
+}
+
+async function handlePurchase(plan: SubscriptionPlan) {
+  if (purchasing.value) return
+
+  const confirmed = window.confirm(
+    t('userSubscriptions.purchaseConfirm', {
+      name: plan.name,
+      price: plan.price?.toFixed(2) || '0',
+      days: plan.default_validity_days
+    })
+  )
+  if (!confirmed) return
+
+  try {
+    purchasing.value = plan.id
+    await subscriptionsAPI.purchaseSubscription(plan.id)
+    appStore.showSuccess(t('userSubscriptions.purchaseSuccess', { name: plan.name }))
+    await loadSubscriptions()
+  } catch (error: any) {
+    const msg = error?.response?.data?.message || t('userSubscriptions.purchaseFailed')
+    appStore.showError(msg)
+  } finally {
+    purchasing.value = null
   }
 }
 

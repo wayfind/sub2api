@@ -63,7 +63,7 @@ func (RedeemCode) Fields() []ent.Field {
 			Immutable().
 			Default(time.Now).
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
-		field.Int64("group_id").
+		field.Int64("plan_id").
 			Optional().
 			Nillable(),
 		field.Int("validity_days").
@@ -77,9 +77,9 @@ func (RedeemCode) Edges() []ent.Edge {
 			Ref("redeem_codes").
 			Field("used_by").
 			Unique(),
-		edge.From("group", Group.Type).
+		edge.From("plan", SubscriptionPlan.Type).
 			Ref("redeem_codes").
-			Field("group_id").
+			Field("plan_id").
 			Unique(),
 	}
 }
@@ -89,6 +89,6 @@ func (RedeemCode) Indexes() []ent.Index {
 		// code 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
 		index.Fields("used_by"),
-		index.Fields("group_id"),
+		index.Fields("plan_id"),
 	}
 }

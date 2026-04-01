@@ -124,28 +124,21 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 
-		// ── 5. 加载订阅（订阅模式时始终加载） ───────────────────────
+		// ── 5. 加载订阅（始终尝试加载用户的活跃订阅） ───────────────────────
 
 		// skipBilling: /v1/usage 只需鉴权，跳过所有计费执行
 		skipBilling := c.Request.URL.Path == "/v1/usage"
 
 		var subscription *service.UserSubscription
-		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		var mergedState *service.MergedSubscriptionState
 
-		if isSubscriptionType && subscriptionService != nil {
-			sub, subErr := subscriptionService.GetActiveSubscription(
+		if subscriptionService != nil {
+			mergedState, _ = subscriptionService.GetMergedSubscriptionState(
 				c.Request.Context(),
 				apiKey.User.ID,
-				apiKey.Group.ID,
 			)
-			if subErr != nil {
-				if !skipBilling {
-					AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", "No active subscription found for this group")
-					return
-				}
-				// skipBilling: 订阅不存在也放行，handler 会返回可用的数据
-			} else {
-				subscription = sub
+			if mergedState != nil && mergedState.FIFOTarget != nil {
+				subscription = mergedState.FIFOTarget
 			}
 		}
 
@@ -172,29 +165,34 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				return
 			}
 
-			// 订阅模式：验证订阅限额
-			if subscription != nil {
-				needsMaintenance, validateErr := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
+			// 订阅模式：验证合并限额
+			if mergedState != nil && subscription != nil {
+				needsMaintenance, validateErr := subscriptionService.ValidateMergedState(mergedState)
 				if validateErr != nil {
-					code := "SUBSCRIPTION_INVALID"
-					status := 403
+					// 订阅超限：fallback 到余额检查而非拒绝
 					if errors.Is(validateErr, service.ErrDailyLimitExceeded) ||
 						errors.Is(validateErr, service.ErrWeeklyLimitExceeded) ||
 						errors.Is(validateErr, service.ErrMonthlyLimitExceeded) {
-						code = "USAGE_LIMIT_EXCEEDED"
-						status = 429
+						// 超限 → 清除订阅让后续走余额扣费
+						subscription = nil
+						c.Set(string(ContextKeyBillingFallback), true)
+					} else {
+						// 其他错误（过期/暂停）→ 清除订阅
+						subscription = nil
 					}
-					AbortWithError(c, status, code, validateErr.Error())
-					return
+				} else {
+					// 窗口维护异步化（不阻塞请求）
+					if needsMaintenance {
+						for i := range mergedState.ActiveSubscriptions {
+							maintenanceCopy := mergedState.ActiveSubscriptions[i]
+							subscriptionService.DoWindowMaintenance(&maintenanceCopy)
+						}
+					}
 				}
+			}
 
-				// 窗口维护异步化（不阻塞请求）
-				if needsMaintenance {
-					maintenanceCopy := *subscription
-					subscriptionService.DoWindowMaintenance(&maintenanceCopy)
-				}
-			} else {
-				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
+			// 无活跃订阅（或订阅超限 fallback）：检查余额
+			if subscription == nil {
 				if apiKey.User.Balance <= 0 {
 					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
 					return
@@ -206,6 +204,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		if subscription != nil {
 			c.Set(string(ContextKeySubscription), subscription)
+			c.Header("X-Billing-Type", "subscription")
+		} else if !skipBilling {
+			c.Header("X-Billing-Type", "balance")
 		}
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{

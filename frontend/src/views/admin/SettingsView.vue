@@ -1085,7 +1085,7 @@
                   type="button"
                   class="btn btn-secondary btn-sm"
                   @click="addDefaultSubscription"
-                  :disabled="subscriptionGroups.length === 0"
+                  :disabled="subscriptionPlans.length === 0"
                 >
                   {{ t('admin.settings.defaults.addDefaultSubscription') }}
                 </button>
@@ -1106,37 +1106,14 @@
                 >
                   <div>
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {{ t('admin.settings.defaults.subscriptionGroup') }}
+                      {{ t('admin.settings.defaults.subscriptionPlan') }}
                     </label>
                     <Select
-                      v-model="item.group_id"
-                      class="default-sub-group-select"
-                      :options="defaultSubscriptionGroupOptions"
-                      :placeholder="t('admin.settings.defaults.subscriptionGroup')"
-                    >
-                      <template #selected="{ option }">
-                        <GroupBadge
-                          v-if="option"
-                          :name="(option as unknown as DefaultSubscriptionGroupOption).label"
-                          :platform="(option as unknown as DefaultSubscriptionGroupOption).platform"
-                          :subscription-type="(option as unknown as DefaultSubscriptionGroupOption).subscriptionType"
-                          :rate-multiplier="(option as unknown as DefaultSubscriptionGroupOption).rate"
-                        />
-                        <span v-else class="text-gray-400">
-                          {{ t('admin.settings.defaults.subscriptionGroup') }}
-                        </span>
-                      </template>
-                      <template #option="{ option, selected }">
-                        <GroupOptionItem
-                          :name="(option as unknown as DefaultSubscriptionGroupOption).label"
-                          :platform="(option as unknown as DefaultSubscriptionGroupOption).platform"
-                          :subscription-type="(option as unknown as DefaultSubscriptionGroupOption).subscriptionType"
-                          :rate-multiplier="(option as unknown as DefaultSubscriptionGroupOption).rate"
-                          :description="(option as unknown as DefaultSubscriptionGroupOption).description"
-                          :selected="selected"
-                        />
-                      </template>
-                    </Select>
+                      v-model="item.plan_id"
+                      class="default-sub-plan-select"
+                      :options="defaultSubscriptionPlanOptions"
+                      :placeholder="t('admin.settings.defaults.subscriptionPlan')"
+                    />
                   </div>
                   <div>
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -1996,12 +1973,10 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting
 } from '@/api/admin/settings'
-import type { AdminGroup } from '@/types'
+import type { SubscriptionPlan } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'
-import GroupBadge from '@/components/common/GroupBadge.vue'
-import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
 import BackupSettings from '@/views/admin/BackupView.vue'
@@ -2049,7 +2024,7 @@ const adminApiKeyExists = ref(false)
 const adminApiKeyMasked = ref('')
 const adminApiKeyOperating = ref(false)
 const newAdminApiKey = ref('')
-const subscriptionGroups = ref<AdminGroup[]>([])
+const subscriptionPlans = ref<SubscriptionPlan[]>([])
 
 // Overload Cooldown (529) 状态
 const overloadCooldownLoading = ref(true)
@@ -2093,13 +2068,9 @@ const betaPolicyForm = reactive({
   }>
 })
 
-interface DefaultSubscriptionGroupOption {
+interface DefaultSubscriptionPlanOption {
   value: number
   label: string
-  description: string | null
-  platform: AdminGroup['platform']
-  subscriptionType: AdminGroup['subscription_type']
-  rate: number
   [key: string]: unknown
 }
 
@@ -2179,14 +2150,10 @@ const form = reactive<SettingsForm>({
   enable_metadata_passthrough: false
 })
 
-const defaultSubscriptionGroupOptions = computed<DefaultSubscriptionGroupOption[]>(() =>
-  subscriptionGroups.value.map((group) => ({
-    value: group.id,
-    label: group.name,
-    description: group.description,
-    platform: group.platform,
-    subscriptionType: group.subscription_type,
-    rate: group.rate_multiplier
+const defaultSubscriptionPlanOptions = computed<DefaultSubscriptionPlanOption[]>(() =>
+  subscriptionPlans.value.map((plan) => ({
+    value: plan.id,
+    label: plan.name
   }))
 )
 
@@ -2325,9 +2292,9 @@ async function loadSettings() {
     form.backend_mode_enabled = settings.backend_mode_enabled
     form.default_subscriptions = Array.isArray(settings.default_subscriptions)
       ? settings.default_subscriptions
-          .filter((item) => item.group_id > 0 && item.validity_days > 0)
+          .filter((item) => ((item.plan_id ?? item.group_id) ?? 0) > 0 && item.validity_days > 0)
           .map((item) => ({
-            group_id: item.group_id,
+            plan_id: item.plan_id ?? item.group_id ?? 0, // backward compat
             validity_days: item.validity_days
           }))
       : []
@@ -2349,25 +2316,25 @@ async function loadSettings() {
   }
 }
 
-async function loadSubscriptionGroups() {
+async function loadSubscriptionPlans() {
   try {
-    const groups = await adminAPI.groups.getAll()
-    subscriptionGroups.value = groups.filter(
-      (group) => group.subscription_type === 'subscription' && group.status === 'active'
+    const allPlans = await adminAPI.subscriptionPlans.getAll()
+    subscriptionPlans.value = allPlans.filter(
+      (plan) => plan.status === 'active'
     )
   } catch (error) {
-    console.error('Failed to load subscription groups:', error)
-    subscriptionGroups.value = []
+    console.error('Failed to load subscription plans:', error)
+    subscriptionPlans.value = []
   }
 }
 
 function addDefaultSubscription() {
-  if (subscriptionGroups.value.length === 0) return
-  const existing = new Set(form.default_subscriptions.map((item) => item.group_id))
-  const candidate = subscriptionGroups.value.find((group) => !existing.has(group.id))
+  if (subscriptionPlans.value.length === 0) return
+  const existing = new Set(form.default_subscriptions.map((item) => item.plan_id))
+  const candidate = subscriptionPlans.value.find((plan) => !existing.has(plan.id))
   if (!candidate) return
   form.default_subscriptions.push({
-    group_id: candidate.id,
+    plan_id: candidate.id,
     validity_days: 30
   })
 }
@@ -2380,24 +2347,24 @@ async function saveSettings() {
   saving.value = true
   try {
     const normalizedDefaultSubscriptions = form.default_subscriptions
-      .filter((item) => item.group_id > 0 && item.validity_days > 0)
+      .filter((item) => item.plan_id > 0 && item.validity_days > 0)
       .map((item: DefaultSubscriptionSetting) => ({
-        group_id: item.group_id,
+        plan_id: item.plan_id,
         validity_days: Math.min(36500, Math.max(1, Math.floor(item.validity_days)))
       }))
 
-    const seenGroupIDs = new Set<number>()
+    const seenPlanIDs = new Set<number>()
     const duplicateDefaultSubscription = normalizedDefaultSubscriptions.find((item) => {
-      if (seenGroupIDs.has(item.group_id)) {
+      if (seenPlanIDs.has(item.plan_id)) {
         return true
       }
-      seenGroupIDs.add(item.group_id)
+      seenPlanIDs.add(item.plan_id)
       return false
     })
     if (duplicateDefaultSubscription) {
       appStore.showError(
         t('admin.settings.defaults.defaultSubscriptionsDuplicate', {
-          groupId: duplicateDefaultSubscription.group_id
+          planId: duplicateDefaultSubscription.plan_id
         })
       )
       return
@@ -2785,7 +2752,7 @@ async function saveBetaPolicySettings() {
 
 onMounted(() => {
   loadSettings()
-  loadSubscriptionGroups()
+  loadSubscriptionPlans()
   loadAdminApiKey()
   loadOverloadCooldownSettings()
   loadStreamTimeoutSettings()

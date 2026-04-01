@@ -368,6 +368,7 @@ export interface PaginationConfig {
 
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'sora'
 
+/** @deprecated Use SubscriptionPlan instead */
 export type SubscriptionType = 'standard' | 'subscription'
 
 export interface Group {
@@ -378,10 +379,6 @@ export interface Group {
   rate_multiplier: number
   is_exclusive: boolean
   status: 'active' | 'inactive'
-  subscription_type: SubscriptionType
-  daily_limit_usd: number | null
-  weekly_limit_usd: number | null
-  monthly_limit_usd: number | null
   // 图片生成计费配置（仅 antigravity 平台使用）
   image_price_1k: number | null
   image_price_2k: number | null
@@ -492,10 +489,6 @@ export interface CreateGroupRequest {
   platform?: GroupPlatform
   rate_multiplier?: number
   is_exclusive?: boolean
-  subscription_type?: SubscriptionType
-  daily_limit_usd?: number | null
-  weekly_limit_usd?: number | null
-  monthly_limit_usd?: number | null
   image_price_1k?: number | null
   image_price_2k?: number | null
   image_price_4k?: number | null
@@ -521,10 +514,6 @@ export interface UpdateGroupRequest {
   rate_multiplier?: number
   is_exclusive?: boolean
   status?: 'active' | 'inactive'
-  subscription_type?: SubscriptionType
-  daily_limit_usd?: number | null
-  weekly_limit_usd?: number | null
-  monthly_limit_usd?: number | null
   image_price_1k?: number | null
   image_price_2k?: number | null
   image_price_4k?: number | null
@@ -1093,17 +1082,17 @@ export interface RedeemCode {
   used_at: string | null
   created_at: string
   updated_at?: string
-  group_id?: number | null // 订阅类型专用
+  plan_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
   user?: User
-  group?: Group // 关联的分组
+  plan?: SubscriptionPlan // 关联的订阅计划
 }
 
 export interface GenerateRedeemCodesRequest {
   count: number
   type: RedeemCodeType
   value: number
-  group_id?: number | null // 订阅类型专用
+  plan_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
 }
 
@@ -1285,12 +1274,56 @@ export interface ChangePasswordRequest {
   new_password: string
 }
 
+// ==================== Subscription Plan Types ====================
+
+export interface SubscriptionPlan {
+  id: number
+  name: string
+  description: string
+  visibility: 'public' | 'hidden'
+  status: 'active' | 'inactive'
+  daily_limit_usd: number | null
+  weekly_limit_usd: number | null
+  monthly_limit_usd: number | null
+  default_validity_days: number
+  price: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateSubscriptionPlanRequest {
+  name: string
+  description?: string
+  visibility?: 'public' | 'hidden'
+  status?: 'active' | 'inactive'
+  daily_limit_usd?: number | null
+  weekly_limit_usd?: number | null
+  monthly_limit_usd?: number | null
+  default_validity_days?: number
+  price?: number
+  sort_order?: number
+}
+
+export interface UpdateSubscriptionPlanRequest {
+  name?: string
+  description?: string
+  visibility?: 'public' | 'hidden'
+  status?: 'active' | 'inactive'
+  daily_limit_usd?: number | null
+  weekly_limit_usd?: number | null
+  monthly_limit_usd?: number | null
+  default_validity_days?: number
+  price?: number
+  sort_order?: number
+}
+
 // ==================== User Subscription Types ====================
 
 export interface UserSubscription {
   id: number
   user_id: number
-  group_id: number
+  plan_id: number
   status: 'active' | 'expired' | 'revoked'
   daily_usage_usd: number
   weekly_usage_usd: number
@@ -1302,7 +1335,7 @@ export interface UserSubscription {
   updated_at: string
   expires_at: string | null
   user?: User
-  group?: Group
+  plan?: SubscriptionPlan
 }
 
 export interface SubscriptionProgress {
@@ -1331,13 +1364,13 @@ export interface SubscriptionProgress {
 
 export interface AssignSubscriptionRequest {
   user_id: number
-  group_id: number
+  plan_id: number
   validity_days?: number
 }
 
 export interface BulkAssignSubscriptionRequest {
   user_ids: number[]
-  group_id: number
+  plan_id: number
   validity_days?: number
 }
 

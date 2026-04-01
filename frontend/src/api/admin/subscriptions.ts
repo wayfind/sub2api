@@ -26,7 +26,7 @@ export async function list(
   filters?: {
     status?: 'active' | 'expired' | 'revoked'
     user_id?: number
-    group_id?: number
+    plan_id?: number
     platform?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -139,19 +139,19 @@ export async function resetQuota(
 }
 
 /**
- * List subscriptions by group
- * @param groupId - Group ID
+ * List subscriptions by plan
+ * @param planId - Subscription Plan ID
  * @param page - Page number
  * @param pageSize - Items per page
- * @returns Paginated list of subscriptions in the group
+ * @returns Paginated list of subscriptions in the plan
  */
-export async function listByGroup(
-  groupId: number,
+export async function listByPlan(
+  planId: number,
   page: number = 1,
   pageSize: number = 20
 ): Promise<PaginatedResponse<UserSubscription>> {
   const { data } = await apiClient.get<PaginatedResponse<UserSubscription>>(
-    `/admin/groups/${groupId}/subscriptions`,
+    `/admin/subscription-plans/${planId}/subscriptions`,
     {
       params: { page, page_size: pageSize }
     }
@@ -189,7 +189,7 @@ export const subscriptionsAPI = {
   extend,
   revoke,
   resetQuota,
-  listByGroup,
+  listByPlan,
   listByUser
 }
 

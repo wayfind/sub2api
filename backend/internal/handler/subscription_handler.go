@@ -12,8 +12,8 @@ import (
 // SubscriptionSummaryItem represents a subscription item in summary
 type SubscriptionSummaryItem struct {
 	ID              int64   `json:"id"`
-	GroupID         int64   `json:"group_id"`
-	GroupName       string  `json:"group_name"`
+	PlanID          int64   `json:"plan_id"`
+	PlanName        string  `json:"plan_name"`
 	Status          string  `json:"status"`
 	DailyUsedUSD    float64 `json:"daily_used_usd,omitempty"`
 	DailyLimitUSD   float64 `json:"daily_limit_usd,omitempty"`
@@ -33,12 +33,14 @@ type SubscriptionProgressInfo struct {
 // SubscriptionHandler handles user subscription operations
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	planService         *service.SubscriptionPlanService
 }
 
 // NewSubscriptionHandler creates a new user subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, planService *service.SubscriptionPlanService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		planService:         planService,
 	}
 }
 
@@ -141,24 +143,24 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	for _, sub := range subscriptions {
 		item := SubscriptionSummaryItem{
 			ID:             sub.ID,
-			GroupID:        sub.GroupID,
+			PlanID:         sub.PlanID,
 			Status:         sub.Status,
 			DailyUsedUSD:   sub.DailyUsageUSD,
 			WeeklyUsedUSD:  sub.WeeklyUsageUSD,
 			MonthlyUsedUSD: sub.MonthlyUsageUSD,
 		}
 
-		// Add group info if preloaded
-		if sub.Group != nil {
-			item.GroupName = sub.Group.Name
-			if sub.Group.DailyLimitUSD != nil {
-				item.DailyLimitUSD = *sub.Group.DailyLimitUSD
+		// Add plan info if preloaded
+		if sub.Plan != nil {
+			item.PlanName = sub.Plan.Name
+			if sub.Plan.DailyLimitUSD != nil {
+				item.DailyLimitUSD = *sub.Plan.DailyLimitUSD
 			}
-			if sub.Group.WeeklyLimitUSD != nil {
-				item.WeeklyLimitUSD = *sub.Group.WeeklyLimitUSD
+			if sub.Plan.WeeklyLimitUSD != nil {
+				item.WeeklyLimitUSD = *sub.Plan.WeeklyLimitUSD
 			}
-			if sub.Group.MonthlyLimitUSD != nil {
-				item.MonthlyLimitUSD = *sub.Group.MonthlyLimitUSD
+			if sub.Plan.MonthlyLimitUSD != nil {
+				item.MonthlyLimitUSD = *sub.Plan.MonthlyLimitUSD
 			}
 		}
 
@@ -185,4 +187,52 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	}
 
 	response.Success(c, summary)
+}
+
+// ListPlans handles listing public subscription plans for users
+// GET /api/v1/subscription-plans
+func (h *SubscriptionHandler) ListPlans(c *gin.Context) {
+	plans, err := h.planService.ListAll(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	out := make([]dto.SubscriptionPlan, 0, len(plans))
+	for i := range plans {
+		out = append(out, *dto.SubscriptionPlanFromService(&plans[i]))
+	}
+	response.Success(c, out)
+}
+
+// PurchaseSubscriptionRequest 用户购买订阅请求
+type PurchaseSubscriptionRequest struct {
+	PlanID int64 `json:"plan_id" binding:"required"`
+}
+
+// Purchase handles user self-service subscription purchase using account balance
+// POST /api/v1/subscriptions/purchase
+func (h *SubscriptionHandler) Purchase(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+
+	var req PurchaseSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	sub, err := h.subscriptionService.PurchaseSubscription(c.Request.Context(), &service.PurchaseSubscriptionInput{
+		UserID: subject.UserID,
+		PlanID: req.PlanID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, dto.UserSubscriptionFromService(sub))
 }

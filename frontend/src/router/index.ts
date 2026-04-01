@@ -279,6 +279,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/subscription-plans',
+    name: 'AdminSubscriptionPlans',
+    component: () => import('@/views/admin/SubscriptionPlansView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Subscription Plans',
+      titleKey: 'admin.subscriptionPlans.title',
+      descriptionKey: 'admin.subscriptionPlans.description'
+    }
+  },
+  {
     path: '/admin/subscriptions',
     name: 'AdminSubscriptions',
     component: () => import('@/views/admin/SubscriptionsView.vue'),
@@ -495,6 +507,7 @@ router.beforeEach((to, _from, next) => {
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
       '/admin/groups',
+      '/admin/subscription-plans',
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',

@@ -7369,7 +7369,7 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.TotalCost); err != nil {
 				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
 			}
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, cost.TotalCost)
+			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, cost.TotalCost)
 		}
 	} else {
 		if cost.ActualCost > 0 {
@@ -7531,8 +7531,8 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 	}
 
 	if p.IsSubscriptionBill {
-		if p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, p.Cost.TotalCost)
+		if p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil {
+			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, p.Cost.TotalCost)
 		}
 	} else if p.Cost.ActualCost > 0 && p.User != nil {
 		deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
@@ -7703,7 +7703,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 
 	// 判断计费方式：订阅模式 vs 余额模式
-	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+	isSubscriptionBilling := subscription != nil
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
 		billingType = BillingTypeSubscription
@@ -7903,7 +7903,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 
 	// 判断计费方式：订阅模式 vs 余额模式
-	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+	isSubscriptionBilling := subscription != nil
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
 		billingType = BillingTypeSubscription

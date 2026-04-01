@@ -93,7 +93,6 @@ func (s *GroupService) Create(ctx context.Context, req CreateGroupRequest) (*Gro
 		RateMultiplier:   req.RateMultiplier,
 		IsExclusive:      req.IsExclusive,
 		Status:           StatusActive,
-		SubscriptionType: SubscriptionTypeStandard,
 	}
 
 	if err := s.groupRepo.Create(ctx, group); err != nil {

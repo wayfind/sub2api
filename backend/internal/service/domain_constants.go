@@ -62,6 +62,12 @@ const (
 	SubscriptionTypeSubscription = domain.SubscriptionTypeSubscription // 订阅模式（按限额控制）
 )
 
+// Subscription plan visibility constants
+const (
+	VisibilityPublic  = domain.VisibilityPublic
+	VisibilityPrivate = domain.VisibilityPrivate
+)
+
 // Subscription status constants
 const (
 	SubscriptionStatusActive    = domain.SubscriptionStatusActive

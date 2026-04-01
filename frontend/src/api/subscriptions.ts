@@ -67,10 +67,21 @@ export async function getSubscriptionProgress(
   return response.data
 }
 
+/**
+ * Purchase a subscription plan using account balance
+ */
+export async function purchaseSubscription(planId: number): Promise<UserSubscription> {
+  const response = await apiClient.post<UserSubscription>('/subscriptions/purchase', {
+    plan_id: planId
+  })
+  return response.data
+}
+
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
   getSubscriptionsProgress,
   getSubscriptionSummary,
-  getSubscriptionProgress
+  getSubscriptionProgress,
+  purchaseSubscription
 }

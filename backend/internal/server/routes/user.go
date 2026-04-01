@@ -89,6 +89,10 @@ func RegisterUserRoutes(
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
+			subscriptions.POST("/purchase", h.Subscription.Purchase)
 		}
+
+		// 订阅计划列表（公开可见的活跃计划）
+		authenticated.GET("/subscription-plans", h.Subscription.ListPlans)
 	}
 }

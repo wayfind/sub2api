@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -27,8 +27,8 @@ type UserSubscription struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int64 `json:"user_id,omitempty"`
-	// GroupID holds the value of the "group_id" field.
-	GroupID int64 `json:"group_id,omitempty"`
+	// PlanID holds the value of the "plan_id" field.
+	PlanID int64 `json:"plan_id,omitempty"`
 	// StartsAt holds the value of the "starts_at" field.
 	StartsAt time.Time `json:"starts_at,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
@@ -63,8 +63,8 @@ type UserSubscription struct {
 type UserSubscriptionEdges struct {
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
-	// Group holds the value of the group edge.
-	Group *Group `json:"group,omitempty"`
+	// Plan holds the value of the plan edge.
+	Plan *SubscriptionPlan `json:"plan,omitempty"`
 	// AssignedByUser holds the value of the assigned_by_user edge.
 	AssignedByUser *User `json:"assigned_by_user,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
@@ -85,15 +85,15 @@ func (e UserSubscriptionEdges) UserOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "user"}
 }
 
-// GroupOrErr returns the Group value or an error if the edge
+// PlanOrErr returns the Plan value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e UserSubscriptionEdges) GroupOrErr() (*Group, error) {
-	if e.Group != nil {
-		return e.Group, nil
+func (e UserSubscriptionEdges) PlanOrErr() (*SubscriptionPlan, error) {
+	if e.Plan != nil {
+		return e.Plan, nil
 	} else if e.loadedTypes[1] {
-		return nil, &NotFoundError{label: group.Label}
+		return nil, &NotFoundError{label: subscriptionplan.Label}
 	}
-	return nil, &NotLoadedError{edge: "group"}
+	return nil, &NotLoadedError{edge: "plan"}
 }
 
 // AssignedByUserOrErr returns the AssignedByUser value or an error if the edge
@@ -123,7 +123,7 @@ func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
 			values[i] = new(sql.NullFloat64)
-		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy:
+		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldPlanID, usersubscription.FieldAssignedBy:
 			values[i] = new(sql.NullInt64)
 		case usersubscription.FieldStatus, usersubscription.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -175,11 +175,11 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UserID = value.Int64
 			}
-		case usersubscription.FieldGroupID:
+		case usersubscription.FieldPlanID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field group_id", values[i])
+				return fmt.Errorf("unexpected type %T for field plan_id", values[i])
 			} else if value.Valid {
-				_m.GroupID = value.Int64
+				_m.PlanID = value.Int64
 			}
 		case usersubscription.FieldStartsAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -276,9 +276,9 @@ func (_m *UserSubscription) QueryUser() *UserQuery {
 	return NewUserSubscriptionClient(_m.config).QueryUser(_m)
 }
 
-// QueryGroup queries the "group" edge of the UserSubscription entity.
-func (_m *UserSubscription) QueryGroup() *GroupQuery {
-	return NewUserSubscriptionClient(_m.config).QueryGroup(_m)
+// QueryPlan queries the "plan" edge of the UserSubscription entity.
+func (_m *UserSubscription) QueryPlan() *SubscriptionPlanQuery {
+	return NewUserSubscriptionClient(_m.config).QueryPlan(_m)
 }
 
 // QueryAssignedByUser queries the "assigned_by_user" edge of the UserSubscription entity.
@@ -328,8 +328,8 @@ func (_m *UserSubscription) String() string {
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteString(", ")
-	builder.WriteString("group_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.GroupID))
+	builder.WriteString("plan_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PlanID))
 	builder.WriteString(", ")
 	builder.WriteString("starts_at=")
 	builder.WriteString(_m.StartsAt.Format(time.ANSIC))

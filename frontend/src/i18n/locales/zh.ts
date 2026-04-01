@@ -336,6 +336,7 @@ export default {
     users: '用户管理',
     groups: '分组管理',
     subscriptions: '订阅管理',
+    subscriptionPlans: '订阅计划',
     accounts: '账号管理',
     proxies: 'IP管理',
     redeemCodes: '兑换码',
@@ -1799,6 +1800,70 @@ export default {
       }
     },
 
+    // Subscription Plans Management
+    subscriptionPlans: {
+      title: '订阅计划管理',
+      description: '管理订阅计划模板',
+      searchPlans: '搜索计划...',
+      createPlan: '创建计划',
+      editPlan: '编辑计划',
+      deletePlan: '删除计划',
+      allStatus: '全部状态',
+      allVisibility: '全部可见性',
+      unlimited: '无限制',
+      days: '天',
+      notForSale: '不可购买',
+      creating: '创建中...',
+      saving: '保存中...',
+      planCreated: '计划创建成功',
+      planUpdated: '计划更新成功',
+      planDeleted: '计划删除成功',
+      failedToLoad: '加载计划列表失败',
+      failedToCreate: '创建计划失败',
+      failedToUpdate: '更新计划失败',
+      failedToDelete: '删除计划失败',
+      noPlansYet: '暂无订阅计划',
+      createFirstPlan: '创建第一个订阅计划来开始管理',
+      deleteConfirm: '确定要删除计划 "{name}" 吗？此操作不可撤销。',
+      visibility: {
+        public: '公开',
+        hidden: '隐藏'
+      },
+      status: {
+        active: '启用',
+        inactive: '停用'
+      },
+      columns: {
+        name: '名称',
+        visibility: '可见性',
+        status: '状态',
+        dailyLimit: '日限额',
+        weeklyLimit: '周限额',
+        monthlyLimit: '月限额',
+        validityDays: '有效期',
+        price: '价格',
+        actions: '操作'
+      },
+      form: {
+        name: '名称',
+        namePlaceholder: '输入计划名称',
+        description: '描述',
+        descriptionPlaceholder: '输入计划描述',
+        visibility: '可见性',
+        status: '状态',
+        dailyLimit: '日限额 (USD)',
+        weeklyLimit: '周限额 (USD)',
+        monthlyLimit: '月限额 (USD)',
+        limitPlaceholder: '留空=无限制',
+        limitHint: '留空表示无限制',
+        validityDays: '有效期 (天)',
+        price: '价格 (USD)',
+        pricePlaceholder: '留空=不可购买',
+        priceHint: '设置后用户可自助购买',
+        sortOrder: '排序值'
+      }
+    },
+
     // Subscriptions Management
     subscriptions: {
       title: '订阅管理',
@@ -1808,6 +1873,7 @@ export default {
       revokeSubscription: '撤销订阅',
       allStatus: '全部状态',
       allGroups: '全部分组',
+      allPlans: '全部计划',
       allPlatforms: '全部平台',
       daily: '每日',
       weekly: '每周',
@@ -1830,6 +1896,7 @@ export default {
       columns: {
         user: '用户',
         group: '分组',
+        plan: '计划',
         usage: '用量',
         expires: '到期时间',
         status: '状态',
@@ -1838,12 +1905,15 @@ export default {
       form: {
         user: '用户',
         group: '订阅分组',
+        plan: '订阅计划',
         validityDays: '有效期（天）',
         adjustDays: '调整天数'
       },
       selectUser: '选择用户',
       selectGroup: '选择订阅分组',
+      selectPlan: '选择订阅计划',
       groupHint: '仅显示订阅计费类型的分组',
+      planHint: '选择要分配的订阅计划',
       validityHint: '订阅的有效天数',
       adjustingFor: '为以下用户调整订阅',
       currentExpiration: '当前到期时间',
@@ -1872,6 +1942,7 @@ export default {
       adjustOutOfRange: '调整天数必须在 -36500 到 36500 之间',
       pleaseSelectUser: '请选择用户',
       pleaseSelectGroup: '请选择分组',
+      pleaseSelectPlan: '请选择订阅计划',
       validityDaysRequired: '请输入有效的天数（至少1天）',
       revokeConfirm: "确定要撤销 '{user}' 的订阅吗？此操作无法撤销。",
       guide: {
@@ -3196,8 +3267,11 @@ export default {
       failedToCopy: '复制失败',
       selectGroup: '选择分组',
       selectGroupPlaceholder: '选择订阅分组',
+      selectPlan: '选择计划',
+      selectPlanPlaceholder: '选择订阅计划',
       validityDays: '有效天数',
       groupRequired: '请选择订阅分组',
+      planRequired: '请选择订阅计划',
       days: '天',
       status: {
         unused: '未使用',
@@ -4322,6 +4396,7 @@ export default {
         defaultSubscriptionsEmpty: '未配置默认订阅。新用户不会自动获得订阅套餐。',
         defaultSubscriptionsDuplicate: '默认订阅存在重复分组：{groupId}。每个分组只能出现一次。',
         subscriptionGroup: '订阅分组',
+        subscriptionPlan: '订阅计划',
         subscriptionValidityDays: '有效期（天）'
       },
       claudeCode: {
@@ -4923,7 +4998,17 @@ export default {
     expiresOn: '{date} 到期',
     resetIn: '{time} 后重置',
     windowNotActive: '等待首次使用',
-    usageOf: '已用 {used} / {limit}'
+    usageOf: '已用 {used} / {limit}',
+    availablePlans: '可购买的订阅计划',
+    purchase: '购买',
+    purchaseConfirm: '确认使用余额购买「{name}」？\n价格：${price}\n有效期：{days} 天',
+    purchaseSuccess: '成功购买订阅「{name}」',
+    purchaseFailed: '购买失败',
+    dailyLimit: '每日额度',
+    weeklyLimit: '每周额度',
+    monthlyLimit: '每月额度',
+    validity: '有效期',
+    days: '天'
   },
 
   // Onboarding Tour

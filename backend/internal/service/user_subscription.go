@@ -3,9 +3,9 @@ package service
 import "time"
 
 type UserSubscription struct {
-	ID      int64
-	UserID  int64
-	GroupID int64
+	ID     int64
+	UserID int64
+	PlanID int64
 
 	StartsAt  time.Time
 	ExpiresAt time.Time
@@ -27,7 +27,7 @@ type UserSubscription struct {
 	UpdatedAt time.Time
 
 	User           *User
-	Group          *Group
+	Plan           *SubscriptionPlan
 	AssignedByUser *User
 }
 
@@ -95,30 +95,33 @@ func (s *UserSubscription) MonthlyResetTime() *time.Time {
 	return &t
 }
 
-func (s *UserSubscription) CheckDailyLimit(group *Group, additionalCost float64) bool {
-	if !group.HasDailyLimit() {
+// CheckDailyLimit 检查日额度（限额来自计划）
+func (s *UserSubscription) CheckDailyLimit(plan *SubscriptionPlan, additionalCost float64) bool {
+	if !plan.HasDailyLimit() {
 		return true
 	}
-	return s.DailyUsageUSD+additionalCost <= *group.DailyLimitUSD
+	return s.DailyUsageUSD+additionalCost <= *plan.DailyLimitUSD
 }
 
-func (s *UserSubscription) CheckWeeklyLimit(group *Group, additionalCost float64) bool {
-	if !group.HasWeeklyLimit() {
+// CheckWeeklyLimit 检查周额度（限额来自计划）
+func (s *UserSubscription) CheckWeeklyLimit(plan *SubscriptionPlan, additionalCost float64) bool {
+	if !plan.HasWeeklyLimit() {
 		return true
 	}
-	return s.WeeklyUsageUSD+additionalCost <= *group.WeeklyLimitUSD
+	return s.WeeklyUsageUSD+additionalCost <= *plan.WeeklyLimitUSD
 }
 
-func (s *UserSubscription) CheckMonthlyLimit(group *Group, additionalCost float64) bool {
-	if !group.HasMonthlyLimit() {
+// CheckMonthlyLimit 检查月额度（限额来自计划）
+func (s *UserSubscription) CheckMonthlyLimit(plan *SubscriptionPlan, additionalCost float64) bool {
+	if !plan.HasMonthlyLimit() {
 		return true
 	}
-	return s.MonthlyUsageUSD+additionalCost <= *group.MonthlyLimitUSD
+	return s.MonthlyUsageUSD+additionalCost <= *plan.MonthlyLimitUSD
 }
 
-func (s *UserSubscription) CheckAllLimits(group *Group, additionalCost float64) (daily, weekly, monthly bool) {
-	daily = s.CheckDailyLimit(group, additionalCost)
-	weekly = s.CheckWeeklyLimit(group, additionalCost)
-	monthly = s.CheckMonthlyLimit(group, additionalCost)
+func (s *UserSubscription) CheckAllLimits(plan *SubscriptionPlan, additionalCost float64) (daily, weekly, monthly bool) {
+	daily = s.CheckDailyLimit(plan, additionalCost)
+	weekly = s.CheckWeeklyLimit(plan, additionalCost)
+	monthly = s.CheckMonthlyLimit(plan, additionalCost)
 	return
 }

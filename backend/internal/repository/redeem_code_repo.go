@@ -29,7 +29,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetValidityDays(code.ValidityDays).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
-		SetNillableGroupID(code.GroupID).
+		SetNillablePlanID(code.PlanID).
 		Save(ctx)
 	if err == nil {
 		code.ID = created.ID
@@ -55,7 +55,7 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetValidityDays(c.ValidityDays).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
-			SetNillableGroupID(c.GroupID)
+			SetNillablePlanID(c.PlanID)
 		builders = append(builders, b)
 	}
 
@@ -122,7 +122,7 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 
 	codes, err := q.
 		WithUser().
-		WithGroup().
+		WithPlan().
 		Offset(params.Offset()).
 		Limit(params.Limit()).
 		Order(dbent.Desc(redeemcode.FieldID)).
@@ -155,10 +155,10 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 	} else {
 		up.ClearUsedAt()
 	}
-	if code.GroupID != nil {
-		up.SetGroupID(*code.GroupID)
+	if code.PlanID != nil {
+		up.SetPlanID(*code.PlanID)
 	} else {
-		up.ClearGroupID()
+		up.ClearPlanID()
 	}
 
 	updated, err := up.Save(ctx)
@@ -197,7 +197,7 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 
 	codes, err := r.client.RedeemCode.Query().
 		Where(redeemcode.UsedByEQ(userID)).
-		WithGroup().
+		WithPlan().
 		Order(dbent.Desc(redeemcode.FieldUsedAt)).
 		Limit(limit).
 		All(ctx)
@@ -225,7 +225,7 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 	}
 
 	codes, err := q.
-		WithGroup().
+		WithPlan().
 		Offset(params.Offset()).
 		Limit(params.Limit()).
 		Order(dbent.Desc(redeemcode.FieldUsedAt)).
@@ -273,14 +273,14 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		UsedAt:       m.UsedAt,
 		Notes:        derefString(m.Notes),
 		CreatedAt:    m.CreatedAt,
-		GroupID:      m.GroupID,
+		PlanID:       m.PlanID,
 		ValidityDays: m.ValidityDays,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
 	}
-	if m.Edges.Group != nil {
-		out.Group = groupEntityToService(m.Edges.Group)
+	if m.Edges.Plan != nil {
+		out.Plan = subscriptionPlanEntityToService(m.Edges.Plan)
 	}
 	return out
 }
