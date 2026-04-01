@@ -461,5 +461,17 @@ func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	return &service.ReplaceUserGroupResult{MigratedKeys: 0}, nil
 }
 
+func (s *stubAdminService) ListGroupMembers(ctx context.Context, groupID int64) ([]service.User, error) {
+	return nil, nil
+}
+
+func (s *stubAdminService) AddGroupMember(ctx context.Context, groupID, userID int64) error {
+	return nil
+}
+
+func (s *stubAdminService) RemoveGroupMember(ctx context.Context, groupID, userID int64) error {
+	return nil
+}
+
 // Ensure stub implements interface.
 var _ service.AdminService = (*stubAdminService)(nil)

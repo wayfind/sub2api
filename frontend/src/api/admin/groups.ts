@@ -6,6 +6,7 @@
 import { apiClient } from '../client'
 import type {
   AdminGroup,
+  AdminUser,
   GroupPlatform,
   CreateGroupRequest,
   UpdateGroupRequest,
@@ -246,6 +247,34 @@ export async function getCapacitySummary(): Promise<
   return data
 }
 
+/**
+ * Get members of an exclusive group
+ * @param id - Group ID
+ * @returns List of users in the group
+ */
+export async function getGroupMembers(id: number): Promise<AdminUser[]> {
+  const { data } = await apiClient.get<AdminUser[]>(`/admin/groups/${id}/members`)
+  return data
+}
+
+/**
+ * Add a user to an exclusive group
+ * @param id - Group ID
+ * @param userId - User ID to add
+ */
+export async function addGroupMember(id: number, userId: number): Promise<void> {
+  await apiClient.post(`/admin/groups/${id}/members`, { user_id: userId })
+}
+
+/**
+ * Remove a user from an exclusive group
+ * @param id - Group ID
+ * @param userId - User ID to remove
+ */
+export async function removeGroupMember(id: number, userId: number): Promise<void> {
+  await apiClient.delete(`/admin/groups/${id}/members/${userId}`)
+}
+
 export const groupsAPI = {
   list,
   getAll,
@@ -262,7 +291,10 @@ export const groupsAPI = {
   batchSetGroupRateMultipliers,
   updateSortOrder,
   getUsageSummary,
-  getCapacitySummary
+  getCapacitySummary,
+  getGroupMembers,
+  addGroupMember,
+  removeGroupMember
 }
 
 export default groupsAPI

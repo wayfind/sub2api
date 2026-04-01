@@ -49,6 +49,8 @@ type UserRepository interface {
 	AddGroupToAllowedGroups(ctx context.Context, userID int64, groupID int64) error
 	// RemoveGroupFromUserAllowedGroups 移除单个用户的指定分组权限
 	RemoveGroupFromUserAllowedGroups(ctx context.Context, userID int64, groupID int64) error
+	// ListUsersByGroupAllowed 按分组查询所有已授权用户（通过 user_allowed_groups 联接表）
+	ListUsersByGroupAllowed(ctx context.Context, groupID int64) ([]User, error)
 
 	// TOTP 双因素认证
 	UpdateTotpSecret(ctx context.Context, userID int64, encryptedSecret *string) error

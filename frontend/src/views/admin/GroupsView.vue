@@ -171,6 +171,14 @@
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
               <button
+                v-if="row.is_exclusive"
+                @click="handleManageMembers(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-dark-700 dark:hover:text-blue-400"
+              >
+                <Icon name="users" size="sm" />
+                <span class="text-xs">{{ t('admin.groups.members.label') }}</span>
+              </button>
+              <button
                 @click="handleRateMultipliers(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-dark-700 dark:hover:text-purple-400"
               >
@@ -1681,6 +1689,13 @@
       @close="showRateMultipliersModal = false"
       @success="loadGroups"
     />
+
+    <!-- Group Members Modal -->
+    <GroupMembersModal
+      :show="showMembersModal"
+      :group="membersGroup"
+      @close="showMembersModal = false"
+    />
   </AppLayout>
 </template>
 
@@ -1703,6 +1718,7 @@ import Select from '@/components/common/Select.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupRateMultipliersModal from '@/components/admin/group/GroupRateMultipliersModal.vue'
+import GroupMembersModal from '@/components/admin/group/GroupMembersModal.vue'
 import GroupCapacityBadge from '@/components/common/GroupCapacityBadge.vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -1878,6 +1894,8 @@ const editingGroup = ref<AdminGroup | null>(null)
 const deletingGroup = ref<AdminGroup | null>(null)
 const showRateMultipliersModal = ref(false)
 const rateMultipliersGroup = ref<AdminGroup | null>(null)
+const showMembersModal = ref(false)
+const membersGroup = ref<AdminGroup | null>(null)
 const sortableGroups = ref<AdminGroup[]>([])
 
 const createForm = reactive({
@@ -2396,6 +2414,11 @@ const handleUpdateGroup = async () => {
 const handleRateMultipliers = (group: AdminGroup) => {
   rateMultipliersGroup.value = group
   showRateMultipliersModal.value = true
+}
+
+const handleManageMembers = (group: AdminGroup) => {
+  membersGroup.value = group
+  showMembersModal.value = true
 }
 
 const handleDelete = (group: AdminGroup) => {

@@ -449,3 +449,89 @@ func (h *GroupHandler) UpdateSortOrder(c *gin.Context) {
 
 	response.Success(c, gin.H{"message": "Sort order updated successfully"})
 }
+
+// GroupMemberResponse represents a user in the group members list
+type GroupMemberResponse struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Status   string `json:"status"`
+}
+
+// AddGroupMemberRequest represents the request to add a user to group members
+type AddGroupMemberRequest struct {
+	UserID int64 `json:"user_id" binding:"required"`
+}
+
+// ListGroupMembers handles listing all authorized users for a group
+// GET /api/v1/admin/groups/:id/members
+func (h *GroupHandler) ListGroupMembers(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	users, err := h.adminService.ListGroupMembers(c.Request.Context(), groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	out := make([]GroupMemberResponse, 0, len(users))
+	for _, u := range users {
+		out = append(out, GroupMemberResponse{
+			ID:       u.ID,
+			Email:    u.Email,
+			Username: u.Username,
+			Status:   u.Status,
+		})
+	}
+	response.Success(c, out)
+}
+
+// AddGroupMember handles adding a user to group's allowed members
+// POST /api/v1/admin/groups/:id/members
+func (h *GroupHandler) AddGroupMember(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	var req AddGroupMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.adminService.AddGroupMember(c.Request.Context(), groupID, req.UserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Member added successfully"})
+}
+
+// RemoveGroupMember handles removing a user from group's allowed members
+// DELETE /api/v1/admin/groups/:id/members/:userId
+func (h *GroupHandler) RemoveGroupMember(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	userID, err := strconv.ParseInt(c.Param("userId"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+
+	if err := h.adminService.RemoveGroupMember(c.Request.Context(), groupID, userID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Member removed successfully"})
+}

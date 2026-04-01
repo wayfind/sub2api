@@ -1704,6 +1704,17 @@ export default {
       unsavedChanges: '有未保存的修改',
       revertChanges: '撤销修改',
       userInfo: '用户信息',
+      members: {
+        label: '成员',
+        title: '{name} - 成员管理',
+        addMember: '添加成员',
+        searchPlaceholder: '搜索用户邮箱或用户名...',
+        memberList: '已授权用户',
+        noMembers: '暂无成员',
+        memberAdded: '成员已添加',
+        memberRemoved: '成员已移除',
+        remove: '移除',
+      },
       subscription: {
         title: '订阅设置',
         type: '计费类型',

@@ -246,6 +246,9 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.PUT("/:id/rate-multipliers", h.Admin.Group.BatchSetGroupRateMultipliers)
 		groups.DELETE("/:id/rate-multipliers", h.Admin.Group.ClearGroupRateMultipliers)
 		groups.GET("/:id/api-keys", h.Admin.Group.GetGroupAPIKeys)
+		groups.GET("/:id/members", h.Admin.Group.ListGroupMembers)
+		groups.POST("/:id/members", h.Admin.Group.AddGroupMember)
+		groups.DELETE("/:id/members/:userId", h.Admin.Group.RemoveGroupMember)
 	}
 }
 

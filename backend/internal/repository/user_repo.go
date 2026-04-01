@@ -469,6 +469,39 @@ func (r *userRepository) RemoveGroupFromUserAllowedGroups(ctx context.Context, u
 	return err
 }
 
+// ListUsersByGroupAllowed 按分组查询所有已授权用户（通过 user_allowed_groups 联接表）
+func (r *userRepository) ListUsersByGroupAllowed(ctx context.Context, groupID int64) ([]service.User, error) {
+	uagRows, err := r.client.UserAllowedGroup.Query().
+		Where(userallowedgroup.GroupIDEQ(groupID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(uagRows) == 0 {
+		return []service.User{}, nil
+	}
+	userIDs := make([]int64, 0, len(uagRows))
+	for _, row := range uagRows {
+		userIDs = append(userIDs, row.UserID)
+	}
+	users, err := r.client.User.Query().
+		Where(
+			dbuser.IDIn(userIDs...),
+			dbuser.DeletedAtIsNil(),
+		).
+		Order(dbent.Asc(dbuser.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]service.User, 0, len(users))
+	for _, u := range users {
+		su := userEntityToService(u)
+		out = append(out, *su)
+	}
+	return out, nil
+}
+
 func (r *userRepository) GetFirstAdmin(ctx context.Context) (*service.User, error) {
 	m, err := r.client.User.Query().
 		Where(

@@ -47,6 +47,11 @@ type AdminService interface {
 	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
 	UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
 
+	// Group member management (exclusive groups)
+	ListGroupMembers(ctx context.Context, groupID int64) ([]User, error)
+	AddGroupMember(ctx context.Context, groupID, userID int64) error
+	RemoveGroupMember(ctx context.Context, groupID, userID int64) error
+
 	// API Key management (admin)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
 
@@ -1250,6 +1255,37 @@ func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, gro
 
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
 	return s.groupRepo.UpdateSortOrders(ctx, updates)
+}
+
+// ListGroupMembers 获取分组的已授权用户列表
+func (s *adminServiceImpl) ListGroupMembers(ctx context.Context, groupID int64) ([]User, error) {
+	// 验证分组存在
+	if _, err := s.groupRepo.GetByID(ctx, groupID); err != nil {
+		return nil, err
+	}
+	return s.userRepo.ListUsersByGroupAllowed(ctx, groupID)
+}
+
+// AddGroupMember 给分组添加授权用户
+func (s *adminServiceImpl) AddGroupMember(ctx context.Context, groupID, userID int64) error {
+	// 验证分组存在
+	if _, err := s.groupRepo.GetByID(ctx, groupID); err != nil {
+		return err
+	}
+	// 验证用户存在
+	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
+		return err
+	}
+	return s.userRepo.AddGroupToAllowedGroups(ctx, userID, groupID)
+}
+
+// RemoveGroupMember 移除分组的用户授权
+func (s *adminServiceImpl) RemoveGroupMember(ctx context.Context, groupID, userID int64) error {
+	// 验证分组存在
+	if _, err := s.groupRepo.GetByID(ctx, groupID); err != nil {
+		return err
+	}
+	return s.userRepo.RemoveGroupFromUserAllowedGroups(ctx, userID, groupID)
 }
 
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定

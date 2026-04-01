@@ -1605,6 +1605,17 @@ export default {
       unsavedChanges: 'Unsaved changes',
       revertChanges: 'Revert',
       userInfo: 'User Info',
+      members: {
+        label: 'Members',
+        title: '{name} - Members',
+        addMember: 'Add Member',
+        searchPlaceholder: 'Search by email or username...',
+        memberList: 'Authorized Users',
+        noMembers: 'No members yet',
+        memberAdded: 'Member added',
+        memberRemoved: 'Member removed',
+        remove: 'Remove',
+      },
       platforms: {
         all: 'All Platforms',
         anthropic: 'Anthropic',
