@@ -143,12 +143,24 @@ ALTER TABLE redeem_codes DROP CONSTRAINT IF EXISTS redeem_codes_groups_redeem_co
 ALTER TABLE redeem_codes DROP COLUMN IF EXISTS group_id;
 
 -- ============================================================
--- 5. 清理临时列 source_group_id
+-- 5. 回填 user_allowed_groups（趁 source_group_id 还在）
+-- 订阅解耦后，用户通过订阅获得的 exclusive 分组访问权需要显式记录
+-- ============================================================
+INSERT INTO user_allowed_groups (user_id, group_id)
+SELECT DISTINCT us.user_id, sp.source_group_id
+FROM user_subscriptions us
+JOIN subscription_plans sp ON sp.id = us.plan_id AND sp.deleted_at IS NULL
+JOIN groups g ON g.id = sp.source_group_id AND g.deleted_at IS NULL AND g.is_exclusive = true
+WHERE us.deleted_at IS NULL
+ON CONFLICT (user_id, group_id) DO NOTHING;
+
+-- ============================================================
+-- 6. 清理临时列 source_group_id
 -- ============================================================
 ALTER TABLE subscription_plans DROP COLUMN source_group_id;
 
 -- ============================================================
--- 6. 清理 groups 表订阅相关字段
+-- 7. 清理 groups 表订阅相关字段
 -- ============================================================
 DROP INDEX IF EXISTS idx_groups_subscription_type;
 ALTER TABLE groups DROP COLUMN IF EXISTS subscription_type;
