@@ -51,7 +51,7 @@ INSERT INTO subscription_plans (name, description, visibility, status, daily_lim
 SELECT
     g.name,
     g.description,
-    'public',
+    'private',
     g.status,
     g.daily_limit_usd,
     g.weekly_limit_usd,
