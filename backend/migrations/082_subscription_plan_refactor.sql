@@ -51,7 +51,7 @@ INSERT INTO subscription_plans (name, description, visibility, status, daily_lim
 SELECT
     g.name,
     g.description,
-    'private',
+    CASE WHEN g.is_exclusive THEN 'private' ELSE 'public' END,
     g.status,
     g.daily_limit_usd,
     g.weekly_limit_usd,
