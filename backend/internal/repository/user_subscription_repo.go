@@ -407,6 +407,7 @@ func (r *userSubscriptionRepository) CountActiveByPlanID(ctx context.Context, pl
 			usersubscription.PlanIDEQ(planID),
 			usersubscription.StatusEQ(service.SubscriptionStatusActive),
 			usersubscription.ExpiresAtGT(time.Now()),
+			usersubscription.DeletedAtIsNil(),
 		).
 		Count(ctx)
 	return int64(count), err
