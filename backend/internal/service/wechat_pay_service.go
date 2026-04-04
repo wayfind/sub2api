@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
@@ -64,7 +65,6 @@ type WechatPayConfig struct {
 	APIKeyV3   string `json:"api_key_v3"`
 	SerialNo   string `json:"serial_no"`
 	PrivateKey string `json:"private_key"` // PEM 格式私钥内容
-	NotifyURL  string `json:"notify_url"`  // 回调地址
 }
 
 // WechatPayPackage 充值套餐（存 Setting 表）
@@ -91,6 +91,7 @@ type WechatPayOrderRepository interface {
 
 type WechatPayService struct {
 	db          *dbent.Client
+	cfg         *config.Config
 	orderRepo   WechatPayOrderRepository
 	settingRepo SettingRepository
 	userService *UserService
@@ -98,16 +99,24 @@ type WechatPayService struct {
 
 func NewWechatPayService(
 	db *dbent.Client,
+	cfg *config.Config,
 	orderRepo WechatPayOrderRepository,
 	settingRepo SettingRepository,
 	userService *UserService,
 ) *WechatPayService {
 	return &WechatPayService{
 		db:          db,
+		cfg:         cfg,
 		orderRepo:   orderRepo,
 		settingRepo: settingRepo,
 		userService: userService,
 	}
+}
+
+// NotifyURL 根据系统配置自动生成回调地址
+func (s *WechatPayService) NotifyURL() string {
+	base := strings.TrimRight(s.cfg.Server.FrontendURL, "/")
+	return base + "/api/v1/payments/wechat/notify"
 }
 
 // GetConfig 获取微信支付配置
@@ -237,7 +246,7 @@ func (s *WechatPayService) CreateOrder(ctx context.Context, userID int64, packag
 		Mchid:       core.String(cfg.MchID),
 		Description: core.String(pkg.Name),
 		OutTradeNo:  core.String(orderNo),
-		NotifyUrl:   core.String(cfg.NotifyURL),
+		NotifyUrl:   core.String(s.NotifyURL()),
 		Amount: &native.Amount{
 			Currency: core.String("CNY"),
 			Total:    core.Int64(int64(cnyFee)),

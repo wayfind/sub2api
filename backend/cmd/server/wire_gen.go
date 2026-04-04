@@ -216,7 +216,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestService := service.ProvideScheduledTestService(scheduledTestPlanRepository, scheduledTestResultRepository)
 	scheduledTestHandler := admin.NewScheduledTestHandler(scheduledTestService)
 	wechatPayOrderRepository := repository.NewWechatPayOrderRepository(client)
-	wechatPayService := service.NewWechatPayService(client, wechatPayOrderRepository, settingRepository, userService)
+	wechatPayService := service.NewWechatPayService(client, configConfig, wechatPayOrderRepository, settingRepository, userService)
 	adminWechatPayHandler := admin.NewWechatPayHandler(wechatPayService)
 	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, subscriptionPlanHandler, adminWechatPayHandler)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)

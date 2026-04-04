@@ -21,19 +21,21 @@ func NewWechatPayHandler(wechatPayService *service.WechatPayService) *WechatPayH
 func (h *WechatPayHandler) GetConfig(c *gin.Context) {
 	cfg, err := h.wechatPayService.GetConfig(c.Request.Context())
 	if err != nil {
-		// 未配置时返回空对象
-		response.Success(c, gin.H{})
+		// 未配置时返回空对象（含自动生成的 notify_url 供参考）
+		response.Success(c, gin.H{
+			"notify_url": h.wechatPayService.NotifyURL(),
+		})
 		return
 	}
 	// 私钥和 APIv3 Key 不返回给前端，只告知是否已配置
 	response.Success(c, gin.H{
-		"appid":               cfg.AppID,
-		"mchid":               cfg.MchID,
-		"serial_no":           cfg.SerialNo,
-		"notify_url":          cfg.NotifyURL,
-		"private_key_set":     cfg.PrivateKey != "",
-		"api_key_v3_set":      cfg.APIKeyV3 != "",
-		"configured":          true,
+		"appid":           cfg.AppID,
+		"mchid":           cfg.MchID,
+		"serial_no":       cfg.SerialNo,
+		"notify_url":      h.wechatPayService.NotifyURL(), // 系统自动生成，只读
+		"private_key_set": cfg.PrivateKey != "",
+		"api_key_v3_set":  cfg.APIKeyV3 != "",
+		"configured":      true,
 	})
 }
 
@@ -43,7 +45,6 @@ type updateConfigRequest struct {
 	APIKeyV3   string `json:"api_key_v3"`
 	SerialNo   string `json:"serial_no"`
 	PrivateKey string `json:"private_key"`
-	NotifyURL  string `json:"notify_url"`
 }
 
 // UpdateConfig 更新微信支付配置
@@ -61,7 +62,6 @@ func (h *WechatPayHandler) UpdateConfig(c *gin.Context) {
 		APIKeyV3:   req.APIKeyV3,
 		SerialNo:   req.SerialNo,
 		PrivateKey: req.PrivateKey,
-		NotifyURL:  req.NotifyURL,
 	}
 	if err := h.wechatPayService.UpdateConfig(c.Request.Context(), cfg); err != nil {
 		response.ErrorFrom(c, err)

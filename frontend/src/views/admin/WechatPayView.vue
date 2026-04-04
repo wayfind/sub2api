@@ -38,7 +38,7 @@
         <form @submit.prevent="saveConfig" class="space-y-4 p-6">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label class="input-label">AppID（公众号/小程序 AppID）</label>
+              <label class="input-label">AppID（开放平台/公众号）</label>
               <input v-model="config.appid" type="text" class="input mt-1" placeholder="wx..." />
             </div>
             <div>
@@ -47,26 +47,32 @@
             </div>
             <div>
               <label class="input-label">证书序列号（SerialNo）</label>
-              <input v-model="config.serial_no" type="text" class="input mt-1" placeholder="证书序列号" />
+              <input v-model="config.serial_no" type="text" class="input mt-1" placeholder="40位十六进制序列号" />
             </div>
             <div>
-              <label class="input-label">回调地址（NotifyURL）</label>
-              <input v-model="config.notify_url" type="url" class="input mt-1" placeholder="https://example.com/api/v1/payments/wechat/notify" />
+              <label class="input-label">回调地址（自动生成）</label>
+              <input :value="config.notify_url" type="text" class="input mt-1 bg-gray-50 dark:bg-dark-700 text-gray-500 cursor-default" readonly />
+              <p class="input-hint">在微信商户平台添加此地址为白名单</p>
             </div>
           </div>
           <div>
             <label class="input-label">APIv3 密钥</label>
-            <input v-model="config.api_key_v3" type="password" class="input mt-1" placeholder="32位 APIv3 密钥" autocomplete="new-password" />
+            <input
+              v-model="config.api_key_v3"
+              type="password"
+              class="input mt-1"
+              :placeholder="config.api_key_v3_set ? '已配置（留空保留原值）' : '32位 APIv3 密钥'"
+              autocomplete="new-password"
+            />
           </div>
           <div>
             <label class="input-label">商户私钥（PEM 格式）</label>
             <textarea
               v-model="config.private_key"
               class="input mt-1 font-mono text-xs"
-              rows="8"
-              placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+              rows="6"
+              :placeholder="config.private_key_set ? '已配置（留空保留原值）\n粘贴新 apiclient_key.pem 内容可替换' : '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'"
             />
-            <p class="input-hint">粘贴 apiclient_key.pem 文件内容</p>
           </div>
           <div class="flex justify-end">
             <button type="submit" :disabled="savingConfig" class="btn btn-primary">
@@ -168,7 +174,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { adminWechatPayAPI, type WechatPayConfig, type WechatPayOrderRecord } from '@/api/admin/wechat_pay'
+import { adminWechatPayAPI, type WechatPayOrderRecord } from '@/api/admin/wechat_pay'
 import type { WechatPayPackage } from '@/api/payment'
 
 const enabled = ref(false)
@@ -176,13 +182,15 @@ const savingConfig = ref(false)
 const savingPackages = ref(false)
 const loadingOrders = ref(false)
 
-const config = ref<WechatPayConfig>({
+const config = ref({
   appid: '',
   mchid: '',
   api_key_v3: '',
   serial_no: '',
   private_key: '',
-  notify_url: ''
+  notify_url: '',
+  private_key_set: false,
+  api_key_v3_set: false,
 })
 
 const packages = ref<WechatPayPackage[]>([])
@@ -197,11 +205,13 @@ onMounted(async () => {
 async function loadConfig() {
   try {
     const cfg = await adminWechatPayAPI.getConfig()
+    config.value.notify_url = cfg.notify_url ?? ''
     if (cfg.configured) {
       config.value.appid = cfg.appid
       config.value.mchid = cfg.mchid
       config.value.serial_no = cfg.serial_no
-      config.value.notify_url = cfg.notify_url
+      config.value.private_key_set = cfg.private_key_set ?? false
+      config.value.api_key_v3_set = cfg.api_key_v3_set ?? false
     }
   } catch {}
 }
@@ -236,7 +246,17 @@ async function toggleEnabled() {
 async function saveConfig() {
   savingConfig.value = true
   try {
-    await adminWechatPayAPI.updateConfig(config.value)
+    await adminWechatPayAPI.updateConfig({
+      appid: config.value.appid,
+      mchid: config.value.mchid,
+      api_key_v3: config.value.api_key_v3,
+      serial_no: config.value.serial_no,
+      private_key: config.value.private_key,
+    })
+    // 保存成功后清空敏感字段输入，刷新状态
+    config.value.api_key_v3 = ''
+    config.value.private_key = ''
+    await loadConfig()
     alert('配置已保存')
   } catch (e: any) {
     alert(e?.response?.data?.message || '保存失败')
