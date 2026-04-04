@@ -7358,21 +7358,29 @@ type postUsageBillingParams struct {
 //   - API Key 限速用量更新
 //   - 账号配额用量更新（账号口径：TotalCost × 账号计费倍率）
 func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
+	if p == nil || p.Cost == nil || deps == nil {
+		return
+	}
+
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
 
 	cost := p.Cost
 
 	// 1. 订阅 / 余额扣费
+	// 限额语义为实收成本（actual_cost），故累加 ActualCost。
+	// 守卫条件用 TotalCost > 0（表示本次有真实消耗）：
+	//   - rate_multiplier=0（免费账号）时 ActualCost==0，不写 DB 避免无意义 round-trip；
+	//     此类账号限额永远不触发，属于预期行为。
+	// Redis cache 由 finalizePostUsageBilling 统一写入，此处不重复调用。
 	if p.IsSubscriptionBill {
-		if cost.TotalCost > 0 {
-			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.TotalCost); err != nil {
+		if cost.TotalCost > 0 && cost.ActualCost > 0 && p.Subscription != nil {
+			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.ActualCost); err != nil {
 				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
 			}
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, cost.TotalCost)
 		}
 	} else {
-		if cost.ActualCost > 0 {
+		if cost.ActualCost > 0 && p.User != nil {
 			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, cost.ActualCost); err != nil {
 				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
 			}
@@ -7381,21 +7389,21 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	}
 
 	// 2. API Key 配额
-	if cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
+	if cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.Quota > 0 && p.APIKeyService != nil {
 		if err := p.APIKeyService.UpdateQuotaUsed(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key quota failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
 
 	// 3. API Key 限速用量
-	if cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
+	if cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
 		if err := p.APIKeyService.UpdateRateLimitUsage(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key rate limit usage failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
 
 	// 4. 账号配额用量（账号口径：TotalCost × 账号计费倍率）
-	if cost.TotalCost > 0 && p.Account.IsAPIKeyOrBedrock() && p.Account.HasAnyQuotaLimit() {
+	if cost.TotalCost > 0 && p.Account != nil && p.Account.IsAPIKeyOrBedrock() && p.Account.HasAnyQuotaLimit() {
 		accountCost := cost.TotalCost * p.AccountRateMultiplier
 		if err := deps.accountRepo.IncrementQuotaUsed(billingCtx, p.Account.ID, accountCost); err != nil {
 			slog.Error("increment account quota used failed", "account_id", p.Account.ID, "cost", accountCost, "error", err)
@@ -7511,7 +7519,9 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	if result == nil || !result.Applied {
-		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+		if p.Account != nil {
+			deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+		}
 		return false, nil
 	}
 
@@ -7530,9 +7540,11 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 		return
 	}
 
+	// 订阅 cache 更新：唯一写入点（postUsageBilling 不重复写）。
+	// 守卫同 DB 写入：TotalCost > 0 && ActualCost > 0，rate_multiplier=0 不写。
 	if p.IsSubscriptionBill {
-		if p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil {
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, p.Cost.TotalCost)
+		if p.Cost.TotalCost > 0 && p.Cost.ActualCost > 0 && p.User != nil && p.APIKey != nil && p.Subscription != nil {
+			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, p.Cost.ActualCost)
 		}
 	} else if p.Cost.ActualCost > 0 && p.User != nil {
 		deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
@@ -7542,7 +7554,9 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 		deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, p.Cost.ActualCost)
 	}
 
-	deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+	if p.Account != nil {
+		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+	}
 }
 
 func detachedBillingContext(ctx context.Context) (context.Context, context.CancelFunc) {
