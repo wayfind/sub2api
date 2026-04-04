@@ -315,7 +315,8 @@ func (s *WechatPayService) GetOrderStatus(ctx context.Context, userID int64, ord
 	return order, nil
 }
 
-// HandleNotify 处理微信支付回调，返回是否为首次成功处理
+// HandleNotify 处理微信支付回调，返回是否为首次成功处理。
+// body 为 handler 层经 SDK 验签+解密后的明文 JSON（非原始加密 body）。
 func (s *WechatPayService) HandleNotify(ctx context.Context, body []byte, cfg *WechatPayConfig) (bool, error) {
 	// 解析回调数据，验证签名由调用方（handler）使用 SDK 的 NotifyHandler 完成
 	// 这里处理业务逻辑

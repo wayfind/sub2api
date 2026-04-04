@@ -1,8 +1,7 @@
 package handler
 
 import (
-	"bytes"
-	"io"
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -108,7 +107,6 @@ func (h *WechatPayHandler) GetOrderStatus(c *gin.Context) {
 func (h *WechatPayHandler) HandleNotify(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// 获取微信支付配置（用于验签）
 	cfg, err := h.wechatPayService.GetConfig(ctx)
 	if err != nil {
 		log.Printf("wechat pay notify: get config failed: %v", err)
@@ -116,40 +114,31 @@ func (h *WechatPayHandler) HandleNotify(c *gin.Context) {
 		return
 	}
 
-	// 读取请求体（ParseNotifyRequest 内部也会读，先保存一份用于业务处理）
-	bodyBytes, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "FAIL", "message": "read body failed"})
-		return
-	}
-	// 恢复 body 供 SDK 再次读取
-	c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
-	// 构造验签器：公钥模式（新商户号）或证书模式（旧商户号）
-	var notifyHandler *notify.Handler
-	if cfg.PublicKeyID != "" && cfg.PublicKey != "" {
-		// 新商户号：使用微信支付公钥验签
-		publicKey, err := utils.LoadPublicKey(cfg.PublicKey)
-		if err != nil {
-			log.Printf("wechat pay notify: load public key failed: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "config error"})
-			return
-		}
-		v := verifiers.NewSHA256WithRSAPubkeyVerifier(cfg.PublicKeyID, *publicKey)
-		notifyHandler, err = notify.NewRSANotifyHandler(cfg.APIKeyV3, v)
-		if err != nil {
-			log.Printf("wechat pay notify: new notify handler failed: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "handler error"})
-			return
-		}
-	} else {
-		// 公钥未配置，无法验签，拒绝处理
+	if cfg.PublicKeyID == "" || cfg.PublicKey == "" {
 		log.Printf("wechat pay notify: public key not configured, rejecting callback")
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "public key not configured"})
 		return
 	}
 
-	// 验签 + 解密
+	publicKey, err := utils.LoadPublicKey(cfg.PublicKey)
+	if err != nil {
+		log.Printf("wechat pay notify: load public key failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "config error"})
+		return
+	}
+
+	notifyHandler, err := notify.NewRSANotifyHandler(
+		cfg.APIKeyV3,
+		verifiers.NewSHA256WithRSAPubkeyVerifier(cfg.PublicKeyID, *publicKey),
+	)
+	if err != nil {
+		log.Printf("wechat pay notify: new notify handler failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "handler error"})
+		return
+	}
+
+	// ParseNotifyRequest 内部完成：验签 + AES-GCM 解密 + 反序列化明文到 transaction
+	// SDK 内部会自行处理 body 的读取和恢复，无需手动操作
 	var transaction map[string]interface{}
 	if _, err = notifyHandler.ParseNotifyRequest(ctx, c.Request, &transaction); err != nil {
 		log.Printf("wechat pay notify: parse request failed: %v", err)
@@ -157,8 +146,15 @@ func (h *WechatPayHandler) HandleNotify(c *gin.Context) {
 		return
 	}
 
-	// 业务处理
-	if _, err := h.wechatPayService.HandleNotify(ctx, bodyBytes, cfg); err != nil {
+	// 将解密后的明文业务数据传给 service，而非原始加密 body
+	plaintext, err := json.Marshal(transaction)
+	if err != nil {
+		log.Printf("wechat pay notify: marshal transaction failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "internal error"})
+		return
+	}
+
+	if _, err := h.wechatPayService.HandleNotify(ctx, plaintext, cfg); err != nil {
 		log.Printf("wechat pay notify: handle notify failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "internal error"})
 		return
