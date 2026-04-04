@@ -23,7 +23,7 @@ func (h *WechatPayHandler) GetConfig(c *gin.Context) {
 	if err != nil {
 		// 未配置时返回空对象（含自动生成的 notify_url 供参考）
 		response.Success(c, gin.H{
-			"notify_url": h.wechatPayService.NotifyURL(),
+			"notify_url": h.wechatPayService.NotifyURL(c.Request.Context()),
 		})
 		return
 	}
@@ -32,7 +32,7 @@ func (h *WechatPayHandler) GetConfig(c *gin.Context) {
 		"appid":           cfg.AppID,
 		"mchid":           cfg.MchID,
 		"serial_no":       cfg.SerialNo,
-		"notify_url":      h.wechatPayService.NotifyURL(), // 系统自动生成，只读
+		"notify_url":      h.wechatPayService.NotifyURL(c.Request.Context()), // 系统自动生成，只读
 		"public_key_id":   cfg.PublicKeyID,
 		"private_key_set": cfg.PrivateKey != "",
 		"api_key_v3_set":  cfg.APIKeyV3 != "",
