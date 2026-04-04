@@ -67,20 +67,19 @@ func (r *wechatPayOrderRepository) GetByID(ctx context.Context, id int64) (*serv
 	return wechatPayOrderEntityToService(m), nil
 }
 
-// MarkPaid 将订单标记为已支付，同一订单只能成功一次（幂等：仅更新 pending 且未过期的记录）。
+// MarkPaid 将订单标记为已支付，同一订单只能成功一次（幂等：仅更新 pending 状态的记录）。
+// 不检查 expires_at：微信回调可能在本地订单"过期"后才到达，只要钱已付就应入账。
 // 支持事务上下文（通过 ent.NewTxContext 注入），调用方可在事务中同时完成余额更新。
 func (r *wechatPayOrderRepository) MarkPaid(ctx context.Context, orderNo, wechatTradeNo, notifyData string) (bool, error) {
-	now := time.Now()
 	client := clientFromContext(ctx, r.client)
 	n, err := client.WechatPayOrder.Update().
 		Where(
 			wechatpayorder.OrderNoEQ(orderNo),
 			wechatpayorder.StatusEQ("pending"),
-			wechatpayorder.ExpiresAtGT(now), // 过期订单不允许支付
 		).
 		SetStatus("paid").
 		SetWechatTradeNo(wechatTradeNo).
-		SetPaidAt(now).
+		SetPaidAt(time.Now()).
 		SetNotifyData(notifyData).
 		Save(ctx)
 	if err != nil {

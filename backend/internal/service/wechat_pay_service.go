@@ -119,7 +119,7 @@ func NewWechatPayService(
 // DB Setting 表中的 frontend_url 优先，fallback 到配置文件。
 func (s *WechatPayService) NotifyURL(ctx context.Context) string {
 	base := s.cfg.Server.FrontendURL
-	if val, err := s.settingRepo.GetValue(ctx, "frontend_url"); err == nil && strings.TrimSpace(val) != "" {
+	if val, err := s.settingRepo.GetValue(ctx, SettingKeyFrontendURL); err == nil && strings.TrimSpace(val) != "" {
 		base = strings.TrimSpace(val)
 	}
 	base = strings.TrimRight(base, "/")
@@ -154,8 +154,6 @@ func (s *WechatPayService) SaveConfig(ctx context.Context, cfg *WechatPayConfig)
 	return s.settingRepo.Set(ctx, SettingKeyWechatPayConfig, string(b))
 }
 
-// UpdateConfig 更新微信支付配置，私钥和 APIKeyV3 为空时保留已存储的值。
-// 前端无法读取这两个字段，更新其他字段时不会传它们，此处在 service 层做 merge。
 // UpdateConfig 更新微信支付配置，私钥、APIKeyV3、公钥为空时保留已存储的值。
 // 注意：此 merge 语义意味着无法通过 API 将这三个字段主动清空为空字符串，
 // 如需切换模式（如从公钥模式切回证书模式），需直接操作数据库或提供新值覆盖。
@@ -322,7 +320,7 @@ func (s *WechatPayService) GetOrderStatus(ctx context.Context, userID int64, ord
 
 // HandleNotify 处理微信支付回调，返回是否为首次成功处理。
 // body 为 handler 层经 SDK 验签+解密后的明文 JSON（非原始加密 body）。
-func (s *WechatPayService) HandleNotify(ctx context.Context, body []byte, cfg *WechatPayConfig) (bool, error) {
+func (s *WechatPayService) HandleNotify(ctx context.Context, body []byte) (bool, error) {
 	// 解析回调数据，验证签名由调用方（handler）使用 SDK 的 NotifyHandler 完成
 	// 这里处理业务逻辑
 	var notifyMsg struct {

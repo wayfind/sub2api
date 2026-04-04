@@ -154,7 +154,7 @@ func (h *WechatPayHandler) HandleNotify(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.wechatPayService.HandleNotify(ctx, plaintext, cfg); err != nil {
+	if _, err := h.wechatPayService.HandleNotify(ctx, plaintext); err != nil {
 		log.Printf("wechat pay notify: handle notify failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "internal error"})
 		return
