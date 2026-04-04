@@ -117,19 +117,16 @@ func NewWechatPayService(
 
 // NotifyURL 根据系统配置自动生成回调地址。
 // DB Setting 表中的 frontend_url 优先，fallback 到配置文件。
-func (s *WechatPayService) NotifyURL(ctx context.Context) string {
+// 返回 (url, valid)：valid 表示是否为合法的 http/https 绝对地址（微信要求）。
+func (s *WechatPayService) NotifyURL(ctx context.Context) (string, bool) {
 	base := s.cfg.Server.FrontendURL
 	if val, err := s.settingRepo.GetValue(ctx, SettingKeyFrontendURL); err == nil && strings.TrimSpace(val) != "" {
 		base = strings.TrimSpace(val)
 	}
 	base = strings.TrimRight(base, "/")
-	return base + "/api/v1/payments/wechat/notify"
-}
-
-// notifyURLValid 检查 notify_url 是否为合法绝对 URL（微信要求 http/https 开头）
-func (s *WechatPayService) notifyURLValid(ctx context.Context) bool {
-	u := s.NotifyURL(ctx)
-	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
+	u := base + "/api/v1/payments/wechat/notify"
+	valid := strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
+	return u, valid
 }
 
 // GetConfig 获取微信支付配置
@@ -222,7 +219,8 @@ func (s *WechatPayService) CreateOrder(ctx context.Context, userID int64, packag
 	}
 
 	// notify_url 必须是合法绝对 URL，否则微信会拒绝下单请求
-	if !s.notifyURLValid(ctx) {
+	notifyURL, valid := s.NotifyURL(ctx)
+	if !valid {
 		return nil, ErrWechatPayNotConfigured
 	}
 
@@ -268,7 +266,7 @@ func (s *WechatPayService) CreateOrder(ctx context.Context, userID int64, packag
 		Mchid:       core.String(cfg.MchID),
 		Description: core.String(pkg.Name),
 		OutTradeNo:  core.String(orderNo),
-		NotifyUrl:   core.String(s.NotifyURL(ctx)),
+		NotifyUrl:   core.String(notifyURL),
 		Amount: &native.Amount{
 			Currency: core.String("CNY"),
 			Total:    core.Int64(int64(cnyFee)),
