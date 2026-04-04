@@ -11,7 +11,8 @@ export interface WechatPayConfig {
   api_key_v3: string
   serial_no: string
   private_key: string
-  notify_url: string
+  public_key_id: string
+  public_key: string
 }
 
 export interface WechatPayConfigResponse {
@@ -19,6 +20,10 @@ export interface WechatPayConfigResponse {
   mchid: string
   serial_no: string
   notify_url: string
+  public_key_id: string
+  private_key_set: boolean
+  api_key_v3_set: boolean
+  public_key_set: boolean
   configured: boolean
 }
 

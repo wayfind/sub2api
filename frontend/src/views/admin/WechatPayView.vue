@@ -50,6 +50,11 @@
               <input v-model="config.serial_no" type="text" class="input mt-1" placeholder="40位十六进制序列号" />
             </div>
             <div>
+              <label class="input-label">微信支付公钥ID</label>
+              <input v-model="config.public_key_id" type="text" class="input mt-1" placeholder="PUB_KEY_ID_..." />
+              <p class="input-hint">商户平台 → API安全 → 微信支付公钥</p>
+            </div>
+            <div>
               <label class="input-label">回调地址（自动生成）</label>
               <input :value="config.notify_url" type="text" class="input mt-1 bg-gray-50 dark:bg-dark-700 text-gray-500 cursor-default" readonly />
               <p class="input-hint">在微信商户平台添加此地址为白名单</p>
@@ -73,6 +78,16 @@
               rows="6"
               :placeholder="config.private_key_set ? '已配置（留空保留原值）\n粘贴新 apiclient_key.pem 内容可替换' : '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'"
             />
+          </div>
+          <div>
+            <label class="input-label">微信支付公钥（PEM 格式）</label>
+            <textarea
+              v-model="config.public_key"
+              class="input mt-1 font-mono text-xs"
+              rows="6"
+              :placeholder="config.public_key_set ? '已配置（留空保留原值）\n粘贴新公钥内容可替换' : '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'"
+            />
+            <p class="input-hint">商户平台 → API安全 → 微信支付公钥 → 下载</p>
           </div>
           <div class="flex justify-end">
             <button type="submit" :disabled="savingConfig" class="btn btn-primary">
@@ -188,9 +203,12 @@ const config = ref({
   api_key_v3: '',
   serial_no: '',
   private_key: '',
+  public_key_id: '',
+  public_key: '',
   notify_url: '',
   private_key_set: false,
   api_key_v3_set: false,
+  public_key_set: false,
 })
 
 const packages = ref<WechatPayPackage[]>([])
@@ -210,8 +228,10 @@ async function loadConfig() {
       config.value.appid = cfg.appid
       config.value.mchid = cfg.mchid
       config.value.serial_no = cfg.serial_no
+      config.value.public_key_id = cfg.public_key_id ?? ''
       config.value.private_key_set = cfg.private_key_set ?? false
       config.value.api_key_v3_set = cfg.api_key_v3_set ?? false
+      config.value.public_key_set = cfg.public_key_set ?? false
     }
   } catch {}
 }
@@ -252,10 +272,13 @@ async function saveConfig() {
       api_key_v3: config.value.api_key_v3,
       serial_no: config.value.serial_no,
       private_key: config.value.private_key,
+      public_key_id: config.value.public_key_id,
+      public_key: config.value.public_key,
     })
     // 保存成功后清空敏感字段输入，刷新状态
     config.value.api_key_v3 = ''
     config.value.private_key = ''
+    config.value.public_key = ''
     await loadConfig()
     alert('配置已保存')
   } catch (e: any) {

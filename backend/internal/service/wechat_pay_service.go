@@ -60,11 +60,13 @@ type WechatPayOrder struct {
 
 // WechatPayConfig 微信支付配置（存 Setting 表）
 type WechatPayConfig struct {
-	AppID      string `json:"appid"`
-	MchID      string `json:"mchid"`
-	APIKeyV3   string `json:"api_key_v3"`
-	SerialNo   string `json:"serial_no"`
-	PrivateKey string `json:"private_key"` // PEM 格式私钥内容
+	AppID        string `json:"appid"`
+	MchID        string `json:"mchid"`
+	APIKeyV3     string `json:"api_key_v3"`
+	SerialNo     string `json:"serial_no"`
+	PrivateKey   string `json:"private_key"`   // 商户私钥 PEM 内容
+	PublicKeyID  string `json:"public_key_id"` // 微信支付公钥ID（PUB_KEY_ID_...）
+	PublicKey    string `json:"public_key"`    // 微信支付公钥 PEM 内容
 }
 
 // WechatPayPackage 充值套餐（存 Setting 表）
@@ -119,6 +121,12 @@ func (s *WechatPayService) NotifyURL() string {
 	return base + "/api/v1/payments/wechat/notify"
 }
 
+// notifyURLValid 检查 notify_url 是否为合法绝对 URL（微信要求 http/https 开头）
+func (s *WechatPayService) notifyURLValid() bool {
+	u := s.NotifyURL()
+	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
+}
+
 // GetConfig 获取微信支付配置
 func (s *WechatPayService) GetConfig(ctx context.Context) (*WechatPayConfig, error) {
 	val, err := s.settingRepo.GetValue(ctx, SettingKeyWechatPayConfig)
@@ -143,8 +151,11 @@ func (s *WechatPayService) SaveConfig(ctx context.Context, cfg *WechatPayConfig)
 
 // UpdateConfig 更新微信支付配置，私钥和 APIKeyV3 为空时保留已存储的值。
 // 前端无法读取这两个字段，更新其他字段时不会传它们，此处在 service 层做 merge。
+// UpdateConfig 更新微信支付配置，私钥、APIKeyV3、公钥为空时保留已存储的值。
+// 注意：此 merge 语义意味着无法通过 API 将这三个字段主动清空为空字符串，
+// 如需切换模式（如从公钥模式切回证书模式），需直接操作数据库或提供新值覆盖。
 func (s *WechatPayService) UpdateConfig(ctx context.Context, incoming *WechatPayConfig) error {
-	if incoming.PrivateKey == "" || incoming.APIKeyV3 == "" {
+	if incoming.PrivateKey == "" || incoming.APIKeyV3 == "" || incoming.PublicKey == "" {
 		existing, err := s.GetConfig(ctx)
 		if err == nil {
 			if incoming.PrivateKey == "" {
@@ -152,6 +163,9 @@ func (s *WechatPayService) UpdateConfig(ctx context.Context, incoming *WechatPay
 			}
 			if incoming.APIKeyV3 == "" {
 				incoming.APIKeyV3 = existing.APIKeyV3
+			}
+			if incoming.PublicKey == "" {
+				incoming.PublicKey = existing.PublicKey
 			}
 		}
 	}
@@ -202,6 +216,11 @@ func (s *WechatPayService) SavePackages(ctx context.Context, pkgs []WechatPayPac
 func (s *WechatPayService) CreateOrder(ctx context.Context, userID int64, packageID int) (*WechatPayOrder, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, ErrWechatPayNotEnabled
+	}
+
+	// notify_url 必须是合法绝对 URL，否则微信会拒绝下单请求
+	if !s.notifyURLValid() {
+		return nil, ErrWechatPayNotConfigured
 	}
 
 	// 获取套餐
@@ -385,7 +404,25 @@ func buildWechatClient(cfg *WechatPayConfig) (*core.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load private key: %w", err)
 	}
+
 	ctx := context.Background()
+
+	// 新商户号使用微信支付公钥模式（无平台证书）
+	if cfg.PublicKeyID != "" && cfg.PublicKey != "" {
+		publicKey, err := utils.LoadPublicKey(cfg.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("load public key: %w", err)
+		}
+		client, err := core.NewClient(ctx,
+			option.WithWechatPayPublicKeyAuthCipher(cfg.MchID, cfg.SerialNo, privateKey, cfg.PublicKeyID, publicKey),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("new wechat client: %w", err)
+		}
+		return client, nil
+	}
+
+	// 旧商户号使用平台证书自动下载模式
 	client, err := core.NewClient(ctx,
 		option.WithWechatPayAutoAuthCipher(cfg.MchID, cfg.SerialNo, privateKey, cfg.APIKeyV3),
 	)

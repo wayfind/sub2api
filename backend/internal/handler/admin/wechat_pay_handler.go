@@ -33,18 +33,22 @@ func (h *WechatPayHandler) GetConfig(c *gin.Context) {
 		"mchid":           cfg.MchID,
 		"serial_no":       cfg.SerialNo,
 		"notify_url":      h.wechatPayService.NotifyURL(), // 系统自动生成，只读
+		"public_key_id":   cfg.PublicKeyID,
 		"private_key_set": cfg.PrivateKey != "",
 		"api_key_v3_set":  cfg.APIKeyV3 != "",
+		"public_key_set":  cfg.PublicKey != "",
 		"configured":      true,
 	})
 }
 
 type updateConfigRequest struct {
-	AppID      string `json:"appid"`
-	MchID      string `json:"mchid"`
-	APIKeyV3   string `json:"api_key_v3"`
-	SerialNo   string `json:"serial_no"`
-	PrivateKey string `json:"private_key"`
+	AppID       string `json:"appid"`
+	MchID       string `json:"mchid"`
+	APIKeyV3    string `json:"api_key_v3"`
+	SerialNo    string `json:"serial_no"`
+	PrivateKey  string `json:"private_key"`
+	PublicKeyID string `json:"public_key_id"`
+	PublicKey   string `json:"public_key"`
 }
 
 // UpdateConfig 更新微信支付配置
@@ -57,11 +61,13 @@ func (h *WechatPayHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	cfg := &service.WechatPayConfig{
-		AppID:      req.AppID,
-		MchID:      req.MchID,
-		APIKeyV3:   req.APIKeyV3,
-		SerialNo:   req.SerialNo,
-		PrivateKey: req.PrivateKey,
+		AppID:       req.AppID,
+		MchID:       req.MchID,
+		APIKeyV3:    req.APIKeyV3,
+		SerialNo:    req.SerialNo,
+		PrivateKey:  req.PrivateKey,
+		PublicKeyID: req.PublicKeyID,
+		PublicKey:   req.PublicKey,
 	}
 	if err := h.wechatPayService.UpdateConfig(c.Request.Context(), cfg); err != nil {
 		response.ErrorFrom(c, err)
