@@ -31,6 +31,7 @@ type AdminHandlers struct {
 	APIKey                *admin.AdminAPIKeyHandler
 	ScheduledTest         *admin.ScheduledTestHandler
 	SubscriptionPlan      *admin.SubscriptionPlanHandler
+	WechatPay             *admin.WechatPayHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -49,6 +50,7 @@ type Handlers struct {
 	SoraClient    *SoraClientHandler
 	Setting       *SettingHandler
 	Totp          *TotpHandler
+	WechatPay     *WechatPayHandler
 }
 
 // BuildInfo contains build-time information

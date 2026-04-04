@@ -34,6 +34,7 @@ func ProvideAdminHandlers(
 	apiKeyHandler *admin.AdminAPIKeyHandler,
 	scheduledTestHandler *admin.ScheduledTestHandler,
 	subscriptionPlanHandler *admin.SubscriptionPlanHandler,
+	wechatPayHandler *admin.WechatPayHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:             dashboardHandler,
@@ -61,6 +62,7 @@ func ProvideAdminHandlers(
 		APIKey:                apiKeyHandler,
 		ScheduledTest:         scheduledTestHandler,
 		SubscriptionPlan:      subscriptionPlanHandler,
+		WechatPay:             wechatPayHandler,
 	}
 }
 
@@ -90,6 +92,7 @@ func ProvideHandlers(
 	soraClientHandler *SoraClientHandler,
 	settingHandler *SettingHandler,
 	totpHandler *TotpHandler,
+	wechatPayHandler *WechatPayHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -108,6 +111,7 @@ func ProvideHandlers(
 		SoraClient:    soraClientHandler,
 		Setting:       settingHandler,
 		Totp:          totpHandler,
+		WechatPay:     wechatPayHandler,
 	}
 }
 
@@ -126,6 +130,7 @@ var ProviderSet = wire.NewSet(
 	NewSoraGatewayHandler,
 	NewTotpHandler,
 	ProvideSettingHandler,
+	NewWechatPayHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -153,6 +158,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,
 	admin.NewSubscriptionPlanHandler,
+	admin.NewWechatPayHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

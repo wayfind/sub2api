@@ -94,5 +94,17 @@ func RegisterUserRoutes(
 
 		// 订阅计划列表（公开可见的活跃计划）
 		authenticated.GET("/subscription-plans", h.Subscription.ListPlans)
+
+		// 微信支付充值
+		wechatPay := authenticated.Group("/payments/wechat")
+		{
+			wechatPay.GET("/packages", h.WechatPay.GetPackages)
+			wechatPay.POST("/create-order", h.WechatPay.CreateOrder)
+			wechatPay.GET("/order/:order_no", h.WechatPay.GetOrderStatus)
+			wechatPay.GET("/orders", h.WechatPay.GetOrders)
+		}
 	}
+
+	// 微信支付回调（不需要 JWT 认证）
+	v1.POST("/payments/wechat/notify", h.WechatPay.HandleNotify)
 }

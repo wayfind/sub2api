@@ -90,6 +90,9 @@ func RegisterAdminRoutes(
 
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
+
+		// 微信支付管理
+		registerWechatPayRoutes(admin, h)
 	}
 }
 
@@ -588,5 +591,17 @@ func registerSubscriptionPlanRoutes(admin *gin.RouterGroup, h *handler.Handlers)
 		plans.POST("", h.Admin.SubscriptionPlan.Create)
 		plans.PUT("/:id", h.Admin.SubscriptionPlan.Update)
 		plans.DELETE("/:id", h.Admin.SubscriptionPlan.Delete)
+	}
+}
+
+func registerWechatPayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	wp := admin.Group("/wechat-pay")
+	{
+		wp.GET("/config", h.Admin.WechatPay.GetConfig)
+		wp.PUT("/config", h.Admin.WechatPay.UpdateConfig)
+		wp.PUT("/enabled", h.Admin.WechatPay.SetEnabled)
+		wp.GET("/packages", h.Admin.WechatPay.GetPackages)
+		wp.PUT("/packages", h.Admin.WechatPay.UpdatePackages)
+		wp.GET("/orders", h.Admin.WechatPay.ListOrders)
 	}
 }

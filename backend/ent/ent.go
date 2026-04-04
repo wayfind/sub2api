@@ -35,6 +35,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/wechatpayorder"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -118,6 +119,7 @@ func checkColumn(t, c string) error {
 			userattributedefinition.Table: userattributedefinition.ValidColumn,
 			userattributevalue.Table:      userattributevalue.ValidColumn,
 			usersubscription.Table:        usersubscription.ValidColumn,
+			wechatpayorder.Table:          wechatpayorder.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -214,6 +214,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/payment',
+    name: 'Payment',
+    component: () => import('@/views/user/PaymentView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: '微信充值',
+      titleKey: 'payment.title'
+    }
+  },
+  {
     path: '/custom/:id',
     name: 'CustomPage',
     component: () => import('@/views/user/CustomPageView.vue'),
@@ -384,6 +395,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Usage Records',
       titleKey: 'admin.usage.title',
       descriptionKey: 'admin.usage.description'
+    }
+  },
+
+  {
+    path: '/admin/wechat-pay',
+    name: 'AdminWechatPay',
+    component: () => import('@/views/admin/WechatPayView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '微信支付配置',
+      titleKey: 'admin.wechatPay.title'
     }
   },
 
