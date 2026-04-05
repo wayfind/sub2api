@@ -266,8 +266,8 @@ func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID
 		pkgUsdAmount = pkg.UsdAmount
 	} else {
 		// 自定义金额，1:1 换算
-		if cnyAmount < 1 {
-			return nil, infraerrors.BadRequest("ALIPAY_INVALID_AMOUNT", "minimum amount is ¥1")
+		if cnyAmount < 1 || cnyAmount > 50000 {
+			return nil, infraerrors.BadRequest("ALIPAY_INVALID_AMOUNT", "amount must be between ¥1 and ¥50000")
 		}
 		pkgName = fmt.Sprintf("自定义充值 ¥%.2f", cnyAmount)
 		pkgCnyAmount = cnyAmount

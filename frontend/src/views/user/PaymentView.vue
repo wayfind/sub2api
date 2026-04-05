@@ -90,13 +90,17 @@
                 v-model="customAmountStr"
                 type="number"
                 min="1"
-                step="1"
-                placeholder="输入充值金额（最低 ¥1）"
+                max="50000"
+                step="0.01"
+                placeholder="输入充值金额（¥1 ~ ¥50000）"
                 class="flex-1 bg-transparent text-lg font-bold text-gray-900 outline-none placeholder:text-gray-400 dark:text-white"
               />
             </div>
-            <p v-if="customAmountStr && customAmount > 0" class="mt-1 text-sm text-blue-600 dark:text-blue-400">
+            <p v-if="customAmountStr && customAmount > 0 && customAmount <= 50000" class="mt-1 text-sm text-blue-600 dark:text-blue-400">
               到账 ${{ customAmount.toFixed(2) }}
+            </p>
+            <p v-else-if="customAmountStr && customAmount > 50000" class="mt-1 text-sm text-red-500">
+              单次充值上限 ¥50000
             </p>
           </div>
 
@@ -194,7 +198,7 @@ const customAmount = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  if (customMode.value) return customAmount.value >= 1
+  if (customMode.value) return customAmount.value >= 1 && customAmount.value <= 50000
   return selectedPackage.value !== null
 })
 
