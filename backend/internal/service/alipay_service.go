@@ -44,20 +44,20 @@ const (
 
 // AlipayOrder 支付宝订单
 type AlipayOrder struct {
-	ID            int64
-	OrderNo       string
-	UserID        int64
-	PackageID     int
-	CnyFee        int     // 人民币金额（分）
-	UsdAmount     float64 // 到账美元
-	Status        string  // pending / paid / expired / refunded
-	AlipayTradeNo *string
-	QRCode        *string
-	ExpiresAt     time.Time
-	PaidAt        *time.Time
-	NotifyData    *string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            int64      `json:"id"`
+	OrderNo       string     `json:"order_no"`
+	UserID        int64      `json:"user_id"`
+	PackageID     int        `json:"package_id"`
+	CnyFee        int        `json:"cny_fee"`     // 人民币金额（分）
+	UsdAmount     float64    `json:"usd_amount"`  // 到账美元
+	Status        string     `json:"status"`      // pending / paid / expired / refunded
+	AlipayTradeNo *string    `json:"alipay_trade_no"`
+	QRCode        *string    `json:"-"`
+	ExpiresAt     time.Time  `json:"expires_at"`
+	PaidAt        *time.Time `json:"paid_at"`
+	NotifyData    *string    `json:"-"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 // AlipayConfig 支付宝支付配置（存 Setting 表）

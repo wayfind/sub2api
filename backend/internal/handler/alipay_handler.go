@@ -97,6 +97,7 @@ func (h *AlipayHandler) GetOrderStatus(c *gin.Context) {
 		"usd_amount": order.UsdAmount,
 		"paid_at":    order.PaidAt,
 		"expires_at": order.ExpiresAt,
+		"created_at": order.CreatedAt,
 	})
 }
 

@@ -18,6 +18,7 @@ export interface AlipayOrder {
   usd_amount: number
   paid_at: string | null
   expires_at: string
+  created_at: string
 }
 
 export interface AlipayCreateOrderResponse {
@@ -45,10 +46,22 @@ async function alipayGetOrderStatus(orderNo: string): Promise<AlipayOrder> {
   return data
 }
 
+async function alipayListOrders(page = 1, pageSize = 20): Promise<{
+  items: AlipayOrder[]
+  total: number
+}> {
+  const { data } = await apiClient.get<{ items: AlipayOrder[]; total: number }>(
+    '/payments/alipay/orders',
+    { params: { page, page_size: pageSize } }
+  )
+  return data
+}
+
 export const alipayAPI = {
   getPackages: alipayGetPackages,
   createOrder: alipayCreateOrder,
-  getOrderStatus: alipayGetOrderStatus
+  getOrderStatus: alipayGetOrderStatus,
+  listOrders: alipayListOrders
 }
 
 // ---- 微信支付（暂时屏蔽）----

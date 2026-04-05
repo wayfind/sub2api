@@ -2,30 +2,16 @@
   <AppLayout>
     <div class="space-y-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">充值订单</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">支付宝充值订单记录，支付宝参数请在服务器配置文件中配置</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">充值记录</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">我的支付宝充值订单</p>
       </div>
 
-      <!-- 订单记录 -->
       <div class="card">
-        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-          <h2 class="text-base font-semibold text-gray-900 dark:text-white">支付宝充值订单</h2>
-          <div class="flex items-center gap-3">
-            <select v-model="statusFilter" @change="onFilterChange" class="input py-1 text-sm">
-              <option value="">全部状态</option>
-              <option value="pending">待支付</option>
-              <option value="paid">已支付</option>
-              <option value="expired">已过期</option>
-              <option value="refunded">已退款</option>
-            </select>
-          </div>
-        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-100 dark:border-dark-700">
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">订单号</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户ID</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">金额</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">支付时间</th>
@@ -33,18 +19,17 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-50 dark:divide-dark-700">
-              <tr v-if="loadingOrders">
-                <td colspan="6" class="px-6 py-8 text-center text-gray-400">加载中...</td>
+              <tr v-if="loading">
+                <td colspan="5" class="px-6 py-8 text-center text-gray-400">加载中...</td>
               </tr>
               <tr v-else-if="loadError">
-                <td colspan="6" class="px-6 py-8 text-center text-red-400">{{ loadError }}</td>
+                <td colspan="5" class="px-6 py-8 text-center text-red-400">{{ loadError }}</td>
               </tr>
               <tr v-else-if="orders.length === 0">
-                <td colspan="6" class="px-6 py-8 text-center text-gray-400">暂无订单</td>
+                <td colspan="5" class="px-6 py-8 text-center text-gray-400">暂无充值记录</td>
               </tr>
               <tr v-else v-for="order in orders" :key="order.order_no" class="hover:bg-gray-50 dark:hover:bg-dark-750">
                 <td class="px-6 py-3 font-mono text-xs text-gray-600 dark:text-dark-300">{{ order.order_no }}</td>
-                <td class="px-6 py-3 text-gray-600 dark:text-dark-300">{{ order.user_id }}</td>
                 <td class="px-6 py-3 text-gray-900 dark:text-white">
                   ¥{{ (order.cny_fee / 100).toFixed(2) }} → ${{ Number(order.usd_amount).toFixed(2) }}
                 </td>
@@ -76,35 +61,29 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { adminAlipayAPI, type AlipayOrderRecord } from '@/api/admin/alipay'
+import { alipayAPI, type AlipayOrder } from '@/api/payment'
 
-const loadingOrders = ref(false)
+const loading = ref(false)
 const loadError = ref('')
-const orders = ref<AlipayOrderRecord[]>([])
+const orders = ref<AlipayOrder[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
-const statusFilter = ref('')
 
 onMounted(loadOrders)
 
 async function loadOrders() {
-  loadingOrders.value = true
+  loading.value = true
   loadError.value = ''
   try {
-    const result = await adminAlipayAPI.listOrders(page.value, pageSize, statusFilter.value)
+    const result = await alipayAPI.listOrders(page.value, pageSize)
     orders.value = result.items
     total.value = result.total
   } catch (e: any) {
     loadError.value = e?.response?.data?.message || '加载失败，请刷新重试'
   } finally {
-    loadingOrders.value = false
+    loading.value = false
   }
-}
-
-function onFilterChange() {
-  page.value = 1
-  loadOrders()
 }
 
 async function prevPage() {

@@ -504,6 +504,7 @@ const userNavItems = computed((): NavItem[] => {
       : []),
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/payment', label: '支付宝充值', icon: RechargeSubscriptionIcon, hideInSimpleMode: true },
+    { path: '/orders', label: '充值记录', icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
@@ -536,6 +537,7 @@ const personalNavItems = computed((): NavItem[] => {
       : []),
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/payment', label: '支付宝充值', icon: RechargeSubscriptionIcon, hideInSimpleMode: true },
+    { path: '/orders', label: '充值记录', icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
@@ -578,7 +580,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
     { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     // { path: '/admin/wechat-pay', label: t('nav.wechatPay'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true },  // 微信支付暂时屏蔽
-    { path: '/admin/alipay', label: '支付宝配置', icon: RechargeSubscriptionIcon, hideInSimpleMode: true },
+    { path: '/admin/alipay', label: '充值订单', icon: RechargeSubscriptionIcon, hideInSimpleMode: true },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
   ]
 

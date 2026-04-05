@@ -220,8 +220,18 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: '微信充值',
+      title: '支付宝充值',
       titleKey: 'payment.title'
+    }
+  },
+  {
+    path: '/orders',
+    name: 'Orders',
+    component: () => import('@/views/user/OrdersView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: '充值记录'
     }
   },
   {
@@ -418,7 +428,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: '支付宝配置',
+      title: '充值订单',
       titleKey: 'admin.alipay.title'
     }
   },
