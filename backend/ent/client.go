@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
+	"github.com/Wei-Shaw/sub2api/ent/alipayorder"
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
@@ -54,6 +55,8 @@ type Client struct {
 	Account *AccountClient
 	// AccountGroup is the client for interacting with the AccountGroup builders.
 	AccountGroup *AccountGroupClient
+	// AlipayOrder is the client for interacting with the AlipayOrder builders.
+	AlipayOrder *AlipayOrderClient
 	// Announcement is the client for interacting with the Announcement builders.
 	Announcement *AnnouncementClient
 	// AnnouncementRead is the client for interacting with the AnnouncementRead builders.
@@ -110,6 +113,7 @@ func (c *Client) init() {
 	c.APIKey = NewAPIKeyClient(c.config)
 	c.Account = NewAccountClient(c.config)
 	c.AccountGroup = NewAccountGroupClient(c.config)
+	c.AlipayOrder = NewAlipayOrderClient(c.config)
 	c.Announcement = NewAnnouncementClient(c.config)
 	c.AnnouncementRead = NewAnnouncementReadClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
@@ -226,6 +230,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		APIKey:                  NewAPIKeyClient(cfg),
 		Account:                 NewAccountClient(cfg),
 		AccountGroup:            NewAccountGroupClient(cfg),
+		AlipayOrder:             NewAlipayOrderClient(cfg),
 		Announcement:            NewAnnouncementClient(cfg),
 		AnnouncementRead:        NewAnnouncementReadClient(cfg),
 		ErrorPassthroughRule:    NewErrorPassthroughRuleClient(cfg),
@@ -269,6 +274,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		APIKey:                  NewAPIKeyClient(cfg),
 		Account:                 NewAccountClient(cfg),
 		AccountGroup:            NewAccountGroupClient(cfg),
+		AlipayOrder:             NewAlipayOrderClient(cfg),
 		Announcement:            NewAnnouncementClient(cfg),
 		AnnouncementRead:        NewAnnouncementReadClient(cfg),
 		ErrorPassthroughRule:    NewErrorPassthroughRuleClient(cfg),
@@ -319,12 +325,12 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord, c.PromoCode,
-		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
-		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserSubscription, c.WechatPayOrder,
+		c.APIKey, c.Account, c.AccountGroup, c.AlipayOrder, c.Announcement,
+		c.AnnouncementRead, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserSubscription, c.WechatPayOrder,
 	} {
 		n.Use(hooks...)
 	}
@@ -334,12 +340,12 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord, c.PromoCode,
-		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
-		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserSubscription, c.WechatPayOrder,
+		c.APIKey, c.Account, c.AccountGroup, c.AlipayOrder, c.Announcement,
+		c.AnnouncementRead, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserSubscription, c.WechatPayOrder,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -354,6 +360,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Account.mutate(ctx, m)
 	case *AccountGroupMutation:
 		return c.AccountGroup.mutate(ctx, m)
+	case *AlipayOrderMutation:
+		return c.AlipayOrder.mutate(ctx, m)
 	case *AnnouncementMutation:
 		return c.Announcement.mutate(ctx, m)
 	case *AnnouncementReadMutation:
@@ -896,6 +904,139 @@ func (c *AccountGroupClient) mutate(ctx context.Context, m *AccountGroupMutation
 		return (&AccountGroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AccountGroup mutation op: %q", m.Op())
+	}
+}
+
+// AlipayOrderClient is a client for the AlipayOrder schema.
+type AlipayOrderClient struct {
+	config
+}
+
+// NewAlipayOrderClient returns a client for the AlipayOrder from the given config.
+func NewAlipayOrderClient(c config) *AlipayOrderClient {
+	return &AlipayOrderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `alipayorder.Hooks(f(g(h())))`.
+func (c *AlipayOrderClient) Use(hooks ...Hook) {
+	c.hooks.AlipayOrder = append(c.hooks.AlipayOrder, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `alipayorder.Intercept(f(g(h())))`.
+func (c *AlipayOrderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AlipayOrder = append(c.inters.AlipayOrder, interceptors...)
+}
+
+// Create returns a builder for creating a AlipayOrder entity.
+func (c *AlipayOrderClient) Create() *AlipayOrderCreate {
+	mutation := newAlipayOrderMutation(c.config, OpCreate)
+	return &AlipayOrderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AlipayOrder entities.
+func (c *AlipayOrderClient) CreateBulk(builders ...*AlipayOrderCreate) *AlipayOrderCreateBulk {
+	return &AlipayOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AlipayOrderClient) MapCreateBulk(slice any, setFunc func(*AlipayOrderCreate, int)) *AlipayOrderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AlipayOrderCreateBulk{err: fmt.Errorf("calling to AlipayOrderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AlipayOrderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AlipayOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AlipayOrder.
+func (c *AlipayOrderClient) Update() *AlipayOrderUpdate {
+	mutation := newAlipayOrderMutation(c.config, OpUpdate)
+	return &AlipayOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AlipayOrderClient) UpdateOne(_m *AlipayOrder) *AlipayOrderUpdateOne {
+	mutation := newAlipayOrderMutation(c.config, OpUpdateOne, withAlipayOrder(_m))
+	return &AlipayOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AlipayOrderClient) UpdateOneID(id int64) *AlipayOrderUpdateOne {
+	mutation := newAlipayOrderMutation(c.config, OpUpdateOne, withAlipayOrderID(id))
+	return &AlipayOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AlipayOrder.
+func (c *AlipayOrderClient) Delete() *AlipayOrderDelete {
+	mutation := newAlipayOrderMutation(c.config, OpDelete)
+	return &AlipayOrderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AlipayOrderClient) DeleteOne(_m *AlipayOrder) *AlipayOrderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AlipayOrderClient) DeleteOneID(id int64) *AlipayOrderDeleteOne {
+	builder := c.Delete().Where(alipayorder.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AlipayOrderDeleteOne{builder}
+}
+
+// Query returns a query builder for AlipayOrder.
+func (c *AlipayOrderClient) Query() *AlipayOrderQuery {
+	return &AlipayOrderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAlipayOrder},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AlipayOrder entity by its id.
+func (c *AlipayOrderClient) Get(ctx context.Context, id int64) (*AlipayOrder, error) {
+	return c.Query().Where(alipayorder.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AlipayOrderClient) GetX(ctx context.Context, id int64) *AlipayOrder {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AlipayOrderClient) Hooks() []Hook {
+	return c.hooks.AlipayOrder
+}
+
+// Interceptors returns the client interceptors.
+func (c *AlipayOrderClient) Interceptors() []Interceptor {
+	return c.inters.AlipayOrder
+}
+
+func (c *AlipayOrderClient) mutate(ctx context.Context, m *AlipayOrderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AlipayOrderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AlipayOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AlipayOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AlipayOrderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AlipayOrder mutation op: %q", m.Op())
 	}
 }
 
@@ -4314,7 +4455,7 @@ func (c *WechatPayOrderClient) mutate(ctx context.Context, m *WechatPayOrderMuta
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Account, AccountGroup, Announcement, AnnouncementRead,
+		APIKey, Account, AccountGroup, AlipayOrder, Announcement, AnnouncementRead,
 		ErrorPassthroughRule, Group, IdempotencyRecord, PromoCode, PromoCodeUsage,
 		Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
@@ -4322,7 +4463,7 @@ type (
 		WechatPayOrder []ent.Hook
 	}
 	inters struct {
-		APIKey, Account, AccountGroup, Announcement, AnnouncementRead,
+		APIKey, Account, AccountGroup, AlipayOrder, Announcement, AnnouncementRead,
 		ErrorPassthroughRule, Group, IdempotencyRecord, PromoCode, PromoCodeUsage,
 		Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,

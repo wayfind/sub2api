@@ -93,6 +93,7 @@ func RegisterAdminRoutes(
 
 		// 微信支付管理
 		registerWechatPayRoutes(admin, h)
+		registerAlipayRoutes(admin, h)
 	}
 }
 
@@ -603,5 +604,15 @@ func registerWechatPayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		wp.GET("/packages", h.Admin.WechatPay.GetPackages)
 		wp.PUT("/packages", h.Admin.WechatPay.UpdatePackages)
 		wp.GET("/orders", h.Admin.WechatPay.ListOrders)
+	}
+}
+
+func registerAlipayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	ap := admin.Group("/alipay")
+	{
+		ap.GET("/config", h.Admin.Alipay.GetConfig)
+		ap.PUT("/config", h.Admin.Alipay.UpdateConfig)
+		ap.PUT("/enabled", h.Admin.Alipay.SetEnabled)
+		ap.GET("/orders", h.Admin.Alipay.ListOrders)
 	}
 }

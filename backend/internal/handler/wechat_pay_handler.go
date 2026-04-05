@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -120,7 +121,7 @@ func (h *WechatPayHandler) HandleNotify(c *gin.Context) {
 		return
 	}
 
-	publicKey, err := utils.LoadPublicKey(cfg.PublicKey)
+	publicKey, err := utils.LoadPublicKey(strings.ReplaceAll(cfg.PublicKey, `\n`, "\n"))
 	if err != nil {
 		log.Printf("wechat pay notify: load public key failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAIL", "message": "config error"})

@@ -402,7 +402,9 @@ func generateOrderNo() (string, error) {
 }
 
 func buildWechatClient(cfg *WechatPayConfig) (*core.Client, error) {
-	privateKey, err := utils.LoadPrivateKey(cfg.PrivateKey)
+	// DB 中可能存储的是字面 \n，需转为真实换行才能被 PEM parser 解析
+	privKeyPEM := strings.ReplaceAll(cfg.PrivateKey, `\n`, "\n")
+	privateKey, err := utils.LoadPrivateKey(privKeyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("load private key: %w", err)
 	}
@@ -411,7 +413,8 @@ func buildWechatClient(cfg *WechatPayConfig) (*core.Client, error) {
 
 	// 新商户号使用微信支付公钥模式（无平台证书）
 	if cfg.PublicKeyID != "" && cfg.PublicKey != "" {
-		publicKey, err := utils.LoadPublicKey(cfg.PublicKey)
+		pubKeyPEM := strings.ReplaceAll(cfg.PublicKey, `\n`, "\n")
+		publicKey, err := utils.LoadPublicKey(pubKeyPEM)
 		if err != nil {
 			return nil, fmt.Errorf("load public key: %w", err)
 		}

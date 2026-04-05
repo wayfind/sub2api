@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
+	"github.com/Wei-Shaw/sub2api/ent/alipayorder"
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
@@ -52,6 +53,7 @@ const (
 	TypeAPIKey                  = "APIKey"
 	TypeAccount                 = "Account"
 	TypeAccountGroup            = "AccountGroup"
+	TypeAlipayOrder             = "AlipayOrder"
 	TypeAnnouncement            = "Announcement"
 	TypeAnnouncementRead        = "AnnouncementRead"
 	TypeErrorPassthroughRule    = "ErrorPassthroughRule"
@@ -5162,6 +5164,1194 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AccountGroup edge %s", name)
+}
+
+// AlipayOrderMutation represents an operation that mutates the AlipayOrder nodes in the graph.
+type AlipayOrderMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	order_no        *string
+	user_id         *int64
+	adduser_id      *int64
+	package_id      *int
+	addpackage_id   *int
+	cny_fee         *int
+	addcny_fee      *int
+	usd_amount      *float64
+	addusd_amount   *float64
+	status          *string
+	alipay_trade_no *string
+	qr_code         *string
+	expires_at      *time.Time
+	paid_at         *time.Time
+	notify_data     *string
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*AlipayOrder, error)
+	predicates      []predicate.AlipayOrder
+}
+
+var _ ent.Mutation = (*AlipayOrderMutation)(nil)
+
+// alipayorderOption allows management of the mutation configuration using functional options.
+type alipayorderOption func(*AlipayOrderMutation)
+
+// newAlipayOrderMutation creates new mutation for the AlipayOrder entity.
+func newAlipayOrderMutation(c config, op Op, opts ...alipayorderOption) *AlipayOrderMutation {
+	m := &AlipayOrderMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAlipayOrder,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAlipayOrderID sets the ID field of the mutation.
+func withAlipayOrderID(id int64) alipayorderOption {
+	return func(m *AlipayOrderMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AlipayOrder
+		)
+		m.oldValue = func(ctx context.Context) (*AlipayOrder, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AlipayOrder.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAlipayOrder sets the old AlipayOrder of the mutation.
+func withAlipayOrder(node *AlipayOrder) alipayorderOption {
+	return func(m *AlipayOrderMutation) {
+		m.oldValue = func(context.Context) (*AlipayOrder, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AlipayOrderMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AlipayOrderMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AlipayOrderMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AlipayOrderMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AlipayOrder.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrderNo sets the "order_no" field.
+func (m *AlipayOrderMutation) SetOrderNo(s string) {
+	m.order_no = &s
+}
+
+// OrderNo returns the value of the "order_no" field in the mutation.
+func (m *AlipayOrderMutation) OrderNo() (r string, exists bool) {
+	v := m.order_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderNo returns the old "order_no" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldOrderNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderNo: %w", err)
+	}
+	return oldValue.OrderNo, nil
+}
+
+// ResetOrderNo resets all changes to the "order_no" field.
+func (m *AlipayOrderMutation) ResetOrderNo() {
+	m.order_no = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *AlipayOrderMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *AlipayOrderMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *AlipayOrderMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *AlipayOrderMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *AlipayOrderMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetPackageID sets the "package_id" field.
+func (m *AlipayOrderMutation) SetPackageID(i int) {
+	m.package_id = &i
+	m.addpackage_id = nil
+}
+
+// PackageID returns the value of the "package_id" field in the mutation.
+func (m *AlipayOrderMutation) PackageID() (r int, exists bool) {
+	v := m.package_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageID returns the old "package_id" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldPackageID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageID: %w", err)
+	}
+	return oldValue.PackageID, nil
+}
+
+// AddPackageID adds i to the "package_id" field.
+func (m *AlipayOrderMutation) AddPackageID(i int) {
+	if m.addpackage_id != nil {
+		*m.addpackage_id += i
+	} else {
+		m.addpackage_id = &i
+	}
+}
+
+// AddedPackageID returns the value that was added to the "package_id" field in this mutation.
+func (m *AlipayOrderMutation) AddedPackageID() (r int, exists bool) {
+	v := m.addpackage_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPackageID resets all changes to the "package_id" field.
+func (m *AlipayOrderMutation) ResetPackageID() {
+	m.package_id = nil
+	m.addpackage_id = nil
+}
+
+// SetCnyFee sets the "cny_fee" field.
+func (m *AlipayOrderMutation) SetCnyFee(i int) {
+	m.cny_fee = &i
+	m.addcny_fee = nil
+}
+
+// CnyFee returns the value of the "cny_fee" field in the mutation.
+func (m *AlipayOrderMutation) CnyFee() (r int, exists bool) {
+	v := m.cny_fee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCnyFee returns the old "cny_fee" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldCnyFee(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCnyFee is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCnyFee requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCnyFee: %w", err)
+	}
+	return oldValue.CnyFee, nil
+}
+
+// AddCnyFee adds i to the "cny_fee" field.
+func (m *AlipayOrderMutation) AddCnyFee(i int) {
+	if m.addcny_fee != nil {
+		*m.addcny_fee += i
+	} else {
+		m.addcny_fee = &i
+	}
+}
+
+// AddedCnyFee returns the value that was added to the "cny_fee" field in this mutation.
+func (m *AlipayOrderMutation) AddedCnyFee() (r int, exists bool) {
+	v := m.addcny_fee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCnyFee resets all changes to the "cny_fee" field.
+func (m *AlipayOrderMutation) ResetCnyFee() {
+	m.cny_fee = nil
+	m.addcny_fee = nil
+}
+
+// SetUsdAmount sets the "usd_amount" field.
+func (m *AlipayOrderMutation) SetUsdAmount(f float64) {
+	m.usd_amount = &f
+	m.addusd_amount = nil
+}
+
+// UsdAmount returns the value of the "usd_amount" field in the mutation.
+func (m *AlipayOrderMutation) UsdAmount() (r float64, exists bool) {
+	v := m.usd_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsdAmount returns the old "usd_amount" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldUsdAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsdAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsdAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsdAmount: %w", err)
+	}
+	return oldValue.UsdAmount, nil
+}
+
+// AddUsdAmount adds f to the "usd_amount" field.
+func (m *AlipayOrderMutation) AddUsdAmount(f float64) {
+	if m.addusd_amount != nil {
+		*m.addusd_amount += f
+	} else {
+		m.addusd_amount = &f
+	}
+}
+
+// AddedUsdAmount returns the value that was added to the "usd_amount" field in this mutation.
+func (m *AlipayOrderMutation) AddedUsdAmount() (r float64, exists bool) {
+	v := m.addusd_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUsdAmount resets all changes to the "usd_amount" field.
+func (m *AlipayOrderMutation) ResetUsdAmount() {
+	m.usd_amount = nil
+	m.addusd_amount = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *AlipayOrderMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *AlipayOrderMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *AlipayOrderMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetAlipayTradeNo sets the "alipay_trade_no" field.
+func (m *AlipayOrderMutation) SetAlipayTradeNo(s string) {
+	m.alipay_trade_no = &s
+}
+
+// AlipayTradeNo returns the value of the "alipay_trade_no" field in the mutation.
+func (m *AlipayOrderMutation) AlipayTradeNo() (r string, exists bool) {
+	v := m.alipay_trade_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAlipayTradeNo returns the old "alipay_trade_no" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldAlipayTradeNo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAlipayTradeNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAlipayTradeNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAlipayTradeNo: %w", err)
+	}
+	return oldValue.AlipayTradeNo, nil
+}
+
+// ClearAlipayTradeNo clears the value of the "alipay_trade_no" field.
+func (m *AlipayOrderMutation) ClearAlipayTradeNo() {
+	m.alipay_trade_no = nil
+	m.clearedFields[alipayorder.FieldAlipayTradeNo] = struct{}{}
+}
+
+// AlipayTradeNoCleared returns if the "alipay_trade_no" field was cleared in this mutation.
+func (m *AlipayOrderMutation) AlipayTradeNoCleared() bool {
+	_, ok := m.clearedFields[alipayorder.FieldAlipayTradeNo]
+	return ok
+}
+
+// ResetAlipayTradeNo resets all changes to the "alipay_trade_no" field.
+func (m *AlipayOrderMutation) ResetAlipayTradeNo() {
+	m.alipay_trade_no = nil
+	delete(m.clearedFields, alipayorder.FieldAlipayTradeNo)
+}
+
+// SetQrCode sets the "qr_code" field.
+func (m *AlipayOrderMutation) SetQrCode(s string) {
+	m.qr_code = &s
+}
+
+// QrCode returns the value of the "qr_code" field in the mutation.
+func (m *AlipayOrderMutation) QrCode() (r string, exists bool) {
+	v := m.qr_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQrCode returns the old "qr_code" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldQrCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQrCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQrCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQrCode: %w", err)
+	}
+	return oldValue.QrCode, nil
+}
+
+// ClearQrCode clears the value of the "qr_code" field.
+func (m *AlipayOrderMutation) ClearQrCode() {
+	m.qr_code = nil
+	m.clearedFields[alipayorder.FieldQrCode] = struct{}{}
+}
+
+// QrCodeCleared returns if the "qr_code" field was cleared in this mutation.
+func (m *AlipayOrderMutation) QrCodeCleared() bool {
+	_, ok := m.clearedFields[alipayorder.FieldQrCode]
+	return ok
+}
+
+// ResetQrCode resets all changes to the "qr_code" field.
+func (m *AlipayOrderMutation) ResetQrCode() {
+	m.qr_code = nil
+	delete(m.clearedFields, alipayorder.FieldQrCode)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *AlipayOrderMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *AlipayOrderMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *AlipayOrderMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetPaidAt sets the "paid_at" field.
+func (m *AlipayOrderMutation) SetPaidAt(t time.Time) {
+	m.paid_at = &t
+}
+
+// PaidAt returns the value of the "paid_at" field in the mutation.
+func (m *AlipayOrderMutation) PaidAt() (r time.Time, exists bool) {
+	v := m.paid_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaidAt returns the old "paid_at" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldPaidAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaidAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaidAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaidAt: %w", err)
+	}
+	return oldValue.PaidAt, nil
+}
+
+// ClearPaidAt clears the value of the "paid_at" field.
+func (m *AlipayOrderMutation) ClearPaidAt() {
+	m.paid_at = nil
+	m.clearedFields[alipayorder.FieldPaidAt] = struct{}{}
+}
+
+// PaidAtCleared returns if the "paid_at" field was cleared in this mutation.
+func (m *AlipayOrderMutation) PaidAtCleared() bool {
+	_, ok := m.clearedFields[alipayorder.FieldPaidAt]
+	return ok
+}
+
+// ResetPaidAt resets all changes to the "paid_at" field.
+func (m *AlipayOrderMutation) ResetPaidAt() {
+	m.paid_at = nil
+	delete(m.clearedFields, alipayorder.FieldPaidAt)
+}
+
+// SetNotifyData sets the "notify_data" field.
+func (m *AlipayOrderMutation) SetNotifyData(s string) {
+	m.notify_data = &s
+}
+
+// NotifyData returns the value of the "notify_data" field in the mutation.
+func (m *AlipayOrderMutation) NotifyData() (r string, exists bool) {
+	v := m.notify_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotifyData returns the old "notify_data" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldNotifyData(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotifyData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotifyData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotifyData: %w", err)
+	}
+	return oldValue.NotifyData, nil
+}
+
+// ClearNotifyData clears the value of the "notify_data" field.
+func (m *AlipayOrderMutation) ClearNotifyData() {
+	m.notify_data = nil
+	m.clearedFields[alipayorder.FieldNotifyData] = struct{}{}
+}
+
+// NotifyDataCleared returns if the "notify_data" field was cleared in this mutation.
+func (m *AlipayOrderMutation) NotifyDataCleared() bool {
+	_, ok := m.clearedFields[alipayorder.FieldNotifyData]
+	return ok
+}
+
+// ResetNotifyData resets all changes to the "notify_data" field.
+func (m *AlipayOrderMutation) ResetNotifyData() {
+	m.notify_data = nil
+	delete(m.clearedFields, alipayorder.FieldNotifyData)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AlipayOrderMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AlipayOrderMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AlipayOrderMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AlipayOrderMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AlipayOrderMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AlipayOrder entity.
+// If the AlipayOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlipayOrderMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AlipayOrderMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AlipayOrderMutation builder.
+func (m *AlipayOrderMutation) Where(ps ...predicate.AlipayOrder) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AlipayOrderMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AlipayOrderMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AlipayOrder, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AlipayOrderMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AlipayOrderMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AlipayOrder).
+func (m *AlipayOrderMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AlipayOrderMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.order_no != nil {
+		fields = append(fields, alipayorder.FieldOrderNo)
+	}
+	if m.user_id != nil {
+		fields = append(fields, alipayorder.FieldUserID)
+	}
+	if m.package_id != nil {
+		fields = append(fields, alipayorder.FieldPackageID)
+	}
+	if m.cny_fee != nil {
+		fields = append(fields, alipayorder.FieldCnyFee)
+	}
+	if m.usd_amount != nil {
+		fields = append(fields, alipayorder.FieldUsdAmount)
+	}
+	if m.status != nil {
+		fields = append(fields, alipayorder.FieldStatus)
+	}
+	if m.alipay_trade_no != nil {
+		fields = append(fields, alipayorder.FieldAlipayTradeNo)
+	}
+	if m.qr_code != nil {
+		fields = append(fields, alipayorder.FieldQrCode)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, alipayorder.FieldExpiresAt)
+	}
+	if m.paid_at != nil {
+		fields = append(fields, alipayorder.FieldPaidAt)
+	}
+	if m.notify_data != nil {
+		fields = append(fields, alipayorder.FieldNotifyData)
+	}
+	if m.created_at != nil {
+		fields = append(fields, alipayorder.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, alipayorder.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AlipayOrderMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case alipayorder.FieldOrderNo:
+		return m.OrderNo()
+	case alipayorder.FieldUserID:
+		return m.UserID()
+	case alipayorder.FieldPackageID:
+		return m.PackageID()
+	case alipayorder.FieldCnyFee:
+		return m.CnyFee()
+	case alipayorder.FieldUsdAmount:
+		return m.UsdAmount()
+	case alipayorder.FieldStatus:
+		return m.Status()
+	case alipayorder.FieldAlipayTradeNo:
+		return m.AlipayTradeNo()
+	case alipayorder.FieldQrCode:
+		return m.QrCode()
+	case alipayorder.FieldExpiresAt:
+		return m.ExpiresAt()
+	case alipayorder.FieldPaidAt:
+		return m.PaidAt()
+	case alipayorder.FieldNotifyData:
+		return m.NotifyData()
+	case alipayorder.FieldCreatedAt:
+		return m.CreatedAt()
+	case alipayorder.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AlipayOrderMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case alipayorder.FieldOrderNo:
+		return m.OldOrderNo(ctx)
+	case alipayorder.FieldUserID:
+		return m.OldUserID(ctx)
+	case alipayorder.FieldPackageID:
+		return m.OldPackageID(ctx)
+	case alipayorder.FieldCnyFee:
+		return m.OldCnyFee(ctx)
+	case alipayorder.FieldUsdAmount:
+		return m.OldUsdAmount(ctx)
+	case alipayorder.FieldStatus:
+		return m.OldStatus(ctx)
+	case alipayorder.FieldAlipayTradeNo:
+		return m.OldAlipayTradeNo(ctx)
+	case alipayorder.FieldQrCode:
+		return m.OldQrCode(ctx)
+	case alipayorder.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case alipayorder.FieldPaidAt:
+		return m.OldPaidAt(ctx)
+	case alipayorder.FieldNotifyData:
+		return m.OldNotifyData(ctx)
+	case alipayorder.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case alipayorder.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AlipayOrder field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlipayOrderMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case alipayorder.FieldOrderNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderNo(v)
+		return nil
+	case alipayorder.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case alipayorder.FieldPackageID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageID(v)
+		return nil
+	case alipayorder.FieldCnyFee:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCnyFee(v)
+		return nil
+	case alipayorder.FieldUsdAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsdAmount(v)
+		return nil
+	case alipayorder.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case alipayorder.FieldAlipayTradeNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAlipayTradeNo(v)
+		return nil
+	case alipayorder.FieldQrCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQrCode(v)
+		return nil
+	case alipayorder.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case alipayorder.FieldPaidAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaidAt(v)
+		return nil
+	case alipayorder.FieldNotifyData:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotifyData(v)
+		return nil
+	case alipayorder.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case alipayorder.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AlipayOrder field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AlipayOrderMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, alipayorder.FieldUserID)
+	}
+	if m.addpackage_id != nil {
+		fields = append(fields, alipayorder.FieldPackageID)
+	}
+	if m.addcny_fee != nil {
+		fields = append(fields, alipayorder.FieldCnyFee)
+	}
+	if m.addusd_amount != nil {
+		fields = append(fields, alipayorder.FieldUsdAmount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AlipayOrderMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case alipayorder.FieldUserID:
+		return m.AddedUserID()
+	case alipayorder.FieldPackageID:
+		return m.AddedPackageID()
+	case alipayorder.FieldCnyFee:
+		return m.AddedCnyFee()
+	case alipayorder.FieldUsdAmount:
+		return m.AddedUsdAmount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlipayOrderMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case alipayorder.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case alipayorder.FieldPackageID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPackageID(v)
+		return nil
+	case alipayorder.FieldCnyFee:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCnyFee(v)
+		return nil
+	case alipayorder.FieldUsdAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUsdAmount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AlipayOrder numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AlipayOrderMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(alipayorder.FieldAlipayTradeNo) {
+		fields = append(fields, alipayorder.FieldAlipayTradeNo)
+	}
+	if m.FieldCleared(alipayorder.FieldQrCode) {
+		fields = append(fields, alipayorder.FieldQrCode)
+	}
+	if m.FieldCleared(alipayorder.FieldPaidAt) {
+		fields = append(fields, alipayorder.FieldPaidAt)
+	}
+	if m.FieldCleared(alipayorder.FieldNotifyData) {
+		fields = append(fields, alipayorder.FieldNotifyData)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AlipayOrderMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AlipayOrderMutation) ClearField(name string) error {
+	switch name {
+	case alipayorder.FieldAlipayTradeNo:
+		m.ClearAlipayTradeNo()
+		return nil
+	case alipayorder.FieldQrCode:
+		m.ClearQrCode()
+		return nil
+	case alipayorder.FieldPaidAt:
+		m.ClearPaidAt()
+		return nil
+	case alipayorder.FieldNotifyData:
+		m.ClearNotifyData()
+		return nil
+	}
+	return fmt.Errorf("unknown AlipayOrder nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AlipayOrderMutation) ResetField(name string) error {
+	switch name {
+	case alipayorder.FieldOrderNo:
+		m.ResetOrderNo()
+		return nil
+	case alipayorder.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case alipayorder.FieldPackageID:
+		m.ResetPackageID()
+		return nil
+	case alipayorder.FieldCnyFee:
+		m.ResetCnyFee()
+		return nil
+	case alipayorder.FieldUsdAmount:
+		m.ResetUsdAmount()
+		return nil
+	case alipayorder.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case alipayorder.FieldAlipayTradeNo:
+		m.ResetAlipayTradeNo()
+		return nil
+	case alipayorder.FieldQrCode:
+		m.ResetQrCode()
+		return nil
+	case alipayorder.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case alipayorder.FieldPaidAt:
+		m.ResetPaidAt()
+		return nil
+	case alipayorder.FieldNotifyData:
+		m.ResetNotifyData()
+		return nil
+	case alipayorder.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case alipayorder.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AlipayOrder field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AlipayOrderMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AlipayOrderMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AlipayOrderMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AlipayOrderMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AlipayOrderMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AlipayOrderMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AlipayOrderMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AlipayOrder unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AlipayOrderMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AlipayOrder edge %s", name)
 }
 
 // AnnouncementMutation represents an operation that mutates the Announcement nodes in the graph.

@@ -245,6 +245,51 @@ var (
 			},
 		},
 	}
+	// AlipayOrdersColumns holds the columns for the "alipay_orders" table.
+	AlipayOrdersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "order_no", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "package_id", Type: field.TypeInt},
+		{Name: "cny_fee", Type: field.TypeInt},
+		{Name: "usd_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "alipay_trade_no", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "qr_code", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "expires_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "notify_data", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// AlipayOrdersTable holds the schema information for the "alipay_orders" table.
+	AlipayOrdersTable = &schema.Table{
+		Name:       "alipay_orders",
+		Columns:    AlipayOrdersColumns,
+		PrimaryKey: []*schema.Column{AlipayOrdersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "alipayorder_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{AlipayOrdersColumns[2]},
+			},
+			{
+				Name:    "alipayorder_order_no",
+				Unique:  false,
+				Columns: []*schema.Column{AlipayOrdersColumns[1]},
+			},
+			{
+				Name:    "alipayorder_status",
+				Unique:  false,
+				Columns: []*schema.Column{AlipayOrdersColumns[6]},
+			},
+			{
+				Name:    "alipayorder_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AlipayOrdersColumns[2], AlipayOrdersColumns[12]},
+			},
+		},
+	}
 	// AnnouncementsColumns holds the columns for the "announcements" table.
 	AnnouncementsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1205,6 +1250,7 @@ var (
 		APIKeysTable,
 		AccountsTable,
 		AccountGroupsTable,
+		AlipayOrdersTable,
 		AnnouncementsTable,
 		AnnouncementReadsTable,
 		ErrorPassthroughRulesTable,
@@ -1243,6 +1289,9 @@ func init() {
 	AccountGroupsTable.ForeignKeys[1].RefTable = GroupsTable
 	AccountGroupsTable.Annotation = &entsql.Annotation{
 		Table: "account_groups",
+	}
+	AlipayOrdersTable.Annotation = &entsql.Annotation{
+		Table: "alipay_orders",
 	}
 	AnnouncementsTable.Annotation = &entsql.Annotation{
 		Table: "announcements",

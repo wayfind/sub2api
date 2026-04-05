@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/accountgroup"
+	"github.com/Wei-Shaw/sub2api/ent/alipayorder"
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
@@ -250,6 +251,46 @@ func init() {
 	accountgroupDescCreatedAt := accountgroupFields[3].Descriptor()
 	// accountgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountgroup.DefaultCreatedAt = accountgroupDescCreatedAt.Default.(func() time.Time)
+	alipayorderFields := schema.AlipayOrder{}.Fields()
+	_ = alipayorderFields
+	// alipayorderDescOrderNo is the schema descriptor for order_no field.
+	alipayorderDescOrderNo := alipayorderFields[0].Descriptor()
+	// alipayorder.OrderNoValidator is a validator for the "order_no" field. It is called by the builders before save.
+	alipayorder.OrderNoValidator = func() func(string) error {
+		validators := alipayorderDescOrderNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(order_no string) error {
+			for _, fn := range fns {
+				if err := fn(order_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// alipayorderDescStatus is the schema descriptor for status field.
+	alipayorderDescStatus := alipayorderFields[5].Descriptor()
+	// alipayorder.DefaultStatus holds the default value on creation for the status field.
+	alipayorder.DefaultStatus = alipayorderDescStatus.Default.(string)
+	// alipayorder.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	alipayorder.StatusValidator = alipayorderDescStatus.Validators[0].(func(string) error)
+	// alipayorderDescAlipayTradeNo is the schema descriptor for alipay_trade_no field.
+	alipayorderDescAlipayTradeNo := alipayorderFields[6].Descriptor()
+	// alipayorder.AlipayTradeNoValidator is a validator for the "alipay_trade_no" field. It is called by the builders before save.
+	alipayorder.AlipayTradeNoValidator = alipayorderDescAlipayTradeNo.Validators[0].(func(string) error)
+	// alipayorderDescCreatedAt is the schema descriptor for created_at field.
+	alipayorderDescCreatedAt := alipayorderFields[11].Descriptor()
+	// alipayorder.DefaultCreatedAt holds the default value on creation for the created_at field.
+	alipayorder.DefaultCreatedAt = alipayorderDescCreatedAt.Default.(func() time.Time)
+	// alipayorderDescUpdatedAt is the schema descriptor for updated_at field.
+	alipayorderDescUpdatedAt := alipayorderFields[12].Descriptor()
+	// alipayorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	alipayorder.DefaultUpdatedAt = alipayorderDescUpdatedAt.Default.(func() time.Time)
+	// alipayorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	alipayorder.UpdateDefaultUpdatedAt = alipayorderDescUpdatedAt.UpdateDefault.(func() time.Time)
 	announcementFields := schema.Announcement{}.Fields()
 	_ = announcementFields
 	// announcementDescTitle is the schema descriptor for title field.

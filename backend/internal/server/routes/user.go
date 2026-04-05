@@ -103,8 +103,17 @@ func RegisterUserRoutes(
 			wechatPay.GET("/order/:order_no", h.WechatPay.GetOrderStatus)
 			wechatPay.GET("/orders", h.WechatPay.GetOrders)
 		}
+
+		// 支付宝充值
+		alipay := authenticated.Group("/payments/alipay")
+		{
+			alipay.POST("/create-order", h.Alipay.CreateOrder)
+			alipay.GET("/order/:order_no", h.Alipay.GetOrderStatus)
+			alipay.GET("/orders", h.Alipay.GetOrders)
+		}
 	}
 
-	// 微信支付回调（不需要 JWT 认证）
+	// 支付回调（不需要 JWT 认证）
 	v1.POST("/payments/wechat/notify", h.WechatPay.HandleNotify)
+	v1.POST("/payments/alipay/notify", h.Alipay.HandleNotify)
 }

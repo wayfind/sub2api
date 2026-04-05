@@ -32,6 +32,7 @@ type AdminHandlers struct {
 	ScheduledTest         *admin.ScheduledTestHandler
 	SubscriptionPlan      *admin.SubscriptionPlanHandler
 	WechatPay             *admin.WechatPayHandler
+	Alipay                *admin.AlipayHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -51,6 +52,7 @@ type Handlers struct {
 	Setting       *SettingHandler
 	Totp          *TotpHandler
 	WechatPay     *WechatPayHandler
+	Alipay        *AlipayHandler
 }
 
 // BuildInfo contains build-time information

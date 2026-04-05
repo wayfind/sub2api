@@ -35,6 +35,7 @@ func ProvideAdminHandlers(
 	scheduledTestHandler *admin.ScheduledTestHandler,
 	subscriptionPlanHandler *admin.SubscriptionPlanHandler,
 	wechatPayHandler *admin.WechatPayHandler,
+	alipayHandler *admin.AlipayHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:             dashboardHandler,
@@ -63,6 +64,7 @@ func ProvideAdminHandlers(
 		ScheduledTest:         scheduledTestHandler,
 		SubscriptionPlan:      subscriptionPlanHandler,
 		WechatPay:             wechatPayHandler,
+		Alipay:                alipayHandler,
 	}
 }
 
@@ -93,6 +95,7 @@ func ProvideHandlers(
 	settingHandler *SettingHandler,
 	totpHandler *TotpHandler,
 	wechatPayHandler *WechatPayHandler,
+	alipayHandler *AlipayHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -112,6 +115,7 @@ func ProvideHandlers(
 		Setting:       settingHandler,
 		Totp:          totpHandler,
 		WechatPay:     wechatPayHandler,
+		Alipay:        alipayHandler,
 	}
 }
 
@@ -131,6 +135,7 @@ var ProviderSet = wire.NewSet(
 	NewTotpHandler,
 	ProvideSettingHandler,
 	NewWechatPayHandler,
+	NewAlipayHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -159,6 +164,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewScheduledTestHandler,
 	admin.NewSubscriptionPlanHandler,
 	admin.NewWechatPayHandler,
+	admin.NewAlipayHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -410,6 +410,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
+  {
+    path: '/admin/alipay',
+    name: 'AdminAlipay',
+    component: () => import('@/views/admin/AlipayView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '支付宝配置',
+      titleKey: 'admin.alipay.title'
+    }
+  },
+
   // ==================== 404 Not Found ====================
   {
     path: '/:pathMatch(.*)*',

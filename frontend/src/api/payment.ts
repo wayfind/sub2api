@@ -1,5 +1,5 @@
 /**
- * Wechat Pay API endpoints
+ * Wechat Pay & Alipay API endpoints
  */
 
 import { apiClient } from './client'
@@ -26,6 +26,23 @@ export interface CreateOrderResponse {
   expires_at: string
 }
 
+export interface AlipayOrder {
+  order_no: string
+  status: 'pending' | 'paid' | 'expired' | 'refunded'
+  cny_fee: number
+  usd_amount: number
+  paid_at: string | null
+  expires_at: string
+}
+
+export interface AlipayCreateOrderResponse {
+  order_no: string
+  qr_code: string
+  expires_at: string
+}
+
+// ---- 微信支付 ----
+
 export async function getPackages(): Promise<WechatPayPackage[]> {
   const { data } = await apiClient.get<WechatPayPackage[]>('/payments/wechat/packages')
   return data
@@ -49,4 +66,24 @@ export const wechatPayAPI = {
   getOrderStatus
 }
 
+// ---- 支付宝 ----
+
+export async function alipayCreateOrder(packageId: number): Promise<AlipayCreateOrderResponse> {
+  const { data } = await apiClient.post<AlipayCreateOrderResponse>('/payments/alipay/create-order', {
+    package_id: packageId
+  })
+  return data
+}
+
+export async function alipayGetOrderStatus(orderNo: string): Promise<AlipayOrder> {
+  const { data } = await apiClient.get<AlipayOrder>(`/payments/alipay/order/${orderNo}`)
+  return data
+}
+
+export const alipayAPI = {
+  createOrder: alipayCreateOrder,
+  getOrderStatus: alipayGetOrderStatus
+}
+
 export default wechatPayAPI
+

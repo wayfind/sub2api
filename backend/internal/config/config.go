@@ -83,6 +83,16 @@ type Config struct {
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	Alipay                  AlipayPaymentConfig           `mapstructure:"alipay"`
+}
+
+// AlipayPaymentConfig 支付宝支付配置（config.yaml 中配置，优先于管理后台 Setting 表）
+type AlipayPaymentConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	AppID      string `mapstructure:"app_id"`
+	PrivateKey string `mapstructure:"private_key"` // PKCS1/PKCS8 PEM 或裸 base64
+	PublicKey  string `mapstructure:"public_key"`  // 支付宝公钥，PEM 或裸 base64
+	IsProd     bool   `mapstructure:"is_prod"`     // true=正式环境
 }
 
 type LogConfig struct {
