@@ -209,8 +209,9 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 				RateMultiplier: groupRate,
 			},
 		},
-		User:    &User{ID: 2001},
-		Account: &Account{ID: 3001},
+		User:         &User{ID: 2001},
+		Account:      &Account{ID: 3001},
+		Subscription: &UserSubscription{ID: 1},
 	})
 
 	require.NoError(t, err)
@@ -222,8 +223,8 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 
 	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, userRate)
 	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
-	require.InDelta(t, expected.ActualCost, userRepo.lastAmount, 1e-12)
-	require.Equal(t, 1, userRepo.deductCalls)
+	require.Equal(t, 1, subRepo.incrementCalls)
+	require.Equal(t, 0, userRepo.deductCalls)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_IncludesEndpointMetadata(t *testing.T) {
@@ -287,8 +288,9 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateOnResolverEr
 				RateMultiplier: groupRate,
 			},
 		},
-		User:    &User{ID: 2002},
-		Account: &Account{ID: 3002},
+		User:         &User{ID: 2002},
+		Account:      &Account{ID: 3002},
+		Subscription: &UserSubscription{ID: 2},
 	})
 
 	require.NoError(t, err)
@@ -297,7 +299,9 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateOnResolverEr
 	require.Equal(t, groupRate, usageRepo.lastLog.RateMultiplier)
 
 	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, groupRate)
-	require.InDelta(t, expected.ActualCost, userRepo.lastAmount, 1e-12)
+	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.Equal(t, 1, subRepo.incrementCalls)
+	require.Equal(t, 0, userRepo.deductCalls)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateWhenResolverMissing(t *testing.T) {
@@ -326,8 +330,9 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateWhenResolver
 				RateMultiplier: groupRate,
 			},
 		},
-		User:    &User{ID: 2003},
-		Account: &Account{ID: 3003},
+		User:         &User{ID: 2003},
+		Account:      &Account{ID: 3003},
+		Subscription: &UserSubscription{ID: 3},
 	})
 
 	require.NoError(t, err)
@@ -692,7 +697,7 @@ func TestOpenAIGatewayServiceRecordUsage_UpdatesAPIKeyQuotaWhenConfigured(t *tes
 	require.NoError(t, err)
 	require.Equal(t, 1, quotaSvc.quotaCalls)
 	require.Equal(t, 0, quotaSvc.rateLimitCalls)
-	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1)
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 7.0)
 	require.InDelta(t, expected.ActualCost, quotaSvc.lastAmount, 1e-12)
 }
 
@@ -752,7 +757,7 @@ func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillsWholeSession(t *te
 	require.InDelta(t, expectedInput, usageRepo.lastLog.InputCost, 1e-10)
 	require.InDelta(t, expectedOutput, usageRepo.lastLog.OutputCost, 1e-10)
 	require.InDelta(t, expectedInput+expectedOutput, usageRepo.lastLog.TotalCost, 1e-10)
-	require.InDelta(t, (expectedInput+expectedOutput)*1.1, usageRepo.lastLog.ActualCost, 1e-10)
+	require.InDelta(t, (expectedInput+expectedOutput)*7.0, usageRepo.lastLog.ActualCost, 1e-10)
 	require.Equal(t, 1, userRepo.deductCalls)
 }
 
@@ -905,7 +910,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingUpstreamModelFa
 	expectedCost, err := svc.billingService.CalculateCost("gpt-5.1-codex", UsageTokens{
 		InputTokens:  20,
 		OutputTokens: 10,
-	}, 1.1)
+	}, 7.0)
 	require.NoError(t, err)
 
 	err = svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
