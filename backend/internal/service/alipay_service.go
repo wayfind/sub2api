@@ -229,8 +229,9 @@ func (s *AlipayService) SetEnabled(ctx context.Context, enabled bool) error {
 	return s.settingRepo.Set(ctx, SettingKeyAlipayEnabled, v)
 }
 
-// CreateOrder 创建支付宝当面付订单，返回二维码链接
-func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID int) (*AlipayOrder, error) {
+// CreateOrder 创建支付宝当面付订单，返回二维码链接。
+// packageID > 0 时从套餐中查询金额；packageID == 0 时使用 cnyAmount（自定义金额，单位：元，1:1 换美元）。
+func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID int, cnyAmount float64) (*AlipayOrder, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, ErrAlipayNotEnabled
 	}
@@ -240,20 +241,37 @@ func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID
 		return nil, ErrAlipayNotConfigured
 	}
 
-	// 复用微信套餐
-	pkgs, err := s.wechatPackages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var pkg *WechatPayPackage
-	for i := range pkgs {
-		if pkgs[i].ID == packageID {
-			pkg = &pkgs[i]
-			break
+	var pkgName string
+	var pkgCnyAmount float64
+	var pkgUsdAmount float64
+
+	if packageID > 0 {
+		// 从套餐查询
+		pkgs, err := s.wechatPackages(ctx)
+		if err != nil {
+			return nil, err
 		}
-	}
-	if pkg == nil {
-		return nil, ErrAlipayInvalidPackage
+		var pkg *WechatPayPackage
+		for i := range pkgs {
+			if pkgs[i].ID == packageID {
+				pkg = &pkgs[i]
+				break
+			}
+		}
+		if pkg == nil {
+			return nil, ErrAlipayInvalidPackage
+		}
+		pkgName = pkg.Name
+		pkgCnyAmount = pkg.CnyAmount
+		pkgUsdAmount = pkg.UsdAmount
+	} else {
+		// 自定义金额，1:1 换算
+		if cnyAmount < 1 {
+			return nil, infraerrors.BadRequest("ALIPAY_INVALID_AMOUNT", "minimum amount is ¥1")
+		}
+		pkgName = fmt.Sprintf("自定义充值 ¥%.2f", cnyAmount)
+		pkgCnyAmount = cnyAmount
+		pkgUsdAmount = cnyAmount // 1:1
 	}
 
 	cfg, err := s.GetConfig(ctx)
@@ -271,11 +289,11 @@ func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID
 		return nil, fmt.Errorf("build alipay client: %w", err)
 	}
 
-	cnyFee := int(math.Round(pkg.CnyAmount * 100))
+	cnyFee := int(math.Round(pkgCnyAmount * 100))
 	totalAmount := fmt.Sprintf("%d.%02d", cnyFee/100, cnyFee%100)
 
 	bm := make(gopay.BodyMap)
-	bm.Set("subject", pkg.Name).
+	bm.Set("subject", pkgName).
 		Set("out_trade_no", orderNo).
 		Set("total_amount", totalAmount).
 		Set("notify_url", notifyURL)
@@ -300,7 +318,7 @@ func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID
 		UserID:    userID,
 		PackageID: packageID,
 		CnyFee:    cnyFee,
-		UsdAmount: pkg.UsdAmount,
+		UsdAmount: pkgUsdAmount,
 		Status:    "pending",
 		QRCode:    &qrCode,
 		ExpiresAt: time.Now().Add(30 * time.Minute),

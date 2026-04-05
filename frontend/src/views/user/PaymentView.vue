@@ -32,22 +32,23 @@
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           </div>
-          <div v-else-if="packages.length === 0" class="py-8 text-center text-gray-500">
+          <div v-else-if="packages.length === 0 && !loadingPackages" class="py-8 text-center text-gray-500">
             暂无可用套餐，请联系管理员
           </div>
           <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <!-- 固定套餐 -->
             <button
               v-for="pkg in packages"
               :key="pkg.id"
-              @click="selectedPackage = pkg"
+              @click="selectPackage(pkg)"
               :class="[
                 'relative rounded-xl border-2 p-4 text-center transition-all',
-                selectedPackage?.id === pkg.id
+                selectedPackage?.id === pkg.id && !customMode
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-200 hover:border-blue-300 dark:border-dark-600'
               ]"
             >
-              <div v-if="selectedPackage?.id === pkg.id" class="absolute right-2 top-2">
+              <div v-if="selectedPackage?.id === pkg.id && !customMode" class="absolute right-2 top-2">
                 <div class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
                   <svg class="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -56,12 +57,51 @@
               </div>
               <p class="text-xl font-bold text-gray-900 dark:text-white">¥{{ pkg.cny_amount }}</p>
               <p class="mt-1 text-sm text-blue-600 dark:text-blue-400">到账 ${{ pkg.usd_amount.toFixed(2) }}</p>
-              <p class="mt-0.5 text-xs text-gray-400">{{ pkg.name }}</p>
+            </button>
+
+            <!-- 自定义金额卡片 -->
+            <button
+              @click="selectCustom"
+              :class="[
+                'relative rounded-xl border-2 p-4 text-center transition-all',
+                customMode
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-200 hover:border-blue-300 dark:border-dark-600'
+              ]"
+            >
+              <div v-if="customMode" class="absolute right-2 top-2">
+                <div class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
+                  <svg class="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">自定义</p>
+              <p class="mt-1 text-sm text-blue-600 dark:text-blue-400">任意金额</p>
             </button>
           </div>
 
+          <!-- 自定义金额输入框 -->
+          <div v-if="customMode" class="mt-4">
+            <div class="flex items-center gap-2 rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 dark:bg-blue-900/20">
+              <span class="text-lg font-medium text-gray-600 dark:text-gray-300">¥</span>
+              <input
+                ref="customInput"
+                v-model="customAmountStr"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="输入充值金额（最低 ¥1）"
+                class="flex-1 bg-transparent text-lg font-bold text-gray-900 outline-none placeholder:text-gray-400 dark:text-white"
+              />
+            </div>
+            <p v-if="customAmountStr && customAmount > 0" class="mt-1 text-sm text-blue-600 dark:text-blue-400">
+              到账 ${{ customAmount.toFixed(2) }}
+            </p>
+          </div>
+
           <button
-            v-if="selectedPackage"
+            v-if="canSubmit"
             @click="createOrder"
             :disabled="creatingOrder"
             class="mt-6 w-full rounded-lg bg-blue-500 py-3 font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
@@ -70,7 +110,7 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {{ creatingOrder ? '生成中...' : `立即充值 ¥${selectedPackage.cny_amount}` }}
+            {{ creatingOrder ? '生成中...' : submitLabel }}
           </button>
         </div>
       </div>
@@ -113,8 +153,8 @@
               </div>
             </div>
             <p class="text-sm text-gray-500">请使用支付宝扫描上方二维码完成支付</p>
-            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">¥{{ selectedPackage?.cny_amount }}</p>
-            <p class="text-sm text-blue-600">到账 ${{ selectedPackage?.usd_amount.toFixed(2) }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">¥{{ pendingCnyAmount }}</p>
+            <p class="text-sm text-blue-600">到账 ${{ pendingCnyAmount.toFixed(2) }}</p>
             <div class="mt-3 flex items-center justify-center gap-1 text-xs text-gray-400">
               <svg class="h-3 w-3 animate-pulse text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <circle cx="10" cy="10" r="10" />
@@ -129,7 +169,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { alipayAPI, type PaymentPackage } from '@/api/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -144,11 +184,32 @@ const selectedPackage = ref<PaymentPackage | null>(null)
 const loadingPackages = ref(false)
 const creatingOrder = ref(false)
 
+// 自定义金额
+const customMode = ref(false)
+const customAmountStr = ref('')
+const customInput = ref<HTMLInputElement | null>(null)
+const customAmount = computed(() => {
+  const v = parseFloat(customAmountStr.value)
+  return isNaN(v) || v <= 0 ? 0 : v
+})
+
+const canSubmit = computed(() => {
+  if (customMode.value) return customAmount.value >= 1
+  return selectedPackage.value !== null
+})
+
+const submitLabel = computed(() => {
+  if (customMode.value) return `立即充值 ¥${customAmount.value}`
+  return `立即充值 ¥${selectedPackage.value?.cny_amount}`
+})
+
+// 弹窗状态
 const showQRCode = ref(false)
 const qrCodeDataUrl = ref('')
 const currentOrderNo = ref('')
 const orderStatus = ref<'pending' | 'paid' | 'expired' | 'refunded'>('pending')
 const remainingSeconds = ref(0)
+const pendingCnyAmount = ref(0)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -170,11 +231,31 @@ onUnmounted(() => {
   stopPolling()
 })
 
+function selectPackage(pkg: PaymentPackage) {
+  selectedPackage.value = pkg
+  customMode.value = false
+  customAmountStr.value = ''
+}
+
+async function selectCustom() {
+  customMode.value = true
+  selectedPackage.value = null
+  await nextTick()
+  customInput.value?.focus()
+}
+
 async function createOrder() {
-  if (!selectedPackage.value) return
+  if (!canSubmit.value) return
   creatingOrder.value = true
   try {
-    const resp = await alipayAPI.createOrder(selectedPackage.value.id)
+    const resp = customMode.value
+      ? await alipayAPI.createOrder(0, customAmount.value)
+      : await alipayAPI.createOrder(selectedPackage.value!.id)
+
+    pendingCnyAmount.value = customMode.value
+      ? customAmount.value
+      : selectedPackage.value!.cny_amount
+
     currentOrderNo.value = resp.order_no
     orderStatus.value = 'pending'
 

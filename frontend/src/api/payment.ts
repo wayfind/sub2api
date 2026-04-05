@@ -34,10 +34,14 @@ async function alipayGetPackages(): Promise<PaymentPackage[]> {
   return data
 }
 
-async function alipayCreateOrder(packageId: number): Promise<AlipayCreateOrderResponse> {
-  const { data } = await apiClient.post<AlipayCreateOrderResponse>('/payments/alipay/create-order', {
-    package_id: packageId
-  })
+async function alipayCreateOrder(packageId: number, cnyAmount?: number): Promise<AlipayCreateOrderResponse> {
+  const body: Record<string, unknown> = {}
+  if (packageId > 0) {
+    body.package_id = packageId
+  } else if (cnyAmount && cnyAmount > 0) {
+    body.cny_amount = cnyAmount
+  }
+  const { data } = await apiClient.post<AlipayCreateOrderResponse>('/payments/alipay/create-order', body)
   return data
 }
 

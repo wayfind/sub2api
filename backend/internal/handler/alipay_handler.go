@@ -22,7 +22,8 @@ func NewAlipayHandler(alipayService *service.AlipayService) *AlipayHandler {
 }
 
 type alipayCreateOrderRequest struct {
-	PackageID int `json:"package_id" binding:"required"`
+	PackageID int     `json:"package_id"`
+	CnyAmount float64 `json:"cny_amount"` // 自定义金额（元），与 package_id 二选一
 }
 
 // GetPackages 获取充值套餐列表
@@ -50,8 +51,12 @@ func (h *AlipayHandler) CreateOrder(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if req.PackageID == 0 && req.CnyAmount <= 0 {
+		response.BadRequest(c, "package_id or cny_amount is required")
+		return
+	}
 
-	order, err := h.alipayService.CreateOrder(c.Request.Context(), subject.UserID, req.PackageID)
+	order, err := h.alipayService.CreateOrder(c.Request.Context(), subject.UserID, req.PackageID, req.CnyAmount)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
