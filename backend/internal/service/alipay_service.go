@@ -396,6 +396,11 @@ func (s *AlipayService) ListOrders(ctx context.Context, params pagination.Pagina
 	return s.orderRepo.List(ctx, params, status)
 }
 
+// GetPackages 返回当前配置的充值套餐列表
+func (s *AlipayService) GetPackages(ctx context.Context) ([]WechatPayPackage, error) {
+	return s.wechatPackages(ctx)
+}
+
 // wechatPackages 复用微信套餐配置
 func (s *AlipayService) wechatPackages(ctx context.Context) ([]WechatPayPackage, error) {
 	val, err := s.settingRepo.GetValue(ctx, SettingKeyWechatPayPackages)

@@ -398,17 +398,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
-  {
-    path: '/admin/wechat-pay',
-    name: 'AdminWechatPay',
-    component: () => import('@/views/admin/WechatPayView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: '微信支付配置',
-      titleKey: 'admin.wechatPay.title'
-    }
-  },
+  // 微信支付暂时屏蔽
+  // {
+  //   path: '/admin/wechat-pay',
+  //   name: 'AdminWechatPay',
+  //   component: () => import('@/views/admin/WechatPayView.vue'),
+  //   meta: {
+  //     requiresAuth: true,
+  //     requiresAdmin: true,
+  //     title: '微信支付配置',
+  //     titleKey: 'admin.wechatPay.title'
+  //   }
+  // },
 
   {
     path: '/admin/alipay',

@@ -25,6 +25,17 @@ type alipayCreateOrderRequest struct {
 	PackageID int `json:"package_id" binding:"required"`
 }
 
+// GetPackages 获取充值套餐列表
+// GET /api/v1/payments/alipay/packages
+func (h *AlipayHandler) GetPackages(c *gin.Context) {
+	pkgs, err := h.alipayService.GetPackages(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, pkgs)
+}
+
 // CreateOrder 创建支付宝当面付订单，返回二维码链接
 // POST /api/v1/payments/alipay/create-order
 func (h *AlipayHandler) CreateOrder(c *gin.Context) {

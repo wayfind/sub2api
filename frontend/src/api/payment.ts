@@ -68,6 +68,11 @@ export const wechatPayAPI = {
 
 // ---- 支付宝 ----
 
+export async function alipayGetPackages(): Promise<WechatPayPackage[]> {
+  const { data } = await apiClient.get<WechatPayPackage[]>('/payments/alipay/packages')
+  return data
+}
+
 export async function alipayCreateOrder(packageId: number): Promise<AlipayCreateOrderResponse> {
   const { data } = await apiClient.post<AlipayCreateOrderResponse>('/payments/alipay/create-order', {
     package_id: packageId
@@ -81,6 +86,7 @@ export async function alipayGetOrderStatus(orderNo: string): Promise<AlipayOrder
 }
 
 export const alipayAPI = {
+  getPackages: alipayGetPackages,
   createOrder: alipayCreateOrder,
   getOrderStatus: alipayGetOrderStatus
 }

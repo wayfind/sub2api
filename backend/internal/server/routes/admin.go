@@ -91,8 +91,8 @@ func RegisterAdminRoutes(
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
 
-		// 微信支付管理
-		registerWechatPayRoutes(admin, h)
+		// 微信支付管理（暂时屏蔽）
+		// registerWechatPayRoutes(admin, h)
 		registerAlipayRoutes(admin, h)
 	}
 }
