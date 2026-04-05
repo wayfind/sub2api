@@ -189,8 +189,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { adminWechatPayAPI, type WechatPayOrderRecord } from '@/api/admin/wechat_pay'
-import type { WechatPayPackage } from '@/api/payment'
+import { adminWechatPayAPI, type WechatPayOrderRecord, type WechatPayPackage } from '@/api/admin/wechat_pay'
 
 const enabled = ref(false)
 const savingConfig = ref(false)

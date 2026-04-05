@@ -131,7 +131,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { alipayAPI, type WechatPayPackage } from '@/api/payment'
+import { alipayAPI, type PaymentPackage } from '@/api/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
@@ -139,8 +139,8 @@ import QRCode from 'qrcode'
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 
-const packages = ref<WechatPayPackage[]>([])
-const selectedPackage = ref<WechatPayPackage | null>(null)
+const packages = ref<PaymentPackage[]>([])
+const selectedPackage = ref<PaymentPackage | null>(null)
 const loadingPackages = ref(false)
 const creatingOrder = ref(false)
 

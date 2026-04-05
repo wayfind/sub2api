@@ -3,7 +3,10 @@
  */
 
 import { apiClient } from '../client'
-import type { WechatPayPackage } from '../payment'
+import type { PaymentPackage } from '../payment'
+
+// 微信支付暂时屏蔽，类型别名保持兼容
+export type WechatPayPackage = PaymentPackage
 
 export interface WechatPayConfig {
   appid: string
