@@ -170,16 +170,8 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				needsMaintenance, validateErr := subscriptionService.ValidateMergedState(mergedState)
 				if validateErr != nil {
 					// 订阅超限：fallback 到余额检查而非拒绝
-					if errors.Is(validateErr, service.ErrDailyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrWeeklyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrMonthlyLimitExceeded) {
-						// 超限 → 清除订阅让后续走余额扣费
-						subscription = nil
-						c.Set(string(ContextKeyBillingFallback), true)
-					} else {
-						// 其他错误（过期/暂停）→ 清除订阅
-						subscription = nil
-					}
+					// 订阅超限或其他错误（过期/暂停）→ 清除订阅让后续走余额扣费
+					subscription = nil
 				} else {
 					// 窗口维护异步化（不阻塞请求）
 					if needsMaintenance {

@@ -4142,14 +4142,19 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		CacheReadTokens:     result.Usage.CacheReadInputTokens,
 	}
 
-	// Get rate multiplier
-	multiplier := s.cfg.Default.RateMultiplier
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		resolver := s.userGroupRateResolver
-		if resolver == nil {
-			resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
+	// 费率策略：订阅路径用分组费率（用户专属 > 分组默认 > 系统默认），余额路径固定 7.0
+	multiplier := 7.0
+	if subscription != nil {
+		if s.cfg != nil {
+			multiplier = s.cfg.Default.RateMultiplier
 		}
-		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+		if apiKey.GroupID != nil && apiKey.Group != nil {
+			resolver := s.userGroupRateResolver
+			if resolver == nil {
+				resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
+			}
+			multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+		}
 	}
 
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)

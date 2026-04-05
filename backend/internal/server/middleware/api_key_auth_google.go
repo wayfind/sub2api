@@ -85,13 +85,8 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		if mergedState != nil && subscription != nil {
 			needsMaintenance, err := subscriptionService.ValidateMergedState(mergedState)
 			if err != nil {
-				// 订阅超限 → fallback 到余额
+				// 订阅超限 → fallback 到余额，清除订阅即可
 				subscription = nil
-				if errors.Is(err, service.ErrDailyLimitExceeded) ||
-					errors.Is(err, service.ErrWeeklyLimitExceeded) ||
-					errors.Is(err, service.ErrMonthlyLimitExceeded) {
-					c.Set(string(ContextKeyBillingFallback), true)
-				}
 			} else {
 				c.Set(string(ContextKeySubscription), subscription)
 				if needsMaintenance {

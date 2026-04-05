@@ -22,8 +22,6 @@ const (
 	ContextKeyAPIKey ContextKey = "api_key"
 	// ContextKeySubscription 订阅上下文键
 	ContextKeySubscription ContextKey = "subscription"
-	// ContextKeyBillingFallback 标记计费是否 fallback 到余额
-	ContextKeyBillingFallback ContextKey = "billing_fallback"
 	// ContextKeyForcePlatform 强制平台（用于 /antigravity 路由）
 	ContextKeyForcePlatform ContextKey = "force_platform"
 )
@@ -120,14 +118,4 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 		writeError(c, http.StatusForbidden, "API Key is not assigned to any group and cannot be used. Please contact the administrator to assign it to a group.")
 		c.Abort()
 	}
-}
-
-// GetBillingFallbackFromContext 从上下文获取 billing fallback 标记
-func GetBillingFallbackFromContext(c *gin.Context) (bool, bool) {
-	value, exists := c.Get(string(ContextKeyBillingFallback))
-	if !exists {
-		return false, false
-	}
-	v, ok := value.(bool)
-	return v, ok
 }
