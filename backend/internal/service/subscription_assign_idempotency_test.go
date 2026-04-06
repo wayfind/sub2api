@@ -53,6 +53,9 @@ func (userSubRepoNoop) GetByID(context.Context, int64) (*UserSubscription, error
 func (userSubRepoNoop) GetByUserIDAndPlanID(context.Context, int64, int64) (*UserSubscription, error) {
 	panic("unexpected GetByUserIDAndPlanID call")
 }
+func (userSubRepoNoop) GetLatestByUserIDAndPlanID(context.Context, int64, int64) (*UserSubscription, error) {
+	panic("unexpected GetLatestByUserIDAndPlanID call")
+}
 func (userSubRepoNoop) GetActiveByUserIDAndPlanID(context.Context, int64, int64) (*UserSubscription, error) {
 	panic("unexpected GetActiveByUserIDAndPlanID call")
 }
@@ -146,6 +149,15 @@ func (s *subscriptionUserSubRepoStub) ExistsByUserIDAndPlanID(_ context.Context,
 }
 
 func (s *subscriptionUserSubRepoStub) GetByUserIDAndPlanID(_ context.Context, userID, planID int64) (*UserSubscription, error) {
+	sub := s.byUserPlan[s.key(userID, planID)]
+	if sub == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	cp := *sub
+	return &cp, nil
+}
+
+func (s *subscriptionUserSubRepoStub) GetLatestByUserIDAndPlanID(_ context.Context, userID, planID int64) (*UserSubscription, error) {
 	sub := s.byUserPlan[s.key(userID, planID)]
 	if sub == nil {
 		return nil, ErrSubscriptionNotFound

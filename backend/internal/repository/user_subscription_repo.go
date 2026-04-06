@@ -76,11 +76,18 @@ func (r *userSubscriptionRepository) GetByUserIDAndPlanID(ctx context.Context, u
 	m, err := client.UserSubscription.Query().
 		Where(usersubscription.UserIDEQ(userID), usersubscription.PlanIDEQ(planID)).
 		WithPlan().
-		Only(ctx)
+		Order(dbent.Desc(usersubscription.FieldUpdatedAt)).
+		First(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
 	return userSubscriptionEntityToService(m), nil
+}
+
+// GetLatestByUserIDAndPlanID 返回指定用户对指定 plan 的最近更新的订阅记录，
+// 用于防重检查等需要"最新一条"语义的场景。
+func (r *userSubscriptionRepository) GetLatestByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
+	return r.GetByUserIDAndPlanID(ctx, userID, planID)
 }
 
 func (r *userSubscriptionRepository) GetActiveByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {

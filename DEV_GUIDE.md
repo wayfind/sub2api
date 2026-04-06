@@ -344,3 +344,136 @@ sub2api-bmai/
 - [Ent 文档](https://entgo.io/docs/getting-started)
 - [Vue3 文档](https://vuejs.org/)
 - [pnpm 文档](https://pnpm.io/)
+
+## 八、发布流程 SOP
+
+### 版本号规范
+
+格式：`0.MAJOR.PATCH`
+
+| 变更类型 | 操作 |
+|---------|------|
+| bug 修复、小改动 | PATCH +1（如 0.1.105 → 0.1.106） |
+| 新功能、API 变更 | PATCH +1（当前阶段统一用 PATCH） |
+
+版本号文件：`backend/cmd/server/VERSION`
+
+### 发布前检查清单
+
+```bash
+# 1. 确认本地编译无误
+cd backend && go build ./...
+
+# 2. 运行单元测试
+cd backend && go test -tags=unit ./...
+
+# 3. 版本号 bump（每次发布必须更新）
+echo "0.1.XXX" > backend/cmd/server/VERSION
+
+# 4. 提交所有改动
+git add -A && git commit -m "release: vX.X.XXX - 描述"
+```
+
+### 部署命令
+
+```bash
+# 完整部署（构建 + 上传 + 重启 + 健康检查）
+bash .claude/skills/sub2api-deploy/scripts/deploy.sh
+
+# 仅重新部署（跳过编译，用已有 bin/server）
+bash .claude/skills/sub2api-deploy/scripts/deploy.sh --skip-build
+```
+
+### 部署后验证
+
+```bash
+# 查看服务日志
+ssh ubuntu@napi.origintask.cn 'journalctl -u sub2api -n 50'
+
+# 检查 migration 执行情况（服务启动时自动跑）
+ssh ubuntu@napi.origintask.cn "sudo -u postgres psql -d sub2api_v2 -c \"SELECT filename, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 5;\""
+
+# 健康检查
+curl https://napi.origintask.cn/health
+```
+
+---
+
+## 九、Migration 规范
+
+### 工作机制
+
+- Migration 文件在 `backend/migrations/` 目录下
+- **服务启动时自动执行**：所有未应用的 migration 会在 startup 时自动跑
+- 执行状态记录在 `schema_migrations` 表（filename + SHA256 checksum）
+- PostgreSQL Advisory Lock 保证多实例并发安全
+
+### 编写规范
+
+```sql
+-- 命名格式：NNN_描述.sql（NNN 为三位数字，按顺序递增）
+-- 例：088_add_subscription_note_index.sql
+
+-- 必须幂等（IF NOT EXISTS / IF EXISTS）
+CREATE INDEX IF NOT EXISTS idx_user_sub_note
+    ON user_subscriptions(user_id, notes) WHERE deleted_at IS NULL;
+
+-- 特殊场景：CREATE/DROP INDEX CONCURRENTLY 需要用 _notx.sql 后缀
+-- 例：089_add_large_table_index_notx.sql
+```
+
+### 关键约束
+
+1. **已应用的 migration 文件不可修改**：checksum 校验会拒绝启动
+2. **文件名必须唯一且递增**：按 `NNN_` 前缀排序执行
+3. **禁止删除已提交的 migration 文件**
+
+### 本地开发数据库同步
+
+本地数据库的 migration 由服务启动时自动同步，无需手动执行。只需：
+
+```bash
+# 启动本地服务，missing migrations 会自动跑
+cd backend && go run ./cmd/server/
+```
+
+---
+
+## 十、生产环境信息
+
+### 服务器
+
+| 项目 | 值 |
+|------|-----|
+| 地址 | `ubuntu@napi.origintask.cn` |
+| 二进制 | `/opt/sub2api/sub2api` |
+| 备份 | `/opt/sub2api/sub2api.backup` |
+| 服务名 | `sub2api`（systemd） |
+| 健康检查 | `https://napi.origintask.cn/health` |
+
+### 生产数据库
+
+| 项目 | 值 |
+|------|-----|
+| 数据库名 | `sub2api_v2` |
+| 连接方式 | `sudo -u postgres psql -d sub2api_v2` |
+
+### 查询 migration 状态
+
+```bash
+ssh ubuntu@napi.origintask.cn "sudo -u postgres psql -d sub2api_v2 -c \
+  \"SELECT filename, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 10;\""
+```
+
+### 配置文件
+
+生产配置位于服务器上，不在 git 仓库中。参考模板：`deploy/config.example.yaml`。
+
+支付宝配置示例（`config.yaml` 中的 `alipay` 段）见 `deploy/config.example.yaml` 末尾。
+
+### 查看服务日志
+
+```bash
+ssh ubuntu@napi.origintask.cn 'journalctl -u sub2api -n 100 -f'
+```
+

@@ -11,6 +11,7 @@ type UserSubscriptionRepository interface {
 	Create(ctx context.Context, sub *UserSubscription) error
 	GetByID(ctx context.Context, id int64) (*UserSubscription, error)
 	GetByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*UserSubscription, error)
+	GetLatestByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*UserSubscription, error)
 	GetActiveByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*UserSubscription, error)
 	Update(ctx context.Context, sub *UserSubscription) error
 	Delete(ctx context.Context, id int64) error

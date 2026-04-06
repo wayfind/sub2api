@@ -111,7 +111,7 @@ func (UserSubscription) Indexes() []ent.Index {
 		// 活跃订阅查询复合索引
 		index.Fields("user_id", "status", "expires_at"),
 		index.Fields("assigned_by"),
-		// 唯一约束通过部分索引实现（WHERE deleted_at IS NULL）
+		// (user_id, plan_id) 普通索引，不加 unique——支持同 plan 叠加购买
 		index.Fields("user_id", "plan_id"),
 		index.Fields("deleted_at"),
 	}

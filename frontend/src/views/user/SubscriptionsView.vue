@@ -24,251 +24,20 @@
       </div>
 
       <template v-else>
-      <!-- Available Plans for Purchase -->
-      <div v-if="purchasablePlans.length > 0" class="space-y-3">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ t('userSubscriptions.availablePlans') }}
-        </h2>
-        <div class="grid gap-4 lg:grid-cols-3">
-          <div
-            v-for="plan in purchasablePlans"
-            :key="'plan-' + plan.id"
-            class="card p-4 transition-shadow hover:shadow-md"
-          >
-            <div class="mb-3">
-              <h3 class="font-semibold text-gray-900 dark:text-white">{{ plan.name }}</h3>
-              <p v-if="plan.description" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                {{ plan.description }}
-              </p>
-            </div>
-            <div class="mb-3 space-y-1 text-xs text-gray-600 dark:text-dark-300">
-              <div v-if="plan.daily_limit_usd" class="flex justify-between">
-                <span>{{ t('userSubscriptions.dailyLimit') }}</span>
-                <span class="font-medium">${{ plan.daily_limit_usd.toFixed(2) }}</span>
-              </div>
-              <div v-if="plan.weekly_limit_usd" class="flex justify-between">
-                <span>{{ t('userSubscriptions.weeklyLimit') }}</span>
-                <span class="font-medium">${{ plan.weekly_limit_usd.toFixed(2) }}</span>
-              </div>
-              <div v-if="plan.monthly_limit_usd" class="flex justify-between">
-                <span>{{ t('userSubscriptions.monthlyLimit') }}</span>
-                <span class="font-medium">${{ plan.monthly_limit_usd.toFixed(2) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>{{ t('userSubscriptions.validity') }}</span>
-                <span class="font-medium">{{ plan.default_validity_days }} {{ t('userSubscriptions.days') }}</span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
-                ${{ plan.price?.toFixed(2) || '0.00' }}
-              </span>
-              <button
-                class="btn btn-primary btn-sm"
-                :disabled="purchasing === plan.id"
-                @click="handlePurchase(plan)"
-              >
-                <span v-if="purchasing === plan.id" class="flex items-center gap-1">
-                  <span class="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"></span>
-                  {{ t('common.processing') }}
-                </span>
-                <span v-else>{{ t('userSubscriptions.purchase') }}</span>
-              </button>
-            </div>
+        <!-- 叠加限额总览卡片 -->
+        <div v-if="merged && merged.has_active" class="card overflow-hidden">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+              当前叠加限额
+            </h2>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
+              {{ merged.active_count }} 个活跃订阅叠加后的总限额
+            </p>
           </div>
-        </div>
-      </div>
-
-      <!-- Subscriptions Grid -->
-      <div v-if="subscriptions.length > 0" class="grid gap-6 lg:grid-cols-2">
-        <div
-          v-for="subscription in subscriptions"
-          :key="subscription.id"
-          class="card overflow-hidden"
-        >
-          <!-- Header -->
-          <div
-            class="flex items-center justify-between border-b border-gray-100 p-4 dark:border-dark-700"
-          >
-            <div class="flex items-center gap-3">
-              <div
-                class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
-              >
-                <Icon name="creditCard" size="md" class="text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h3 class="font-semibold text-gray-900 dark:text-white">
-                  {{ subscription.plan?.name || `Plan #${subscription.plan_id}` }}
-                </h3>
-                <p class="text-xs text-gray-500 dark:text-dark-400">
-                  {{ subscription.plan?.description || '' }}
-                </p>
-              </div>
-            </div>
-            <span
-              :class="[
-                'badge',
-                subscription.status === 'active'
-                  ? 'badge-success'
-                  : subscription.status === 'expired'
-                    ? 'badge-warning'
-                    : 'badge-danger'
-              ]"
-            >
-              {{ t(`userSubscriptions.status.${subscription.status}`) }}
-            </span>
-          </div>
-
-          <!-- Usage Progress -->
-          <div class="space-y-4 p-4">
-            <!-- Expiration Info -->
-            <div v-if="subscription.expires_at" class="flex items-center justify-between text-sm">
-              <span class="text-gray-500 dark:text-dark-400">{{
-                t('userSubscriptions.expires')
-              }}</span>
-              <span :class="getExpirationClass(subscription.expires_at)">
-                {{ formatExpirationDate(subscription.expires_at) }}
-              </span>
-            </div>
-            <div v-else class="flex items-center justify-between text-sm">
-              <span class="text-gray-500 dark:text-dark-400">{{
-                t('userSubscriptions.expires')
-              }}</span>
-              <span class="text-gray-700 dark:text-gray-300">{{
-                t('userSubscriptions.noExpiration')
-              }}</span>
-            </div>
-
-            <!-- Daily Usage -->
-            <div v-if="subscription.plan?.daily_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.daily') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.plan.daily_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.daily_usage_usd,
-                      subscription.plan.daily_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.daily_usage_usd,
-                      subscription.plan.daily_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.daily_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.daily_window_start, 24)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- Weekly Usage -->
-            <div v-if="subscription.plan?.weekly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.weekly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.plan.weekly_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.weekly_usage_usd,
-                      subscription.plan.weekly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.weekly_usage_usd,
-                      subscription.plan.weekly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.weekly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.weekly_window_start, 168)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- Monthly Usage -->
-            <div v-if="subscription.plan?.monthly_limit_usd" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('userSubscriptions.monthly') }}
-                </span>
-                <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
-                    subscription.plan.monthly_limit_usd.toFixed(2)
-                  }}
-                </span>
-              </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                <div
-                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                  :class="
-                    getProgressBarClass(
-                      subscription.monthly_usage_usd,
-                      subscription.plan.monthly_limit_usd
-                    )
-                  "
-                  :style="{
-                    width: getProgressWidth(
-                      subscription.monthly_usage_usd,
-                      subscription.plan.monthly_limit_usd
-                    )
-                  }"
-                ></div>
-              </div>
-              <p
-                v-if="subscription.monthly_window_start"
-                class="text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.resetIn', {
-                    time: formatResetTime(subscription.monthly_window_start, 720)
-                  })
-                }}
-              </p>
-            </div>
-
-            <!-- No limits configured - Unlimited badge -->
+          <div class="grid gap-6 p-6" :class="mergedLimitCount === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : mergedLimitCount === 2 ? 'sm:grid-cols-2' : ''">
+            <!-- 无任何限额 -->
             <div
-              v-if="
-                !subscription.plan?.daily_limit_usd &&
-                !subscription.plan?.weekly_limit_usd &&
-                !subscription.plan?.monthly_limit_usd
-              "
+              v-if="!merged.daily_limit_usd && !merged.weekly_limit_usd && !merged.monthly_limit_usd"
               class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
             >
               <div class="flex items-center gap-3">
@@ -283,9 +52,336 @@
                 </div>
               </div>
             </div>
+
+            <!-- 日限额 -->
+            <div v-if="merged.daily_limit_usd" class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每日限额</span>
+                <span class="text-sm text-gray-500 dark:text-dark-400">
+                  ${{ merged.daily_used_usd.toFixed(2) }} / ${{ merged.daily_limit_usd.toFixed(2) }}
+                </span>
+              </div>
+              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                <div
+                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                  :class="getProgressBarClass(merged.daily_used_usd, merged.daily_limit_usd)"
+                  :style="{ width: getProgressWidth(merged.daily_used_usd, merged.daily_limit_usd) }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-dark-500">
+                剩余 ${{ Math.max(0, merged.daily_limit_usd - merged.daily_used_usd).toFixed(2) }}
+              </p>
+            </div>
+
+            <!-- 周限额 -->
+            <div v-if="merged.weekly_limit_usd" class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每周限额</span>
+                <span class="text-sm text-gray-500 dark:text-dark-400">
+                  ${{ merged.weekly_used_usd.toFixed(2) }} / ${{ merged.weekly_limit_usd.toFixed(2) }}
+                </span>
+              </div>
+              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                <div
+                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                  :class="getProgressBarClass(merged.weekly_used_usd, merged.weekly_limit_usd)"
+                  :style="{ width: getProgressWidth(merged.weekly_used_usd, merged.weekly_limit_usd) }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-dark-500">
+                剩余 ${{ Math.max(0, merged.weekly_limit_usd - merged.weekly_used_usd).toFixed(2) }}
+              </p>
+            </div>
+
+            <!-- 月限额 -->
+            <div v-if="merged.monthly_limit_usd" class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每月限额</span>
+                <span class="text-sm text-gray-500 dark:text-dark-400">
+                  ${{ merged.monthly_used_usd.toFixed(2) }} / ${{ merged.monthly_limit_usd.toFixed(2) }}
+                </span>
+              </div>
+              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                <div
+                  class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                  :class="getProgressBarClass(merged.monthly_used_usd, merged.monthly_limit_usd)"
+                  :style="{ width: getProgressWidth(merged.monthly_used_usd, merged.monthly_limit_usd) }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-dark-500">
+                剩余 ${{ Math.max(0, merged.monthly_limit_usd - merged.monthly_used_usd).toFixed(2) }}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- Available Plans for Purchase -->
+        <div v-if="purchasablePlans.length > 0" class="space-y-3">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+            {{ t('userSubscriptions.availablePlans') }}
+          </h2>
+          <div class="grid gap-4 lg:grid-cols-3">
+            <div
+              v-for="plan in purchasablePlans"
+              :key="'plan-' + plan.id"
+              class="card p-4 transition-shadow hover:shadow-md"
+            >
+              <div class="mb-3">
+                <h3 class="font-semibold text-gray-900 dark:text-white">{{ plan.name }}</h3>
+                <p v-if="plan.description" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                  {{ plan.description }}
+                </p>
+              </div>
+              <div class="mb-3 space-y-1 text-xs text-gray-600 dark:text-dark-300">
+                <div v-if="plan.daily_limit_usd" class="flex justify-between">
+                  <span>{{ t('userSubscriptions.dailyLimit') }}</span>
+                  <span class="font-medium">${{ plan.daily_limit_usd.toFixed(2) }}</span>
+                </div>
+                <div v-if="plan.weekly_limit_usd" class="flex justify-between">
+                  <span>{{ t('userSubscriptions.weeklyLimit') }}</span>
+                  <span class="font-medium">${{ plan.weekly_limit_usd.toFixed(2) }}</span>
+                </div>
+                <div v-if="plan.monthly_limit_usd" class="flex justify-between">
+                  <span>{{ t('userSubscriptions.monthlyLimit') }}</span>
+                  <span class="font-medium">${{ plan.monthly_limit_usd.toFixed(2) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>{{ t('userSubscriptions.validity') }}</span>
+                  <span class="font-medium">{{ plan.default_validity_days }} {{ t('userSubscriptions.days') }}</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                  ${{ plan.price?.toFixed(2) || '0.00' }}
+                </span>
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="purchasing === plan.id"
+                  @click="handlePurchase(plan)"
+                >
+                  <span v-if="purchasing === plan.id" class="flex items-center gap-1">
+                    <span class="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent"></span>
+                    {{ t('common.processing') }}
+                  </span>
+                  <span v-else>{{ t('userSubscriptions.purchase') }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subscriptions Grid -->
+        <div v-if="subscriptions.length > 0">
+          <h2 class="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+            我的订阅
+          </h2>
+          <div class="grid gap-6 lg:grid-cols-2">
+            <div
+              v-for="subscription in subscriptions"
+              :key="subscription.id"
+              class="card overflow-hidden"
+            >
+              <!-- Header -->
+              <div
+                class="flex items-center justify-between border-b border-gray-100 p-4 dark:border-dark-700"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30"
+                  >
+                    <Icon name="creditCard" size="md" class="text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">
+                      {{ subscription.plan?.name || `Plan #${subscription.plan_id}` }}
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">
+                      {{ subscription.plan?.description || '' }}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  :class="[
+                    'badge',
+                    subscription.status === 'active'
+                      ? 'badge-success'
+                      : subscription.status === 'expired'
+                        ? 'badge-warning'
+                        : 'badge-danger'
+                  ]"
+                >
+                  {{ t(`userSubscriptions.status.${subscription.status}`) }}
+                </span>
+              </div>
+
+              <!-- Usage Progress -->
+              <div class="space-y-4 p-4">
+                <!-- Expiration Info -->
+                <div v-if="subscription.expires_at" class="flex items-center justify-between text-sm">
+                  <span class="text-gray-500 dark:text-dark-400">{{
+                    t('userSubscriptions.expires')
+                  }}</span>
+                  <span :class="getExpirationClass(subscription.expires_at)">
+                    {{ formatExpirationDate(subscription.expires_at) }}
+                  </span>
+                </div>
+                <div v-else class="flex items-center justify-between text-sm">
+                  <span class="text-gray-500 dark:text-dark-400">{{
+                    t('userSubscriptions.expires')
+                  }}</span>
+                  <span class="text-gray-700 dark:text-gray-300">{{
+                    t('userSubscriptions.noExpiration')
+                  }}</span>
+                </div>
+
+                <!-- Daily Usage -->
+                <div v-if="subscription.plan?.daily_limit_usd" class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('userSubscriptions.daily') }}
+                    </span>
+                    <span class="text-sm text-gray-500 dark:text-dark-400">
+                      ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
+                        subscription.plan.daily_limit_usd.toFixed(2)
+                      }}
+                    </span>
+                  </div>
+                  <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                    <div
+                      class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                      :class="
+                        getProgressBarClass(
+                          subscription.daily_usage_usd,
+                          subscription.plan.daily_limit_usd
+                        )
+                      "
+                      :style="{
+                        width: getProgressWidth(
+                          subscription.daily_usage_usd,
+                          subscription.plan.daily_limit_usd
+                        )
+                      }"
+                    ></div>
+                  </div>
+                  <p
+                    v-if="subscription.daily_window_start"
+                    class="text-xs text-gray-500 dark:text-dark-400"
+                  >
+                    {{
+                      t('userSubscriptions.resetIn', {
+                        time: formatResetTime(subscription.daily_window_start, 24)
+                      })
+                    }}
+                  </p>
+                </div>
+
+                <!-- Weekly Usage -->
+                <div v-if="subscription.plan?.weekly_limit_usd" class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('userSubscriptions.weekly') }}
+                    </span>
+                    <span class="text-sm text-gray-500 dark:text-dark-400">
+                      ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
+                        subscription.plan.weekly_limit_usd.toFixed(2)
+                      }}
+                    </span>
+                  </div>
+                  <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                    <div
+                      class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                      :class="
+                        getProgressBarClass(
+                          subscription.weekly_usage_usd,
+                          subscription.plan.weekly_limit_usd
+                        )
+                      "
+                      :style="{
+                        width: getProgressWidth(
+                          subscription.weekly_usage_usd,
+                          subscription.plan.weekly_limit_usd
+                        )
+                      }"
+                    ></div>
+                  </div>
+                  <p
+                    v-if="subscription.weekly_window_start"
+                    class="text-xs text-gray-500 dark:text-dark-400"
+                  >
+                    {{
+                      t('userSubscriptions.resetIn', {
+                        time: formatResetTime(subscription.weekly_window_start, 168)
+                      })
+                    }}
+                  </p>
+                </div>
+
+                <!-- Monthly Usage -->
+                <div v-if="subscription.plan?.monthly_limit_usd" class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('userSubscriptions.monthly') }}
+                    </span>
+                    <span class="text-sm text-gray-500 dark:text-dark-400">
+                      ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
+                        subscription.plan.monthly_limit_usd.toFixed(2)
+                      }}
+                    </span>
+                  </div>
+                  <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                    <div
+                      class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                      :class="
+                        getProgressBarClass(
+                          subscription.monthly_usage_usd,
+                          subscription.plan.monthly_limit_usd
+                        )
+                      "
+                      :style="{
+                        width: getProgressWidth(
+                          subscription.monthly_usage_usd,
+                          subscription.plan.monthly_limit_usd
+                        )
+                      }"
+                    ></div>
+                  </div>
+                  <p
+                    v-if="subscription.monthly_window_start"
+                    class="text-xs text-gray-500 dark:text-dark-400"
+                  >
+                    {{
+                      t('userSubscriptions.resetIn', {
+                        time: formatResetTime(subscription.monthly_window_start, 720)
+                      })
+                    }}
+                  </p>
+                </div>
+
+                <!-- No limits configured - Unlimited badge -->
+                <div
+                  v-if="
+                    !subscription.plan?.daily_limit_usd &&
+                    !subscription.plan?.weekly_limit_usd &&
+                    !subscription.plan?.monthly_limit_usd
+                  "
+                  class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="text-4xl text-emerald-600 dark:text-emerald-400">∞</span>
+                    <div>
+                      <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                        {{ t('userSubscriptions.unlimited') }}
+                      </p>
+                      <p class="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                        {{ t('userSubscriptions.unlimitedDesc') }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
   </AppLayout>
@@ -295,7 +391,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
-import subscriptionsAPI from '@/api/subscriptions'
+import subscriptionsAPI, { type MergedSubscriptionState } from '@/api/subscriptions'
 import { apiClient } from '@/api/client'
 import type { UserSubscription, SubscriptionPlan } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -307,30 +403,36 @@ const appStore = useAppStore()
 
 const subscriptions = ref<UserSubscription[]>([])
 const availablePlans = ref<SubscriptionPlan[]>([])
+const merged = ref<MergedSubscriptionState | null>(null)
 const loading = ref(true)
 const purchasing = ref<number | null>(null)
 
-// 可购买的计划：有价格且用户当前没有同 plan 的活跃订阅
-const purchasablePlans = computed(() => {
-  const activePlanIds = new Set(
-    subscriptions.value
-      .filter((s) => s.status === 'active')
-      .map((s) => s.plan_id)
-  )
-  return availablePlans.value.filter(
-    (p) => p.price != null && p.price > 0 && !activePlanIds.has(p.id)
-  )
+// 所有有价格的 public 计划都可购买（支持重复购买叠加）
+const purchasablePlans = computed(() =>
+  availablePlans.value.filter((p) => p.price != null && p.price > 0)
+)
+
+// 叠加限额中有几个维度
+const mergedLimitCount = computed(() => {
+  if (!merged.value) return 0
+  let count = 0
+  if (merged.value.daily_limit_usd) count++
+  if (merged.value.weekly_limit_usd) count++
+  if (merged.value.monthly_limit_usd) count++
+  return count
 })
 
 async function loadSubscriptions() {
   try {
     loading.value = true
-    const [subs, plans] = await Promise.all([
+    const [subs, plans, mergedState] = await Promise.all([
       subscriptionsAPI.getMySubscriptions(),
-      apiClient.get<SubscriptionPlan[]>('/subscription-plans').then((r) => r.data)
+      apiClient.get<SubscriptionPlan[]>('/subscription-plans').then((r) => r.data),
+      subscriptionsAPI.getMergedSubscription().catch(() => null)
     ])
     subscriptions.value = subs
     availablePlans.value = plans
+    merged.value = mergedState
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))

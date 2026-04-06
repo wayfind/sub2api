@@ -77,11 +77,34 @@ export async function purchaseSubscription(planId: number): Promise<UserSubscrip
   return response.data
 }
 
+/**
+ * Merged subscription state - combined limits across all active subscriptions
+ */
+export interface MergedSubscriptionState {
+  has_active: boolean
+  active_count: number
+  daily_limit_usd: number | null
+  daily_used_usd: number
+  weekly_limit_usd: number | null
+  weekly_used_usd: number
+  monthly_limit_usd: number | null
+  monthly_used_usd: number
+}
+
+/**
+ * Get merged (combined) subscription state across all active subscriptions
+ */
+export async function getMergedSubscription(): Promise<MergedSubscriptionState> {
+  const response = await apiClient.get<MergedSubscriptionState>('/subscriptions/merged')
+  return response.data
+}
+
 export default {
   getMySubscriptions,
   getActiveSubscriptions,
   getSubscriptionsProgress,
   getSubscriptionSummary,
   getSubscriptionProgress,
+  getMergedSubscription,
   purchaseSubscription
 }

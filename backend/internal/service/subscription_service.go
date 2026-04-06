@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -225,96 +226,50 @@ func (s *SubscriptionService) PurchaseSubscription(ctx context.Context, input *P
 		return nil, ErrInsufficientBalance
 	}
 
-	// 3c. 创建或续期订阅
-	assignInput := &AssignSubscriptionInput{
-		UserID:       input.UserID,
-		PlanID:       input.PlanID,
-		ValidityDays: validityDays,
-		Notes:        fmt.Sprintf("购买订阅，扣费 $%.4f", price),
-	}
-
-	// 查询是否已有同 plan 的订阅
-	existingSub, _ := s.userSubRepo.GetByUserIDAndPlanID(txCtx, input.UserID, input.PlanID)
-
-	var sub *UserSubscription
+	// 3c. 新建订阅（每次购买都独立创建，支持叠加）
+	notes := fmt.Sprintf("购买订阅，扣费 $%.4f", price)
 	now := time.Now()
 
-	if existingSub != nil {
-		// 防重：如果同 plan 的订阅在 10 秒内刚被更新过，拒绝重复购买
-		if time.Since(existingSub.UpdatedAt) < 10*time.Second {
-			_ = tx.Rollback()
-			return nil, ErrPurchaseTooFrequent
-		}
-
-		// 续期
-		var newExpiresAt time.Time
-		if existingSub.ExpiresAt.After(now) {
-			newExpiresAt = existingSub.ExpiresAt.AddDate(0, 0, validityDays)
-		} else {
-			newExpiresAt = now.AddDate(0, 0, validityDays)
-		}
-		if newExpiresAt.After(MaxExpiresAt) {
-			newExpiresAt = MaxExpiresAt
-		}
-
-		if err := s.userSubRepo.ExtendExpiry(txCtx, existingSub.ID, newExpiresAt); err != nil {
-			_ = tx.Rollback()
-			return nil, fmt.Errorf("extend expiry: %w", err)
-		}
-		if existingSub.Status != SubscriptionStatusActive {
-			if err := s.userSubRepo.UpdateStatus(txCtx, existingSub.ID, SubscriptionStatusActive); err != nil {
-				_ = tx.Rollback()
-				return nil, fmt.Errorf("update status: %w", err)
-			}
-		}
-		if err := s.userSubRepo.UpdateNotes(txCtx, existingSub.ID, assignInput.Notes); err != nil {
-			_ = tx.Rollback()
-			return nil, fmt.Errorf("update notes: %w", err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit: %w", err)
-		}
-
-		s.InvalidateSubCache(input.UserID, input.PlanID)
-		if s.billingCacheService != nil {
-			s.billingCacheService.QueueDeductBalance(input.UserID, price)
-		}
-
-		sub, _ = s.userSubRepo.GetByID(ctx, existingSub.ID)
-	} else {
-		// 新建
-		newSub := &UserSubscription{
-			UserID:     input.UserID,
-			PlanID:     input.PlanID,
-			StartsAt:   now,
-			ExpiresAt:  now.AddDate(0, 0, validityDays),
-			Status:     SubscriptionStatusActive,
-			AssignedAt: now,
-			Notes:      assignInput.Notes,
-		}
-		if newSub.ExpiresAt.After(MaxExpiresAt) {
-			newSub.ExpiresAt = MaxExpiresAt
-		}
-
-		if err := s.userSubRepo.Create(txCtx, newSub); err != nil {
-			_ = tx.Rollback()
-			return nil, fmt.Errorf("create subscription: %w", err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit: %w", err)
-		}
-
-		s.InvalidateSubCache(input.UserID, input.PlanID)
-		if s.billingCacheService != nil {
-			s.billingCacheService.QueueDeductBalance(input.UserID, price)
-		}
-
-		sub = newSub
+	// 防重：10 秒内同 plan 刚购买过，拒绝重复提交
+	existingSub, err := s.userSubRepo.GetLatestByUserIDAndPlanID(txCtx, input.UserID, input.PlanID)
+	if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("check existing subscription: %w", err)
+	}
+	if existingSub != nil && time.Since(existingSub.UpdatedAt) < 10*time.Second {
+		_ = tx.Rollback()
+		return nil, ErrPurchaseTooFrequent
 	}
 
-	return sub, nil
+	newSub := &UserSubscription{
+		UserID:     input.UserID,
+		PlanID:     input.PlanID,
+		StartsAt:   now,
+		ExpiresAt:  now.AddDate(0, 0, validityDays),
+		Status:     SubscriptionStatusActive,
+		AssignedAt: now,
+		Notes:      notes,
+	}
+	if newSub.ExpiresAt.After(MaxExpiresAt) {
+		newSub.ExpiresAt = MaxExpiresAt
+	}
+
+	if err := s.userSubRepo.Create(txCtx, newSub); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("create subscription: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+
+	s.InvalidateSubCache(input.UserID, input.PlanID)
+	s.InvalidateMergedSubCache(input.UserID)
+	if s.billingCacheService != nil {
+		s.billingCacheService.QueueDeductBalance(input.UserID, price)
+	}
+
+	return newSub, nil
 }
 
 // AssignSubscriptionInput 分配订阅输入

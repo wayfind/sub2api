@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -187,6 +189,40 @@ func (h *SubscriptionHandler) GetSummary(c *gin.Context) {
 	}
 
 	response.Success(c, summary)
+}
+
+// GetMerged 返回用户所有活跃订阅叠加后的限额与用量
+// GET /api/v1/subscriptions/merged
+func (h *SubscriptionHandler) GetMerged(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+
+	state, err := h.subscriptionService.GetMergedSubscriptionState(c.Request.Context(), subject.UserID)
+	if errors.Is(err, service.ErrSubscriptionNotFound) {
+		response.Success(c, gin.H{
+			"has_active":   false,
+			"active_count": 0,
+		})
+		return
+	}
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"has_active":        true,
+		"active_count":      len(state.ActiveSubscriptions),
+		"daily_limit_usd":   state.EffectiveDailyLimit,
+		"daily_used_usd":    state.TotalDailyUsage,
+		"weekly_limit_usd":  state.EffectiveWeeklyLimit,
+		"weekly_used_usd":   state.TotalWeeklyUsage,
+		"monthly_limit_usd": state.EffectiveMonthlyLimit,
+		"monthly_used_usd":  state.TotalMonthlyUsage,
+	})
 }
 
 // ListPlans handles listing public subscription plans for users
