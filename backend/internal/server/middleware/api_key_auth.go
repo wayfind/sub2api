@@ -129,7 +129,6 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// skipBilling: /v1/usage 只需鉴权，跳过所有计费执行
 		skipBilling := c.Request.URL.Path == "/v1/usage"
 
-		var subscription *service.UserSubscription
 		var mergedState *service.MergedSubscriptionState
 
 		if subscriptionService != nil {
@@ -137,13 +136,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				c.Request.Context(),
 				apiKey.User.ID,
 			)
-			if mergedState != nil && mergedState.FIFOTarget != nil {
-				subscription = mergedState.FIFOTarget
-			}
 		}
 
 		// ── 6. 计费执行（skipBilling 时整块跳过） ────────────────────
 
+		hasSubscription := false
 		if !skipBilling {
 			// Key 状态检查
 			switch apiKey.Status {
@@ -166,25 +163,24 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 
 			// 订阅模式：验证合并限额
-			if mergedState != nil && subscription != nil {
+			if mergedState != nil && mergedState.FIFOTarget() != nil {
 				needsMaintenance, validateErr := subscriptionService.ValidateMergedState(mergedState)
 				if validateErr != nil {
-					// 订阅超限：fallback 到余额检查而非拒绝
 					// 订阅超限或其他错误（过期/暂停）→ 清除订阅让后续走余额扣费
-					subscription = nil
+					mergedState = nil
 				} else {
+					hasSubscription = true
 					// 窗口维护异步化（不阻塞请求）
 					if needsMaintenance {
-						for i := range mergedState.ActiveSubscriptions {
-							maintenanceCopy := mergedState.ActiveSubscriptions[i]
-							subscriptionService.DoWindowMaintenance(&maintenanceCopy)
+						for i := range mergedState.FIFOQueue {
+							subscriptionService.DoWindowMaintenance(&mergedState.FIFOQueue[i])
 						}
 					}
 				}
 			}
 
 			// 无活跃订阅（或订阅超限 fallback）：检查余额
-			if subscription == nil {
+			if !hasSubscription {
 				if apiKey.User.Balance <= 0 {
 					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
 					return
@@ -194,8 +190,8 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		// ── 7. 设置上下文 → Next ─────────────────────────────────────
 
-		if subscription != nil {
-			c.Set(string(ContextKeySubscription), subscription)
+		if hasSubscription && mergedState != nil {
+			c.Set(string(ContextKeyMergedSubscription), mergedState)
 			c.Header("X-Billing-Type", "subscription")
 		} else if !skipBilling {
 			c.Header("X-Billing-Type", "balance")
@@ -223,14 +219,26 @@ func GetAPIKeyFromContext(c *gin.Context) (*service.APIKey, bool) {
 	return apiKey, ok
 }
 
-// GetSubscriptionFromContext 从上下文中获取订阅信息
+// GetSubscriptionFromContext 从上下文中获取合并订阅的队首（最早过期的）订阅。
+// 用于只需要单个"代表性订阅"的场景（状态展示、CheckBillingEligibility）。
+// 如需完整 FIFO 队列（分账），请用 GetMergedStateFromContext。
 func GetSubscriptionFromContext(c *gin.Context) (*service.UserSubscription, bool) {
-	value, exists := c.Get(string(ContextKeySubscription))
+	state, ok := GetMergedStateFromContext(c)
+	if !ok || state == nil {
+		return nil, false
+	}
+	sub := state.FIFOTarget()
+	return sub, sub != nil
+}
+
+// GetMergedStateFromContext 从上下文中获取完整的合并订阅状态（含 FIFO 队列）。
+func GetMergedStateFromContext(c *gin.Context) (*service.MergedSubscriptionState, bool) {
+	value, exists := c.Get(string(ContextKeyMergedSubscription))
 	if !exists {
 		return nil, false
 	}
-	subscription, ok := value.(*service.UserSubscription)
-	return subscription, ok
+	state, ok := value.(*service.MergedSubscriptionState)
+	return state, ok
 }
 
 func setGroupContext(c *gin.Context, group *service.Group) {

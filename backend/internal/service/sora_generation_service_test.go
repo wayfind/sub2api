@@ -172,6 +172,10 @@ func (r *stubUserRepoForQuota) AddGroupToAllowedGroups(context.Context, int64, i
 	return nil
 }
 
+func (r *stubUserRepoForQuota) ListUsersByGroupAllowed(context.Context, int64) ([]User, error) {
+	return nil, nil
+}
+
 // ==================== 辅助函数：构造带 CDN 缓存的 SoraS3Storage ====================
 
 // newS3StorageWithCDN 创建一个预缓存了 CDN 配置的 SoraS3Storage，

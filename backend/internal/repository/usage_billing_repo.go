@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -107,8 +108,17 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
-		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
-			return err
+		if len(cmd.FIFOQueue) > 1 {
+			// 多订阅 FIFO 分账：在事务内按队列顺序分摊费用。
+			// 对非最后的订阅读取实时用量后计算剩余容量，最后一个吸收所有剩余费用。
+			if err := fifoIncrementUsageBillingTx(ctx, tx, cmd.FIFOQueue, cmd.SubscriptionCost); err != nil {
+				return err
+			}
+		} else {
+			// 单订阅直接累加
+			if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -138,6 +148,65 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		}
 	}
 
+	return nil
+}
+
+// fifoIncrementUsageBillingTx 在事务内按 FIFO 顺序将费用分摊到多个订阅。
+// 对非最后的订阅先读取实时用量（SELECT FOR UPDATE 悲观锁防并发），通过
+// service.FifoSubscriptionCapacity 计算剩余容量后写入；最后一个订阅承接所有剩余费用（接受轻微超出）。
+// 若某个中间订阅的实时用量读取失败，跳过该订阅，费用流向下一个。
+// 若所有订阅均写入失败导致 remaining > 0，返回错误触发事务回滚，防止静默丢费。
+func fifoIncrementUsageBillingTx(ctx context.Context, tx *sql.Tx, queue []service.UserSubscription, totalCost float64) error {
+	const getCurrentUsageSQL = `
+		SELECT daily_usage_usd, weekly_usage_usd, monthly_usage_usd
+		FROM user_subscriptions
+		WHERE id = $1 AND deleted_at IS NULL
+		FOR UPDATE
+	`
+	remaining := totalCost
+	for i := range queue {
+		if remaining <= 0 {
+			break
+		}
+		sub := &queue[i]
+		plan := sub.Plan
+		isLast := i == len(queue)-1
+
+		var charge float64
+		if isLast || plan == nil {
+			// 最后一个订阅承接全部剩余（接受轻微超出）。
+			// plan == nil 理论上不会出现——mergeSubscriptions 已过滤无 plan 的订阅，
+			// 此处作为防御性兜底，行为等同 last。
+			charge = remaining
+		} else {
+			// 在事务内读取实时用量（FOR UPDATE 防并发）
+			var dailyUsage, weeklyUsage, monthlyUsage float64
+			err := tx.QueryRowContext(ctx, getCurrentUsageSQL, sub.ID).Scan(&dailyUsage, &weeklyUsage, &monthlyUsage)
+			if err != nil {
+				// 读取失败：跳过该订阅，费用流向下一个
+				logger.LegacyPrintf("service.usage_billing", "fifoIncrementUsageBillingTx: GetCurrentUsage failed for subscription %d, skipping: %v", sub.ID, err)
+				continue
+			}
+			charge = service.FifoSubscriptionCapacity(plan, dailyUsage, weeklyUsage, monthlyUsage, remaining)
+		}
+
+		if charge <= 0 {
+			continue
+		}
+
+		if err := incrementUsageBillingSubscription(ctx, tx, sub.ID, charge); err != nil {
+			// 写入失败：不减 remaining，让这笔费用继续尝试写入下一个订阅
+			logger.LegacyPrintf("service.usage_billing", "fifoIncrementUsageBillingTx: IncrementUsage failed for subscription %d: %v", sub.ID, err)
+			continue
+		}
+		remaining -= charge
+	}
+	if remaining > 1e-9 {
+		// 阈值 1e-9 用于容忍 float64 浮点精度误差（实际金额精度为 $0.000001 量级）。
+		// remaining > 1e-9 意味着所有订阅均写入失败，返回错误触发事务回滚，
+		// 防止幂等 key 被 claim 但费用未记录（静默丢费）。
+		return fmt.Errorf("fifo billing: cost %.10f not recorded after exhausting all subscriptions (total=%.10f)", remaining, totalCost)
+	}
 	return nil
 }
 

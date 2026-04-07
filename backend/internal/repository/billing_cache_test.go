@@ -50,38 +50,33 @@ func TestBillingSubKey(t *testing.T) {
 	tests := []struct {
 		name     string
 		userID   int64
-		groupID  int64
 		expected string
 	}{
 		{
 			name:     "normal_ids",
 			userID:   123,
-			groupID:  456,
-			expected: "billing:sub:123:456",
+			expected: "billing:sub:123",
 		},
 		{
 			name:     "zero_ids",
 			userID:   0,
-			groupID:  0,
-			expected: "billing:sub:0:0",
+			expected: "billing:sub:0",
 		},
 		{
 			name:     "negative_ids",
 			userID:   -1,
-			groupID:  -2,
-			expected: "billing:sub:-1:-2",
+			expected: "billing:sub:-1",
 		},
 		{
 			name:     "max_int64_ids",
 			userID:   math.MaxInt64,
-			groupID:  math.MaxInt64,
-			expected: "billing:sub:9223372036854775807:9223372036854775807",
+			expected: "billing:sub:9223372036854775807",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := billingSubKey(tc.userID, tc.groupID)
+			got := billingSubKey(tc.userID)
 			require.Equal(t, tc.expected, got)
 		})
 	}

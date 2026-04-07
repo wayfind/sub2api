@@ -32,6 +32,9 @@ type UserSubscriptionRepository interface {
 	ResetWeeklyUsage(ctx context.Context, id int64, newWindowStart time.Time) error
 	ResetMonthlyUsage(ctx context.Context, id int64, newWindowStart time.Time) error
 	IncrementUsage(ctx context.Context, id int64, costUSD float64) error
+	// GetCurrentUsage 从 DB 读取指定订阅当前的用量（实时值，非缓存快照）。
+	// 用于 FIFO 计费时计算非最后订阅的精确剩余容量，防止并发写入导致超额。
+	GetCurrentUsage(ctx context.Context, id int64) (daily, weekly, monthly float64, err error)
 
 	BatchUpdateExpiredStatus(ctx context.Context) (int64, error)
 }

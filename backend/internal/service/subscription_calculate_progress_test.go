@@ -14,9 +14,6 @@ func newTestSubscriptionService() *SubscriptionService {
 	return &SubscriptionService{}
 }
 
-func ptrFloat64(v float64) *float64  { return &v }
-func ptrTime(t time.Time) *time.Time { return &t }
-
 func TestCalculateProgress_BasicFields(t *testing.T) {
 	svc := newTestSubscriptionService()
 	now := time.Now()
@@ -53,7 +50,7 @@ func TestCalculateProgress_DailyUsage(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:          "Pro",
-		DailyLimitUSD: ptrFloat64(10.0),
+		DailyLimitUSD: ptrFloat(10.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -79,7 +76,7 @@ func TestCalculateProgress_WeeklyUsage(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:           "Pro",
-		WeeklyLimitUSD: ptrFloat64(50.0),
+		WeeklyLimitUSD: ptrFloat(50.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -104,7 +101,7 @@ func TestCalculateProgress_MonthlyUsage(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:            "Enterprise",
-		MonthlyLimitUSD: ptrFloat64(100.0),
+		MonthlyLimitUSD: ptrFloat(100.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -128,7 +125,7 @@ func TestCalculateProgress_OverLimit_ClampedTo100Percent(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:          "Pro",
-		DailyLimitUSD: ptrFloat64(10.0),
+		DailyLimitUSD: ptrFloat(10.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -151,8 +148,8 @@ func TestCalculateProgress_NoWindowStart_NoProgress(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:           "Pro",
-		DailyLimitUSD:  ptrFloat64(10.0),
-		WeeklyLimitUSD: ptrFloat64(50.0),
+		DailyLimitUSD:  ptrFloat(10.0),
+		WeeklyLimitUSD: ptrFloat(50.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -177,9 +174,9 @@ func TestCalculateProgress_AllLimits(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:            "Full",
-		DailyLimitUSD:   ptrFloat64(10.0),
-		WeeklyLimitUSD:  ptrFloat64(50.0),
-		MonthlyLimitUSD: ptrFloat64(100.0),
+		DailyLimitUSD:   ptrFloat(10.0),
+		WeeklyLimitUSD:  ptrFloat(50.0),
+		MonthlyLimitUSD: ptrFloat(100.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)
@@ -220,7 +217,7 @@ func TestCalculateProgress_ResetsInSeconds_NotNegative(t *testing.T) {
 	}
 	plan := &SubscriptionPlan{
 		Name:          "Test",
-		DailyLimitUSD: ptrFloat64(10.0),
+		DailyLimitUSD: ptrFloat(10.0),
 	}
 
 	progress := svc.calculateProgress(sub, plan)

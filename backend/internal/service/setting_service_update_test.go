@@ -69,7 +69,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
 		byID: map[int64]*Group{
-			11: {ID: 11, SubscriptionType: SubscriptionTypeSubscription},
+			11: {ID: 11},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -97,7 +97,6 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscripti
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
 		byID: map[int64]*Group{
-			12: {ID: 12, SubscriptionType: SubscriptionTypeStandard},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -138,7 +137,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{
 		byID: map[int64]*Group{
-			11: {ID: 11, SubscriptionType: SubscriptionTypeSubscription},
+			11: {ID: 11},
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})

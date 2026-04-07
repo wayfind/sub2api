@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand/v2"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -76,13 +77,17 @@ func NewSubscriptionService(planRepo SubscriptionPlanRepository, userSubRepo Use
 
 func (s *SubscriptionService) initMaintenanceQueue(cfg *config.Config) {
 	if cfg == nil {
+		slog.Info("[SubscriptionMaintenance] no config, window maintenance runs synchronously")
 		return
 	}
 	mc := cfg.SubscriptionMaintenance
 	if mc.WorkerCount <= 0 || mc.QueueSize <= 0 {
+		slog.Info("[SubscriptionMaintenance] window maintenance runs synchronously",
+			"worker_count", mc.WorkerCount, "queue_size", mc.QueueSize)
 		return
 	}
 	s.maintenanceQueue = NewSubscriptionMaintenanceQueue(mc.WorkerCount, mc.QueueSize)
+	slog.Info("[SubscriptionMaintenance] async mode", "workers", mc.WorkerCount, "queue", mc.QueueSize)
 }
 
 // Stop stops the maintenance worker pool.
@@ -110,7 +115,7 @@ func (s *SubscriptionService) initSubCache(cfg *config.Config) {
 		BufferItems: 64,
 	})
 	if err != nil {
-		log.Printf("Warning: failed to init subscription L1 cache: %v", err)
+		slog.Warn("failed to init subscription L1 cache", "error", err)
 		return
 	}
 	s.subCacheL1 = cache
@@ -770,24 +775,18 @@ func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, user
 	return subs, pag, nil
 }
 
-// normalizeExpiredWindows 将已过期窗口的数据清零（仅影响返回数据，不影响数据库）
-// 这确保前端显示正确的当前窗口状态，而不是过期窗口的历史数据
+// normalizeExpiredWindows 将已过期窗口的用量清零，用于展示层。
+// 只修改 usage 数字，不修改 window start，以保持维护逻辑的判断依据完整。
 func normalizeExpiredWindows(subs []UserSubscription) {
 	for i := range subs {
 		sub := &subs[i]
-		// 日窗口过期：清零展示数据
 		if sub.NeedsDailyReset() {
-			sub.DailyWindowStart = nil
 			sub.DailyUsageUSD = 0
 		}
-		// 周窗口过期：清零展示数据
 		if sub.NeedsWeeklyReset() {
-			sub.WeeklyWindowStart = nil
 			sub.WeeklyUsageUSD = 0
 		}
-		// 月窗口过期：清零展示数据
 		if sub.NeedsMonthlyReset() {
-			sub.MonthlyWindowStart = nil
 			sub.MonthlyUsageUSD = 0
 		}
 	}
@@ -810,15 +809,31 @@ func startOfDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-// CheckAndActivateWindow 检查并激活窗口（首次使用时）
+// CheckAndActivateWindow 激活尚未初始化的窗口（任意 window start 为 nil 时触发）。
+// 只更新 nil 的字段，不覆写已激活字段，避免破坏现有窗口起始时间。
+// 使用 ResetXxxUsage（usage=0, window_start=now）激活：对于从未激活的字段 usage 本就为 0，语义等价。
 func (s *SubscriptionService) CheckAndActivateWindow(ctx context.Context, sub *UserSubscription) error {
-	if sub.IsWindowActivated() {
+	if !sub.NeedsWindowActivation() {
 		return nil
 	}
 
-	// 使用当天零点作为窗口起始时间
 	windowStart := startOfDay(time.Now())
-	return s.userSubRepo.ActivateWindows(ctx, sub.ID, windowStart)
+	if sub.DailyWindowStart == nil {
+		if err := s.userSubRepo.ResetDailyUsage(ctx, sub.ID, windowStart); err != nil {
+			return fmt.Errorf("activate daily window: %w", err)
+		}
+	}
+	if sub.WeeklyWindowStart == nil {
+		if err := s.userSubRepo.ResetWeeklyUsage(ctx, sub.ID, windowStart); err != nil {
+			return fmt.Errorf("activate weekly window: %w", err)
+		}
+	}
+	if sub.MonthlyWindowStart == nil {
+		if err := s.userSubRepo.ResetMonthlyUsage(ctx, sub.ID, windowStart); err != nil {
+			return fmt.Errorf("activate monthly window: %w", err)
+		}
+	}
+	return nil
 }
 
 // AdminResetQuota manually resets the daily, weekly, and/or monthly usage windows.
@@ -959,7 +974,7 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, plan
 		sub.MonthlyUsageUSD = 0
 		needsMaintenance = true
 	}
-	if !sub.IsWindowActivated() {
+	if sub.NeedsWindowActivation() {
 		needsMaintenance = true
 	}
 
@@ -987,11 +1002,12 @@ func (s *SubscriptionService) DoWindowMaintenance(sub *UserSubscription) {
 		return
 	}
 	if s.maintenanceQueue != nil {
-		err := s.maintenanceQueue.TryEnqueue(func() {
-			s.doWindowMaintenance(sub)
-		})
-		if err != nil {
-			log.Printf("Subscription maintenance enqueue failed: %v", err)
+		// 异步模式：值拷贝传入 closure，worker goroutine 拥有独立数据副本，不依赖调用方生命周期
+		subCopy := *sub
+		if err := s.maintenanceQueue.TryEnqueue(func() {
+			s.doWindowMaintenance(&subCopy)
+		}); err != nil {
+			slog.Warn("subscription maintenance enqueue failed", "subscription_id", sub.ID, "error", err)
 		}
 		return
 	}
@@ -1003,16 +1019,17 @@ func (s *SubscriptionService) doWindowMaintenance(sub *UserSubscription) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// 激活窗口（首次使用时）
-	if !sub.IsWindowActivated() {
+	// 激活和重置独立运行，不互斥：
+	// 一个订阅可能同时需要激活某些 window（nil）和重置另一些 window（过期）。
+	// 例如：管理员给已有订阅的计划新增了 weekly limit，则 weekly_window_start=nil
+	// 而 daily_window_start 已激活且可能需要重置。
+	if sub.NeedsWindowActivation() {
 		if err := s.CheckAndActivateWindow(ctx, sub); err != nil {
-			log.Printf("Failed to activate subscription windows: %v", err)
+			slog.Error("failed to activate subscription windows", "subscription_id", sub.ID, "error", err)
 		}
 	}
-
-	// 重置过期窗口
 	if err := s.CheckAndResetWindows(ctx, sub); err != nil {
-		log.Printf("Failed to reset subscription windows: %v", err)
+		slog.Error("failed to reset subscription windows", "subscription_id", sub.ID, "error", err)
 	}
 
 	// 失效 L1 缓存，确保后续请求拿到更新后的数据
@@ -1201,14 +1218,23 @@ type MergedSubscriptionState struct {
 	TotalWeeklyUsage  float64
 	TotalMonthlyUsage float64
 
-	// FIFO 目标：最早过期的活跃订阅（用于扣费）
-	FIFOTarget *UserSubscription
-
-	// 所有活跃订阅（用于窗口维护）
-	ActiveSubscriptions []UserSubscription
+	// FIFOQueue：按过期时间升序排列的活跃订阅列表。
+	// 扣费时从队首开始依次填满，溢出到下一个。
+	// 同时用于窗口维护遍历（替代原 ActiveSubscriptions）。
+	// FIFOQueue[0] 是最早过期的订阅，等价于原 FIFOTarget。
+	FIFOQueue []UserSubscription
 
 	// 是否需要窗口维护
 	NeedsMaintenance bool
+}
+
+// FIFOTarget 返回最早过期的活跃订阅（FIFOQueue[0]），如果队列为空则返回 nil。
+// 用于需要单个"代表性订阅"的场景（状态检查、展示）。
+func (s *MergedSubscriptionState) FIFOTarget() *UserSubscription {
+	if len(s.FIFOQueue) == 0 {
+		return nil
+	}
+	return &s.FIFOQueue[0]
 }
 
 // recalcUsage 重新计算合并用量（窗口重置后调用）
@@ -1216,8 +1242,8 @@ func (s *MergedSubscriptionState) recalcUsage() {
 	s.TotalDailyUsage = 0
 	s.TotalWeeklyUsage = 0
 	s.TotalMonthlyUsage = 0
-	for i := range s.ActiveSubscriptions {
-		sub := &s.ActiveSubscriptions[i]
+	for i := range s.FIFOQueue {
+		sub := &s.FIFOQueue[i]
 		s.TotalDailyUsage += sub.DailyUsageUSD
 		s.TotalWeeklyUsage += sub.WeeklyUsageUSD
 		s.TotalMonthlyUsage += sub.MonthlyUsageUSD
@@ -1227,21 +1253,29 @@ func (s *MergedSubscriptionState) recalcUsage() {
 // mergeSubscriptions 合并多个活跃订阅为统一状态
 func mergeSubscriptions(subs []UserSubscription) *MergedSubscriptionState {
 	state := &MergedSubscriptionState{}
-	var earliestExpiry time.Time
 
 	// 用于跟踪是否任意 plan 的某个窗口没有限制（nil → 合并后也无限制）
 	dailyUnlimited := false
 	weeklyUnlimited := false
 	monthlyUnlimited := false
 
+	// 按过期时间升序排列，构建 FIFO 扣费队列
+	sorted := make([]UserSubscription, 0, len(subs))
 	for i := range subs {
-		sub := &subs[i]
-		plan := sub.Plan
-		if plan == nil || !sub.IsActive() {
-			continue
+		if subs[i].Plan != nil && subs[i].IsActive() {
+			sorted = append(sorted, subs[i])
 		}
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].ExpiresAt.Before(sorted[j].ExpiresAt)
+	})
+	state.FIFOQueue = sorted
 
-		// 聚合限额
+	// 聚合限额和用量（顺序无关，遍历 FIFOQueue）
+	for i := range state.FIFOQueue {
+		sub := &state.FIFOQueue[i]
+		plan := sub.Plan
+
 		if !dailyUnlimited {
 			if plan.HasDailyLimit() {
 				if state.EffectiveDailyLimit == nil {
@@ -1279,19 +1313,11 @@ func mergeSubscriptions(subs []UserSubscription) *MergedSubscriptionState {
 			}
 		}
 
-		// 聚合用量
 		state.TotalDailyUsage += sub.DailyUsageUSD
 		state.TotalWeeklyUsage += sub.WeeklyUsageUSD
 		state.TotalMonthlyUsage += sub.MonthlyUsageUSD
-
-		// FIFO: 选最早过期的
-		if state.FIFOTarget == nil || sub.ExpiresAt.Before(earliestExpiry) {
-			state.FIFOTarget = sub
-			earliestExpiry = sub.ExpiresAt
-		}
 	}
 
-	state.ActiveSubscriptions = subs
 	return state
 }
 
@@ -1361,19 +1387,9 @@ func (s *SubscriptionService) copyMergedState(src *MergedSubscriptionState) *Mer
 		v := *src.EffectiveMonthlyLimit
 		dst.EffectiveMonthlyLimit = &v
 	}
-	// 拷贝活跃订阅切片
-	if len(src.ActiveSubscriptions) > 0 {
-		dst.ActiveSubscriptions = make([]UserSubscription, len(src.ActiveSubscriptions))
-		copy(dst.ActiveSubscriptions, src.ActiveSubscriptions)
-	}
-	// FIFO target 指向拷贝后的切片中对应元素
-	if src.FIFOTarget != nil {
-		for i := range dst.ActiveSubscriptions {
-			if dst.ActiveSubscriptions[i].ID == src.FIFOTarget.ID {
-				dst.FIFOTarget = &dst.ActiveSubscriptions[i]
-				break
-			}
-		}
+	if len(src.FIFOQueue) > 0 {
+		dst.FIFOQueue = make([]UserSubscription, len(src.FIFOQueue))
+		copy(dst.FIFOQueue, src.FIFOQueue)
 	}
 	return dst
 }
@@ -1382,12 +1398,15 @@ func (s *SubscriptionService) copyMergedState(src *MergedSubscriptionState) *Mer
 // 仅做内存检查，不触发 DB 写入。窗口重置的 DB 写入由 DoWindowMaintenance 异步完成。
 // 返回 needsMaintenance 表示是否需要异步执行窗口维护。
 func (s *SubscriptionService) ValidateMergedState(state *MergedSubscriptionState) (needsMaintenance bool, err error) {
-	if state == nil || state.FIFOTarget == nil {
+	if state == nil {
+		return false, ErrSubscriptionNotFound
+	}
+	target := state.FIFOTarget()
+	if target == nil {
 		return false, ErrSubscriptionNotFound
 	}
 
-	// 检查 FIFO target 状态
-	target := state.FIFOTarget
+	// 检查队首订阅状态（最早过期的）
 	if target.Status == SubscriptionStatusExpired || target.IsExpired() {
 		return false, ErrSubscriptionExpired
 	}
@@ -1396,8 +1415,8 @@ func (s *SubscriptionService) ValidateMergedState(state *MergedSubscriptionState
 	}
 
 	// 窗口维护判断（对每个活跃订阅）
-	for i := range state.ActiveSubscriptions {
-		sub := &state.ActiveSubscriptions[i]
+	for i := range state.FIFOQueue {
+		sub := &state.FIFOQueue[i]
 		if sub.NeedsDailyReset() {
 			sub.DailyUsageUSD = 0
 			needsMaintenance = true
@@ -1410,7 +1429,7 @@ func (s *SubscriptionService) ValidateMergedState(state *MergedSubscriptionState
 			sub.MonthlyUsageUSD = 0
 			needsMaintenance = true
 		}
-		if !sub.IsWindowActivated() {
+		if sub.NeedsWindowActivation() {
 			needsMaintenance = true
 		}
 	}
@@ -1430,4 +1449,12 @@ func (s *SubscriptionService) ValidateMergedState(state *MergedSubscriptionState
 	}
 
 	return needsMaintenance, nil
+}
+
+// MergedStateFIFOQueue 安全地从合并状态中取 FIFOQueue，nil 时返回空切片。
+func MergedStateFIFOQueue(state *MergedSubscriptionState) []UserSubscription {
+	if state == nil {
+		return nil
+	}
+	return state.FIFOQueue
 }

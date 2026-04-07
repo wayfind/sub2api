@@ -84,6 +84,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
+	mergedState, _ := middleware2.GetMergedStateFromContext(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
@@ -262,6 +263,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				User:             apiKey.User,
 				Account:          account,
 				Subscription:     subscription,
+				FIFOQueue:        service.MergedStateFIFOQueue(mergedState),
 				InboundEndpoint:  GetInboundEndpoint(c),
 				UpstreamEndpoint: GetUpstreamEndpoint(c, account.Platform),
 				UserAgent:        userAgent,

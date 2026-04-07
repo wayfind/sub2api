@@ -21,14 +21,11 @@ import (
 func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	limit := 1.0
 	group := &service.Group{
-		ID:               42,
-		Name:             "sub",
-		Status:           service.StatusActive,
-		Hydrated:         true,
-		SubscriptionType: service.SubscriptionTypeSubscription,
-		DailyLimitUSD:    &limit,
+		ID:       42,
+		Name:     "sub",
+		Status:   service.StatusActive,
+		Hydrated: true,
 	}
 	user := &service.User{
 		ID:          7,
@@ -64,28 +61,30 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 
 		apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
 
-		past := time.Now().Add(-48 * time.Hour)
-		sub := &service.UserSubscription{
+		planID := int64(10)
+		plan := &service.SubscriptionPlan{ID: planID}
+		sub := service.UserSubscription{
 			ID:               55,
 			UserID:           user.ID,
-			GroupID:          group.ID,
+			PlanID:           planID,
+			Plan:             plan,
 			Status:           service.SubscriptionStatusActive,
 			ExpiresAt:        time.Now().Add(24 * time.Hour),
-			DailyWindowStart: &past,
+			DailyWindowStart: nil, // 窗口未激活，触发 maintenance
 			DailyUsageUSD:    0,
 		}
 		maintenanceCalled := make(chan struct{}, 1)
 		subscriptionRepo := &stubUserSubscriptionRepo{
-			getActive: func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
-				clone := *sub
-				return &clone, nil
+			listActive: func(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+				clone := sub
+				return []service.UserSubscription{clone}, nil
 			},
-			updateStatus:   func(ctx context.Context, subscriptionID int64, status string) error { return nil },
-			activateWindow: func(ctx context.Context, id int64, start time.Time) error { return nil },
-			resetDaily: func(ctx context.Context, id int64, start time.Time) error {
+			updateStatus: func(ctx context.Context, subscriptionID int64, status string) error { return nil },
+			activateWindow: func(ctx context.Context, id int64, start time.Time) error {
 				maintenanceCalled <- struct{}{}
 				return nil
 			},
+			resetDaily:   func(ctx context.Context, id int64, start time.Time) error { return nil },
 			resetWeekly:  func(ctx context.Context, id int64, start time.Time) error { return nil },
 			resetMonthly: func(ctx context.Context, id int64, start time.Time) error { return nil },
 		}
@@ -141,22 +140,28 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
 
 		now := time.Now()
-		sub := &service.UserSubscription{
+		dailyLimit := 5.0
+		plan := &service.SubscriptionPlan{
+			ID:            10,
+			DailyLimitUSD: &dailyLimit,
+		}
+		sub := service.UserSubscription{
 			ID:               55,
 			UserID:           user.ID,
-			GroupID:          group.ID,
+			PlanID:           plan.ID,
+			Plan:             plan,
 			Status:           service.SubscriptionStatusActive,
 			ExpiresAt:        now.Add(24 * time.Hour),
 			DailyWindowStart: &now,
-			DailyUsageUSD:    10,
+			DailyUsageUSD:    10, // exceeds limit
 		}
 		subscriptionRepo := &stubUserSubscriptionRepo{
-			getActive: func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
-				if userID != sub.UserID || groupID != sub.GroupID {
-					return nil, service.ErrSubscriptionNotFound
+			listActive: func(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
+				if userID != sub.UserID {
+					return nil, nil
 				}
-				clone := *sub
-				return &clone, nil
+				clone := sub
+				return []service.UserSubscription{clone}, nil
 			},
 			updateStatus:   func(ctx context.Context, subscriptionID int64, status string) error { return nil },
 			activateWindow: func(ctx context.Context, id int64, start time.Time) error { return nil },
@@ -165,15 +170,34 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 			resetMonthly:   func(ctx context.Context, id int64, start time.Time) error { return nil },
 		}
 		subscriptionService := service.NewSubscriptionService(nil, subscriptionRepo, nil, nil, nil, cfg)
-		router := newAuthTestRouter(apiKeyService, subscriptionService, cfg)
 
+		// 订阅超限时 fallback 到余额，余额 > 0 → 放行
+		router := newAuthTestRouter(apiKeyService, subscriptionService, cfg)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/t", nil)
 		req.Header.Set("x-api-key", apiKey.Key)
 		router.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
 
-		require.Equal(t, http.StatusTooManyRequests, w.Code)
-		require.Contains(t, w.Body.String(), "USAGE_LIMIT_EXCEEDED")
+		// 余额也耗尽时 → 拒绝
+		broke := *user
+		broke.Balance = 0
+		brokeKey := *apiKey
+		brokeKey.User = &broke
+		brokeKeyRepo := &stubApiKeyRepo{
+			getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+				clone := brokeKey
+				return &clone, nil
+			},
+		}
+		brokeApiKeyService := service.NewAPIKeyService(brokeKeyRepo, nil, nil, nil, nil, nil, cfg)
+		router2 := newAuthTestRouter(brokeApiKeyService, subscriptionService, cfg)
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req2.Header.Set("x-api-key", apiKey.Key)
+		router2.ServeHTTP(w2, req2)
+		require.Equal(t, http.StatusForbidden, w2.Code)
+		require.Contains(t, w2.Body.String(), "INSUFFICIENT_BALANCE")
 	})
 }
 
@@ -603,7 +627,7 @@ func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id int64) (*servi
 }
 
 type stubUserSubscriptionRepo struct {
-	getActive      func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
+	listActive     func(ctx context.Context, userID int64) ([]service.UserSubscription, error)
 	updateStatus   func(ctx context.Context, subscriptionID int64, status string) error
 	activateWindow func(ctx context.Context, id int64, start time.Time) error
 	resetDaily     func(ctx context.Context, id int64, start time.Time) error
@@ -619,14 +643,15 @@ func (r *stubUserSubscriptionRepo) GetByID(ctx context.Context, id int64) (*serv
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
+func (r *stubUserSubscriptionRepo) GetByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
-	if r.getActive != nil {
-		return r.getActive(ctx, userID, groupID)
-	}
+func (r *stubUserSubscriptionRepo) GetLatestByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *stubUserSubscriptionRepo) GetActiveByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*service.UserSubscription, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -643,19 +668,26 @@ func (r *stubUserSubscriptionRepo) ListByUserID(ctx context.Context, userID int6
 }
 
 func (r *stubUserSubscriptionRepo) ListActiveByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
-	return nil, errors.New("not implemented")
+	if r.listActive != nil {
+		return r.listActive(ctx, userID)
+	}
+	return nil, service.ErrSubscriptionNotFound
 }
 
-func (r *stubUserSubscriptionRepo) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *stubUserSubscriptionRepo) ListByPlanID(ctx context.Context, planID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
+func (r *stubUserSubscriptionRepo) List(ctx context.Context, params pagination.PaginationParams, userID, planID *int64, status, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-func (r *stubUserSubscriptionRepo) ExistsByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (bool, error) {
+func (r *stubUserSubscriptionRepo) ExistsByUserIDAndPlanID(ctx context.Context, userID, planID int64) (bool, error) {
 	return false, errors.New("not implemented")
+}
+
+func (r *stubUserSubscriptionRepo) CountActiveByPlanID(ctx context.Context, planID int64) (int64, error) {
+	return 0, errors.New("not implemented")
 }
 
 func (r *stubUserSubscriptionRepo) ExtendExpiry(ctx context.Context, subscriptionID int64, newExpiresAt time.Time) error {
@@ -706,5 +738,13 @@ func (r *stubUserSubscriptionRepo) IncrementUsage(ctx context.Context, id int64,
 }
 
 func (r *stubUserSubscriptionRepo) BatchUpdateExpiredStatus(ctx context.Context) (int64, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (r *stubUserSubscriptionRepo) DeleteByPlanID(ctx context.Context, planID int64) (int64, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (r *stubUserSubscriptionRepo) CountByPlanID(ctx context.Context, planID int64) (int64, error) {
 	return 0, errors.New("not implemented")
 }

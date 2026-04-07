@@ -204,7 +204,6 @@ func TestAPIKeyService_GetByKey_UsesL2Cache(t *testing.T) {
 				Name:                "g",
 				Platform:            PlatformAnthropic,
 				Status:              StatusActive,
-				SubscriptionType:    SubscriptionTypeStandard,
 				RateMultiplier:      1,
 				ModelRoutingEnabled: true,
 				ModelRouting: map[string][]int64{

@@ -7315,14 +7315,15 @@ type RecordUsageInput struct {
 	APIKey             *APIKey
 	User               *User
 	Account            *Account
-	Subscription       *UserSubscription  // 可选：订阅信息
-	InboundEndpoint    string             // 入站端点（客户端请求路径）
-	UpstreamEndpoint   string             // 上游端点（标准化后的上游路径）
-	UserAgent          string             // 请求的 User-Agent
-	IPAddress          string             // 请求的客户端 IP 地址
-	RequestPayloadHash string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
-	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
-	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
+	Subscription       *UserSubscription   // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
+	FIFOQueue          []UserSubscription  // 可选：FIFO 分账队列（多订阅时使用）
+	InboundEndpoint    string              // 入站端点（客户端请求路径）
+	UpstreamEndpoint   string              // 上游端点（标准化后的上游路径）
+	UserAgent          string              // 请求的 User-Agent
+	IPAddress          string              // 请求的客户端 IP 地址
+	RequestPayloadHash string              // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	ForceCacheBilling  bool                // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
+	APIKeyService      APIKeyQuotaUpdater  // 可选：用于更新API Key配额
 }
 
 // APIKeyQuotaUpdater defines the interface for updating API Key quota and rate limit usage
@@ -7345,11 +7346,109 @@ type postUsageBillingParams struct {
 	User                  *User
 	APIKey                *APIKey
 	Account               *Account
-	Subscription          *UserSubscription
+	Subscription          *UserSubscription  // 单订阅（向后兼容）
+	FIFOQueue             []UserSubscription // FIFO 分账队列（多订阅）
 	RequestPayloadHash    string
 	IsSubscriptionBill    bool
 	AccountRateMultiplier float64
 	APIKeyService         APIKeyQuotaUpdater
+}
+
+// FifoSubscriptionCapacity 根据订阅 plan 的各维度限额和实时用量，
+// 计算该订阅在本次请求中可分配的最大费用（capacity）。
+// 无限制维度不参与约束；所有限制维度取剩余容量的最小值；负值截为 0。
+// remaining 是本次请求尚未分配的总费用，capacity 不超过它。
+// 该函数是纯函数，供 fifoIncrementUsage 和 repository 层的 fifoIncrementUsageBillingTx 共用。
+func FifoSubscriptionCapacity(plan *SubscriptionPlan, dailyUsage, weeklyUsage, monthlyUsage, remaining float64) float64 {
+	capacity := remaining
+	if plan.HasDailyLimit() {
+		r := *plan.DailyLimitUSD - dailyUsage
+		if r < 0 {
+			r = 0
+		}
+		if r < capacity {
+			capacity = r
+		}
+	}
+	if plan.HasWeeklyLimit() {
+		r := *plan.WeeklyLimitUSD - weeklyUsage
+		if r < 0 {
+			r = 0
+		}
+		if r < capacity {
+			capacity = r
+		}
+	}
+	if plan.HasMonthlyLimit() {
+		r := *plan.MonthlyLimitUSD - monthlyUsage
+		if r < 0 {
+			r = 0
+		}
+		if r < capacity {
+			capacity = r
+		}
+	}
+	return capacity
+}
+
+// fifoIncrementUsage 按 FIFO 顺序将费用分摊到多个订阅。
+// 从队首（最早过期）开始，填满当前订阅的各维度剩余容量后，溢出部分继续到下一个订阅。
+// 最后一个订阅承接所有剩余费用（允许轻微超出其限额，因为是事后记账）。
+//
+// 注意：正常请求路径走 applyUsageBilling → repo.Apply → fifoIncrementUsageBillingTx（事务内）。
+// 本函数仅在 repo/cmd 不可用的 fallback 路径下执行，对非最后的订阅会先调 GetCurrentUsage 读实时用量。
+// queue 为空时直接返回（调用方保证订阅模式下队列非空）。
+func fifoIncrementUsage(ctx context.Context, repo UserSubscriptionRepository, queue []UserSubscription, totalCost float64) {
+	if len(queue) == 0 {
+		slog.Warn("fifoIncrementUsage called with empty queue, cost not recorded", "total_cost", totalCost)
+		return
+	}
+	remaining := totalCost
+	for i := range queue {
+		if remaining <= 0 {
+			break
+		}
+		sub := &queue[i]
+		plan := sub.Plan
+
+		isLast := i == len(queue)-1
+		var charge float64
+
+		if isLast || plan == nil {
+			// 最后一个订阅承接全部剩余（接受轻微超出）。
+			// plan == nil 理论上不会出现——mergeSubscriptions 已过滤无 plan 的订阅，
+			// 此处作为防御性兜底，行为等同 last。
+			charge = remaining
+		} else {
+			// 非最后订阅：从 DB 读取实时用量，防止并发快照过旧导致超额。
+			// 读取失败时跳过该订阅（不用过时快照），费用流向下一个订阅。
+			dailyUsage, weeklyUsage, monthlyUsage, err := repo.GetCurrentUsage(ctx, sub.ID)
+			if err != nil {
+				slog.Error("fifoIncrementUsage: GetCurrentUsage failed, skipping subscription",
+					"subscription_id", sub.ID, "error", err)
+				continue
+			}
+
+			// 计算该订阅各维度剩余容量，取最小值作为本次可分配上限
+			charge = FifoSubscriptionCapacity(plan, dailyUsage, weeklyUsage, monthlyUsage, remaining)
+		}
+
+		if charge <= 0 {
+			// 该订阅已满，跳到下一个
+			continue
+		}
+
+		if err := repo.IncrementUsage(ctx, sub.ID, charge); err != nil {
+			slog.Error("increment subscription usage failed", "subscription_id", sub.ID, "charge", charge, "error", err)
+			// DB 写入失败：不减 remaining，让这笔费用继续尝试写入下一个订阅
+			continue
+		}
+		remaining -= charge
+	}
+	if remaining > 0 {
+		slog.Error("fifoIncrementUsage: cost not fully recorded after exhausting queue",
+			"unrecorded_cost", remaining, "total_cost", totalCost)
+	}
 }
 
 // postUsageBilling 统一处理使用量记录后的扣费逻辑：
@@ -7374,10 +7473,8 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	//     此类账号限额永远不触发，属于预期行为。
 	// Redis cache 由 finalizePostUsageBilling 统一写入，此处不重复调用。
 	if p.IsSubscriptionBill {
-		if cost.TotalCost > 0 && cost.ActualCost > 0 && p.Subscription != nil {
-			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.ActualCost); err != nil {
-				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
-			}
+		if cost.TotalCost > 0 && cost.ActualCost > 0 {
+			fifoIncrementUsage(billingCtx, deps.userSubRepo, p.FIFOQueue, cost.ActualCost)
 		}
 	} else {
 		if cost.ActualCost > 0 && p.User != nil {
@@ -7481,6 +7578,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
 		cmd.SubscriptionID = &p.Subscription.ID
 		cmd.SubscriptionCost = p.Cost.TotalCost
+		// FIFOQueue 非空时，repo.Apply 内按 FIFO 分账（忽略单 SubscriptionID）
+		if len(p.FIFOQueue) > 1 {
+			cmd.FIFOQueue = p.FIFOQueue
+		}
 	} else if p.Cost.ActualCost > 0 {
 		cmd.BalanceCost = p.Cost.ActualCost
 	}
@@ -7806,6 +7907,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 			APIKey:                apiKey,
 			Account:               account,
 			Subscription:          subscription,
+			FIFOQueue:             input.FIFOQueue,
 			RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
 			IsSubscriptionBill:    isSubscriptionBilling,
 			AccountRateMultiplier: accountRateMultiplier,
@@ -7828,16 +7930,17 @@ type RecordUsageLongContextInput struct {
 	APIKey                *APIKey
 	User                  *User
 	Account               *Account
-	Subscription          *UserSubscription  // 可选：订阅信息
-	InboundEndpoint       string             // 入站端点（客户端请求路径）
-	UpstreamEndpoint      string             // 上游端点（标准化后的上游路径）
-	UserAgent             string             // 请求的 User-Agent
-	IPAddress             string             // 请求的客户端 IP 地址
-	RequestPayloadHash    string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
-	LongContextThreshold  int                // 长上下文阈值（如 200000）
-	LongContextMultiplier float64            // 超出阈值部分的倍率（如 2.0）
-	ForceCacheBilling     bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
-	APIKeyService         APIKeyQuotaUpdater // API Key 配额服务（可选）
+	Subscription          *UserSubscription   // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
+	FIFOQueue             []UserSubscription  // 可选：FIFO 分账队列（多订阅时使用）
+	InboundEndpoint       string              // 入站端点（客户端请求路径）
+	UpstreamEndpoint      string              // 上游端点（标准化后的上游路径）
+	UserAgent             string              // 请求的 User-Agent
+	IPAddress             string              // 请求的客户端 IP 地址
+	RequestPayloadHash    string              // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	LongContextThreshold  int                 // 长上下文阈值（如 200000）
+	LongContextMultiplier float64             // 超出阈值部分的倍率（如 2.0）
+	ForceCacheBilling     bool                // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
+	APIKeyService         APIKeyQuotaUpdater  // API Key 配额服务（可选）
 }
 
 // RecordUsageWithLongContext 记录使用量并扣费，支持长上下文双倍计费（用于 Gemini）
@@ -8003,6 +8106,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 			APIKey:                apiKey,
 			Account:               account,
 			Subscription:          subscription,
+			FIFOQueue:             input.FIFOQueue,
 			RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
 			IsSubscriptionBill:    isSubscriptionBilling,
 			AccountRateMultiplier: accountRateMultiplier,

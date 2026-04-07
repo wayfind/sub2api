@@ -39,6 +39,10 @@ type UsageBillingCommand struct {
 	APIKeyQuotaCost     float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
+
+	// FIFOQueue 是订阅 FIFO 分账队列（多订阅时使用）。
+	// 非空时，SubscriptionCost 按 FIFO 顺序分摊到各订阅，忽略 SubscriptionID。
+	FIFOQueue []UserSubscription
 }
 
 func (c *UsageBillingCommand) Normalize() {

@@ -20,8 +20,10 @@ const (
 	ContextKeyUserRole ContextKey = "user_role"
 	// ContextKeyAPIKey API密钥上下文键
 	ContextKeyAPIKey ContextKey = "api_key"
-	// ContextKeySubscription 订阅上下文键
+	// ContextKeySubscription 订阅上下文键（已废弃，保留向后兼容）
 	ContextKeySubscription ContextKey = "subscription"
+	// ContextKeyMergedSubscription 合并订阅状态上下文键（含 FIFO 队列，用于分账）
+	ContextKeyMergedSubscription ContextKey = "merged_subscription"
 	// ContextKeyForcePlatform 强制平台（用于 /antigravity 路由）
 	ContextKeyForcePlatform ContextKey = "force_platform"
 )

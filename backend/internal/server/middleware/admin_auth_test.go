@@ -200,3 +200,7 @@ func (s *stubUserRepo) EnableTotp(ctx context.Context, userID int64) error {
 func (s *stubUserRepo) DisableTotp(ctx context.Context, userID int64) error {
 	panic("unexpected DisableTotp call")
 }
+
+func (s *stubUserRepo) ListUsersByGroupAllowed(ctx context.Context, groupID int64) ([]service.User, error) {
+	panic("unexpected ListUsersByGroupAllowed call")
+}

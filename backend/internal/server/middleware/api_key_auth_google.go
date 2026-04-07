@@ -70,42 +70,39 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		}
 
 		// 加载用户活跃订阅
-		var subscription *service.UserSubscription
 		var mergedState *service.MergedSubscriptionState
 		if subscriptionService != nil {
 			mergedState, _ = subscriptionService.GetMergedSubscriptionState(
 				c.Request.Context(),
 				apiKey.User.ID,
 			)
-			if mergedState != nil && mergedState.FIFOTarget != nil {
-				subscription = mergedState.FIFOTarget
-			}
 		}
 
-		if mergedState != nil && subscription != nil {
+		hasSubscription := false
+		if mergedState != nil && mergedState.FIFOTarget() != nil {
 			needsMaintenance, err := subscriptionService.ValidateMergedState(mergedState)
 			if err != nil {
-				// 订阅超限 → fallback 到余额，清除订阅即可
-				subscription = nil
+				// 订阅超限 → fallback 到余额
+				mergedState = nil
 			} else {
-				c.Set(string(ContextKeySubscription), subscription)
+				hasSubscription = true
+				c.Set(string(ContextKeyMergedSubscription), mergedState)
 				if needsMaintenance {
-					for i := range mergedState.ActiveSubscriptions {
-						maintenanceCopy := mergedState.ActiveSubscriptions[i]
-						subscriptionService.DoWindowMaintenance(&maintenanceCopy)
+					for i := range mergedState.FIFOQueue {
+						subscriptionService.DoWindowMaintenance(&mergedState.FIFOQueue[i])
 					}
 				}
 			}
 		}
 
-		if subscription == nil {
+		if !hasSubscription {
 			if apiKey.User.Balance <= 0 {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
 			}
 		}
 
-		if subscription != nil {
+		if hasSubscription {
 			c.Header("X-Billing-Type", "subscription")
 		} else {
 			c.Header("X-Billing-Type", "balance")

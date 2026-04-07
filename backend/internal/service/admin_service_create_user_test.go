@@ -92,6 +92,6 @@ func TestAdminService_CreateUser_AssignsDefaultSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, assigner.calls, 1)
 	require.Equal(t, int64(21), assigner.calls[0].UserID)
-	require.Equal(t, int64(5), assigner.calls[0].GroupID)
+	require.Equal(t, int64(5), assigner.calls[0].PlanID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
 }

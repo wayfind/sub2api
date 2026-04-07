@@ -373,6 +373,32 @@ func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int6
 	return service.ErrSubscriptionNotFound
 }
 
+// GetCurrentUsage 从 DB 读取指定订阅的实时用量（不走缓存）。
+// 用于 FIFO 计费中对非最后订阅进行精确容量计算，防止并发快照过旧导致超额写入。
+func (r *userSubscriptionRepository) GetCurrentUsage(ctx context.Context, id int64) (daily, weekly, monthly float64, err error) {
+	const querySQL = `
+		SELECT daily_usage_usd, weekly_usage_usd, monthly_usage_usd
+		FROM user_subscriptions
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	client := clientFromContext(ctx, r.client)
+	rows, queryErr := client.QueryContext(ctx, querySQL, id)
+	if queryErr != nil {
+		return 0, 0, 0, queryErr
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err = rows.Err(); err != nil {
+			return 0, 0, 0, err
+		}
+		return 0, 0, 0, service.ErrSubscriptionNotFound
+	}
+	if err = rows.Scan(&daily, &weekly, &monthly); err != nil {
+		return 0, 0, 0, err
+	}
+	return daily, weekly, monthly, nil
+}
+
 func (r *userSubscriptionRepository) BatchUpdateExpiredStatus(ctx context.Context) (int64, error) {
 	client := clientFromContext(ctx, r.client)
 	n, err := client.UserSubscription.Update().

@@ -215,7 +215,7 @@ func (h *SubscriptionHandler) GetMerged(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"has_active":        true,
-		"active_count":      len(state.ActiveSubscriptions),
+		"active_count":      len(state.FIFOQueue),
 		"daily_limit_usd":   state.EffectiveDailyLimit,
 		"daily_used_usd":    state.TotalDailyUsage,
 		"weekly_limit_usd":  state.EffectiveWeeklyLimit,

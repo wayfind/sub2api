@@ -82,6 +82,10 @@ func (s *openAIRecordUsageSubRepoStub) IncrementUsage(ctx context.Context, id in
 	return s.incrementErr
 }
 
+func (s *openAIRecordUsageSubRepoStub) GetCurrentUsage(_ context.Context, _ int64) (float64, float64, float64, error) {
+	return 0, 0, 0, ErrSubscriptionNotFound
+}
+
 type openAIRecordUsageAPIKeyQuotaStub struct {
 	quotaCalls          int
 	rateLimitCalls      int

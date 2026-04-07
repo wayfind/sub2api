@@ -46,8 +46,15 @@ func (s *UserSubscription) DaysRemaining() int {
 	return int(time.Until(s.ExpiresAt).Hours() / 24)
 }
 
-func (s *UserSubscription) IsWindowActivated() bool {
-	return s.DailyWindowStart != nil || s.WeeklyWindowStart != nil || s.MonthlyWindowStart != nil
+// NeedsWindowActivation 返回 true 表示至少有一个窗口尚未激活（window start 为 nil）。
+// 与 NeedsAnyReset 独立：一个订阅可能同时需要激活某些 window 和重置另一些 window。
+func (s *UserSubscription) NeedsWindowActivation() bool {
+	return s.DailyWindowStart == nil || s.WeeklyWindowStart == nil || s.MonthlyWindowStart == nil
+}
+
+// NeedsAnyReset 返回 true 表示至少有一个窗口已过期需要重置。
+func (s *UserSubscription) NeedsAnyReset() bool {
+	return s.NeedsDailyReset() || s.NeedsWeeklyReset() || s.NeedsMonthlyReset()
 }
 
 func (s *UserSubscription) NeedsDailyReset() bool {

@@ -4103,7 +4103,8 @@ type OpenAIRecordUsageInput struct {
 	APIKey             *APIKey
 	User               *User
 	Account            *Account
-	Subscription       *UserSubscription
+	Subscription       *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
+	FIFOQueue          []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
 	InboundEndpoint    string
 	UpstreamEndpoint   string
 	UserAgent          string // 请求的 User-Agent
@@ -4257,6 +4258,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			APIKey:                apiKey,
 			Account:               account,
 			Subscription:          subscription,
+			FIFOQueue:             input.FIFOQueue,
 			RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
 			IsSubscriptionBill:    isSubscriptionBilling,
 			AccountRateMultiplier: accountRateMultiplier,

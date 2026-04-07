@@ -948,6 +948,9 @@ func (r *stubUserRepoForHandler) RemoveGroupFromUserAllowedGroups(context.Contex
 func (r *stubUserRepoForHandler) UpdateTotpSecret(context.Context, int64, *string) error { return nil }
 func (r *stubUserRepoForHandler) EnableTotp(context.Context, int64) error                { return nil }
 func (r *stubUserRepoForHandler) DisableTotp(context.Context, int64) error               { return nil }
+func (r *stubUserRepoForHandler) ListUsersByGroupAllowed(context.Context, int64) ([]service.User, error) {
+	return nil, nil
+}
 func (r *stubUserRepoForHandler) AddGroupToAllowedGroups(context.Context, int64, int64) error {
 	return nil
 }
