@@ -41,17 +41,17 @@ type BillingCache interface {
 	InvalidateAPIKeyRateLimit(ctx context.Context, keyID int64) error
 }
 
-// ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
+// ModelPricing 模型价格配置（per-token价格，单位：U 代币）
 type ModelPricing struct {
-	InputPricePerToken             float64 // 每token输入价格 (USD)
-	InputPricePerTokenPriority     float64 // priority service tier 下每token输入价格 (USD)
-	OutputPricePerToken            float64 // 每token输出价格 (USD)
-	OutputPricePerTokenPriority    float64 // priority service tier 下每token输出价格 (USD)
-	CacheCreationPricePerToken     float64 // 缓存创建每token价格 (USD)
-	CacheReadPricePerToken         float64 // 缓存读取每token价格 (USD)
-	CacheReadPricePerTokenPriority float64 // priority service tier 下缓存读取每token价格 (USD)
-	CacheCreation5mPrice           float64 // 5分钟缓存创建每token价格 (USD)
-	CacheCreation1hPrice           float64 // 1小时缓存创建每token价格 (USD)
+	InputPricePerToken             float64 // 每token输入价格 (U)
+	InputPricePerTokenPriority     float64 // priority service tier 下每token输入价格 (U)
+	OutputPricePerToken            float64 // 每token输出价格 (U)
+	OutputPricePerTokenPriority    float64 // priority service tier 下每token输出价格 (U)
+	CacheCreationPricePerToken     float64 // 缓存创建每token价格 (U)
+	CacheReadPricePerToken         float64 // 缓存读取每token价格 (U)
+	CacheReadPricePerTokenPriority float64 // priority service tier 下缓存读取每token价格 (U)
+	CacheCreation5mPrice           float64 // 5分钟缓存创建每token价格 (U)
+	CacheCreation1hPrice           float64 // 1小时缓存创建每token价格 (U)
 	SupportsCacheBreakdown         bool    // 是否支持详细的缓存分类
 	LongContextInputThreshold      int     // 超过阈值后按整次会话提升输入价格
 	LongContextInputMultiplier     float64 // 长上下文整次会话输入倍率
@@ -96,7 +96,7 @@ type UsageTokens struct {
 	CacheCreation1hTokens int
 }
 
-// CostBreakdown 费用明细
+// CostBreakdown 费用明细（单位：U 代币）
 type CostBreakdown struct {
 	InputCost         float64
 	OutputCost        float64
@@ -128,7 +128,7 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 }
 
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
-// 价格单位：USD per token（与LiteLLM格式一致）
+// 价格以 USD per token 定义，在末尾统一 ×USDToU 转为 U per token。
 func (s *BillingService) initFallbackPricing() {
 	// Claude 4.5 Opus
 	s.fallbackPrices["claude-opus-4.5"] = &ModelPricing{
@@ -266,6 +266,25 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:         false,
 	}
 	s.fallbackPrices["gpt-5.3-codex"] = s.fallbackPrices["gpt-5.1-codex"]
+
+	// 将所有硬编码的 USD 回退价格转为 U 代币单位
+	// 注意：部分 key 共享同一指针，用 visited 避免重复乘
+	visited := make(map[*ModelPricing]bool)
+	for _, p := range s.fallbackPrices {
+		if visited[p] {
+			continue
+		}
+		visited[p] = true
+		p.InputPricePerToken *= USDToU
+		p.InputPricePerTokenPriority *= USDToU
+		p.OutputPricePerToken *= USDToU
+		p.OutputPricePerTokenPriority *= USDToU
+		p.CacheCreationPricePerToken *= USDToU
+		p.CacheReadPricePerToken *= USDToU
+		p.CacheReadPricePerTokenPriority *= USDToU
+		p.CacheCreation5mPrice *= USDToU
+		p.CacheCreation1hPrice *= USDToU
+	}
 }
 
 // getFallbackPricing 根据模型系列获取回退价格
@@ -839,9 +858,9 @@ func (s *BillingService) getDefaultImagePrice(model string, imageSize string) fl
 		}
 	}
 
-	// 如果没有找到价格，使用硬编码默认值（$0.134，来自 gemini-3-pro-image-preview）
+	// 如果没有找到价格，使用硬编码默认值（$0.134 × 70 = 9.38 U，来自 gemini-3-pro-image-preview）
 	if basePrice <= 0 {
-		basePrice = 0.134
+		basePrice = 0.134 * USDToU
 	}
 
 	// 2K 尺寸 1.5 倍，4K 尺寸翻倍

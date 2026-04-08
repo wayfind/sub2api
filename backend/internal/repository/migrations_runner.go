@@ -73,6 +73,14 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 			"222b4a09c797c22e5922b6b172327c824f5463aaa8760e4f621bc5c22e2be0f3": {},
 		},
 	},
+	// 088: 所有金额原始值是 1:1 CNY（不是真正 USD），统一 ×10 转 U
+	"088_convert_usd_to_u_tokens.sql": {
+		fileChecksum: "c4f77f303e39a8429889094fe15c306dbb60e70f0e6351c89f06d5d2ddfbdafb",
+		acceptedDBChecksum: map[string]struct{}{
+			"ebf176015dce427958e584f5851aab2c7a0d7c180b7e45e7d15d43869e3ac0db": {},
+			"5f5f2de6c2ddb695ed6d033b4f1b3a8c82084a6d29c0fd8ec9763c4e0582ce87": {},
+		},
+	},
 }
 
 // ApplyMigrations 将嵌入的 SQL 迁移文件应用到指定的数据库。

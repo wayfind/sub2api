@@ -142,6 +142,37 @@ func NewBillingCache(rdb *redis.Client) service.BillingCache {
 	return &billingCache{rdb: rdb}
 }
 
+// FlushBillingKeys 使用 SCAN 批量清除所有计费缓存 key。
+// 仅供一次性迁移场景调用（如金额单位变更后清脏数据），不要在每次启动时执行。
+func FlushBillingKeys(rdb *redis.Client) {
+	ctx := context.Background()
+	prefixes := []string{billingBalanceKeyPrefix, billingSubKeyPrefix, billingRateLimitKeyPrefix}
+	total := 0
+	for _, prefix := range prefixes {
+		var cursor uint64
+		for {
+			keys, nextCursor, err := rdb.Scan(ctx, cursor, prefix+"*", 200).Result()
+			if err != nil {
+				log.Printf("[BillingCache] flush scan error (prefix=%s): %v", prefix, err)
+				break
+			}
+			if len(keys) > 0 {
+				if err := rdb.Del(ctx, keys...).Err(); err != nil {
+					log.Printf("[BillingCache] flush del error: %v", err)
+				}
+				total += len(keys)
+			}
+			cursor = nextCursor
+			if cursor == 0 {
+				break
+			}
+		}
+	}
+	if total > 0 {
+		log.Printf("[BillingCache] flushed %d cached keys", total)
+	}
+}
+
 func (c *billingCache) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
 	key := billingBalanceKey(userID)
 	val, err := c.rdb.Get(ctx, key).Result()

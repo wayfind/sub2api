@@ -164,12 +164,12 @@ function formatPrice(v: number): string {
 function parsePrice(s: string): number {
   const v = parseFloat(s)
   if (isNaN(v) || v < 0) return 0
-  return v / 1e6 // 用户输入 $/MTok，存储为 $/token
+  return v / 1e6 // 用户输入 U/MTok，存储为 U/token
 }
 
 function formatPricePerMTok(v: number): string {
-  if (!v) return '$0'
-  return '$' + (v * 1e6).toFixed(2) + '/MTok'
+  if (!v) return '0 U'
+  return (v * 1e6).toFixed(2) + ' U/MTok'
 }
 </script>
 
@@ -195,25 +195,25 @@ function formatPricePerMTok(v: number): string {
       <!-- 价格编辑 -->
       <div v-if="entry.pricing" class="grid grid-cols-2 gap-2">
         <div>
-          <label class="text-xs text-gray-500 dark:text-gray-400">Input $/MTok</label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">Input U/MTok</label>
           <input type="text" class="input-field mt-0.5 text-xs"
             :value="formatPrice(entry.pricing.input_cost_per_token)"
             @change="updatePricingField(entry.actual, 'input_cost_per_token', parsePrice(($event.target as HTMLInputElement).value))" />
         </div>
         <div>
-          <label class="text-xs text-gray-500 dark:text-gray-400">Output $/MTok</label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">Output U/MTok</label>
           <input type="text" class="input-field mt-0.5 text-xs"
             :value="formatPrice(entry.pricing.output_cost_per_token)"
             @change="updatePricingField(entry.actual, 'output_cost_per_token', parsePrice(($event.target as HTMLInputElement).value))" />
         </div>
         <div>
-          <label class="text-xs text-gray-500 dark:text-gray-400">Cache Create $/MTok</label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">Cache Create U/MTok</label>
           <input type="text" class="input-field mt-0.5 text-xs"
             :value="formatPrice(entry.pricing.cache_creation_input_token_cost)"
             @change="updatePricingField(entry.actual, 'cache_creation_input_token_cost', parsePrice(($event.target as HTMLInputElement).value))" />
         </div>
         <div>
-          <label class="text-xs text-gray-500 dark:text-gray-400">Cache Read $/MTok</label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">Cache Read U/MTok</label>
           <input type="text" class="input-field mt-0.5 text-xs"
             :value="formatPrice(entry.pricing.cache_read_input_token_cost)"
             @change="updatePricingField(entry.actual, 'cache_read_input_token_cost', parsePrice(($event.target as HTMLInputElement).value))" />

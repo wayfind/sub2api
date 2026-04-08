@@ -161,16 +161,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaDailyLimit') }}</label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
               :value="dailyLimit"
               @input="onDailyInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pl-7"
+              class="input pr-8"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <!-- 日配额重置模式 -->
           <div class="mt-2 flex items-center gap-2">
@@ -209,16 +209,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaWeeklyLimit') }}</label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
               :value="weeklyLimit"
               @input="onWeeklyInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pl-7"
+              class="input pr-8"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <!-- 周配额重置模式 -->
           <div class="mt-2 flex items-center gap-2">
@@ -277,16 +277,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaTotalLimit') }}</label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
               :value="totalLimit"
               @input="onTotalInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pl-7"
+              class="input pr-8"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <p class="input-hint">{{ t('admin.accounts.quotaTotalLimitHint') }}</p>
         </div>

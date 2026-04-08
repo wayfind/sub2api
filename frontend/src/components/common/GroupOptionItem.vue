@@ -21,7 +21,7 @@
       </span>
     </div>
 
-    <!-- Right: rate pill + checkmark (vertically centered to first row) -->
+    <!-- Right: rate pill + pricing + checkmark -->
     <div class="flex shrink-0 items-center gap-2 pt-0.5">
       <!-- Rate pill (platform color) -->
       <span v-if="rateMultiplier !== undefined" :class="['inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold', ratePillClass]">
@@ -30,9 +30,17 @@
           <span class="font-bold">{{ userRateMultiplier }}x</span>
         </template>
         <template v-else>
-          {{ rateMultiplier }}x 倍率
+          {{ rateMultiplier }}x 折扣
         </template>
       </span>
+      <!-- Pricing info button -->
+      <ModelPricingPopover
+        v-if="groupId"
+        :group-id="groupId"
+        :group-name="name"
+        :platform="platform"
+        size="md"
+      />
       <!-- Checkmark -->
       <svg
         v-if="showCheckmark && selected"
@@ -51,6 +59,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import GroupBadge from './GroupBadge.vue'
+import ModelPricingPopover from './ModelPricingPopover.vue'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
@@ -61,15 +70,16 @@ interface Props {
   description?: string | null
   selected?: boolean
   showCheckmark?: boolean
+  groupId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selected: false,
   showCheckmark: true,
-  userRateMultiplier: null
+  userRateMultiplier: null,
+  groupId: null
 })
 
-// Whether user has a custom rate different from default
 const hasCustomRate = computed(() => {
   return (
     props.userRateMultiplier !== null &&
@@ -79,7 +89,6 @@ const hasCustomRate = computed(() => {
   )
 })
 
-// Rate pill color matches platform badge color
 const ratePillClass = computed(() => {
   switch (props.platform) {
     case 'anthropic':
@@ -90,14 +99,13 @@ const ratePillClass = computed(() => {
       return 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400'
     case 'sora':
       return 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400'
-    default: // antigravity and others
+    default:
       return 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400'
   }
 })
 </script>
 
 <style scoped>
-/* Bold the group name inside GroupBadge when used in dropdown option */
 .groupOptionItemBadge :deep(span.truncate) {
   font-weight: 600;
 }

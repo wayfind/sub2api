@@ -47,7 +47,7 @@ type WechatPayOrder struct {
 	UserID        int64
 	PackageID     int
 	CnyFee        int     // 人民币金额（分）
-	UsdAmount     float64 // 到账美元
+	UsdAmount     float64 // 到账金额（U 代币，字段名保留历史兼容）
 	Status        string  // pending / paid / expired / refunded
 	WechatTradeNo *string
 	CodeURL       *string

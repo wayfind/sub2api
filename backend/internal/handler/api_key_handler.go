@@ -18,13 +18,19 @@ import (
 
 // APIKeyHandler handles API key-related requests
 type APIKeyHandler struct {
-	apiKeyService *service.APIKeyService
+	apiKeyService  *service.APIKeyService
+	pricingService *service.PricingService
+	groupRepo      service.GroupRepository
+	accountRepo    service.AccountRepository
 }
 
 // NewAPIKeyHandler creates a new APIKeyHandler
-func NewAPIKeyHandler(apiKeyService *service.APIKeyService) *APIKeyHandler {
+func NewAPIKeyHandler(apiKeyService *service.APIKeyService, pricingService *service.PricingService, groupRepo service.GroupRepository, accountRepo service.AccountRepository) *APIKeyHandler {
 	return &APIKeyHandler{
-		apiKeyService: apiKeyService,
+		apiKeyService:  apiKeyService,
+		pricingService: pricingService,
+		groupRepo:      groupRepo,
+		accountRepo:    accountRepo,
 	}
 }
 
@@ -303,4 +309,83 @@ func (h *APIKeyHandler) GetUserGroupRates(c *gin.Context) {
 	}
 
 	response.Success(c, rates)
+}
+
+// GetGroupModelPricing 获取分组下可用模型的价格（已应用折扣）
+// 如果分组的账户配了 billing_model / billing_model_mapping，只返回那些模型的价格。
+// GET /api/v1/groups/:id/model-pricing
+func (h *APIKeyHandler) GetGroupModelPricing(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid group id")
+		return
+	}
+
+	group, err := h.groupRepo.GetByID(c.Request.Context(), groupID)
+	if err != nil {
+		response.NotFound(c, "group not found")
+		return
+	}
+
+	// 收集分组下账户配置的 billing model
+	billingModels := h.collectBillingModels(c.Request.Context(), groupID)
+
+	var models []service.ModelPricingSummary
+	if len(billingModels) > 0 {
+		// 只查 billing model 的价格
+		for model := range billingModels {
+			pricing := h.pricingService.GetModelPricing(model)
+			if pricing == nil {
+				continue
+			}
+			models = append(models, service.ModelPricingSummary{
+				Model:         model,
+				InputPerMTok:  pricing.InputCostPerToken * 1e6,
+				OutputPerMTok: pricing.OutputCostPerToken * 1e6,
+			})
+		}
+	} else {
+		models = h.pricingService.ListModelsByProvider(group.Platform)
+	}
+
+	for i := range models {
+		models[i].InputPerMTok *= group.RateMultiplier
+		models[i].OutputPerMTok *= group.RateMultiplier
+	}
+	response.Success(c, models)
+}
+
+// collectBillingModels 收集分组下所有账户的 billing model（去重）
+func (h *APIKeyHandler) collectBillingModels(ctx context.Context, groupID int64) map[string]bool {
+	accounts, err := h.accountRepo.ListByGroup(ctx, groupID)
+	if err != nil || len(accounts) == 0 {
+		return nil
+	}
+
+	result := make(map[string]bool)
+	for _, acc := range accounts {
+		if acc.Extra == nil {
+			continue
+		}
+		// 单值 billing_model
+		if v, ok := acc.Extra["billing_model"]; ok {
+			if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+				result[strings.ToLower(strings.TrimSpace(s))] = true
+			}
+		}
+		// mapping: billing_model_mapping
+		if raw, ok := acc.Extra["billing_model_mapping"]; ok {
+			if mapping, ok := raw.(map[string]any); ok {
+				for _, v := range mapping {
+					if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+						result[strings.ToLower(strings.TrimSpace(s))] = true
+					}
+				}
+			}
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }

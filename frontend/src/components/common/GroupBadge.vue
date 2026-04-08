@@ -23,6 +23,14 @@
         {{ rateMultiplier !== undefined ? `${rateMultiplier}x` : '' }}
       </template>
     </span>
+    <!-- Pricing info button -->
+    <ModelPricingPopover
+      v-if="groupId && showPricingButton"
+      :group-id="groupId"
+      :group-name="name"
+      :platform="platform"
+      size="sm"
+    />
   </span>
 </template>
 
@@ -31,25 +39,29 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { GroupPlatform } from '@/types'
 import PlatformIcon from './PlatformIcon.vue'
+import ModelPricingPopover from './ModelPricingPopover.vue'
 
 interface Props {
   name: string
   platform?: GroupPlatform
   rateMultiplier?: number
-  userRateMultiplier?: number | null // 用户专属倍率
+  userRateMultiplier?: number | null
   showRate?: boolean
-  daysRemaining?: number | null // 剩余天数（订阅场景使用）
+  daysRemaining?: number | null
+  groupId?: number | null
+  showPricingButton?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showRate: true,
   daysRemaining: null,
-  userRateMultiplier: null
+  userRateMultiplier: null,
+  groupId: null,
+  showPricingButton: false
 })
 
 const { t } = useI18n()
 
-// 是否有专属倍率（且与默认倍率不同）
 const hasCustomRate = computed(() => {
   return (
     props.userRateMultiplier !== null &&
@@ -59,14 +71,12 @@ const hasCustomRate = computed(() => {
   )
 })
 
-// 是否显示右侧标签
 const showLabel = computed(() => {
   if (!props.showRate) return false
   if (props.daysRemaining !== null && props.daysRemaining !== undefined) return true
   return props.rateMultiplier !== undefined || hasCustomRate.value
 })
 
-// Days remaining text
 const daysRemainingText = computed(() => {
   if (props.daysRemaining === null || props.daysRemaining === undefined) return ''
   if (props.daysRemaining <= 0) {
@@ -75,11 +85,9 @@ const daysRemainingText = computed(() => {
   return t('admin.users.daysRemaining', { days: props.daysRemaining })
 })
 
-// Label style
 const labelClass = computed(() => {
   const base = 'px-1.5 py-0.5 rounded text-[10px] font-semibold'
 
-  // 如果有剩余天数，根据天数显示不同颜色
   if (props.daysRemaining !== null && props.daysRemaining !== undefined) {
     if (props.daysRemaining <= 0 || props.daysRemaining <= 3) {
       return `${base} bg-red-200/80 text-red-800 dark:bg-red-800/50 dark:text-red-300`
@@ -87,7 +95,6 @@ const labelClass = computed(() => {
     if (props.daysRemaining <= 7) {
       return `${base} bg-amber-200/80 text-amber-800 dark:bg-amber-800/50 dark:text-amber-300`
     }
-    // 正常天数：根据平台显示主题色
     if (props.platform === 'anthropic') {
       return `${base} bg-orange-200/60 text-orange-800 dark:bg-orange-800/40 dark:text-orange-300`
     }
@@ -103,11 +110,9 @@ const labelClass = computed(() => {
     return `${base} bg-violet-200/60 text-violet-800 dark:bg-violet-800/40 dark:text-violet-300`
   }
 
-  // 倍率标签：subtle background
   return `${base} bg-black/10 dark:bg-white/10`
 })
 
-// Badge color based on platform
 const badgeClass = computed(() => {
   if (props.platform === 'anthropic') {
     return 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
@@ -120,7 +125,6 @@ const badgeClass = computed(() => {
   if (props.platform === 'sora') {
     return 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400'
   }
-  // Fallback
   return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
 })
 </script>

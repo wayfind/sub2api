@@ -123,7 +123,7 @@
                   <input v-model.number="pkg.cny_amount" type="number" step="0.01" min="0.01" class="input mt-0.5 py-1.5 text-sm" />
                 </div>
                 <div>
-                  <label class="text-xs text-gray-500">到账余额（USD）</label>
+                  <label class="text-xs text-gray-500">到账余额（U）</label>
                   <input v-model.number="pkg.usd_amount" type="number" step="0.01" min="0.01" class="input mt-0.5 py-1.5 text-sm" />
                 </div>
               </div>
@@ -169,7 +169,7 @@
                 <td class="px-6 py-3 font-mono text-xs text-gray-600 dark:text-dark-300">{{ order.order_no }}</td>
                 <td class="px-6 py-3 text-gray-600 dark:text-dark-300">{{ order.user_id }}</td>
                 <td class="px-6 py-3 text-gray-900 dark:text-white">
-                  ¥{{ (order.cny_fee / 100).toFixed(2) }} → ${{ Number(order.usd_amount).toFixed(2) }}
+                  ¥{{ (order.cny_fee / 100).toFixed(2) }} → {{ Number(order.usd_amount).toFixed(2) }} U
                 </td>
                 <td class="px-6 py-3">
                   <span :class="statusClass(order.status)" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium">

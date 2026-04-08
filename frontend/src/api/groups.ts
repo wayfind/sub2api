@@ -27,9 +27,26 @@ export async function getUserGroupRates(): Promise<Record<number, number>> {
   return data || {}
 }
 
+export interface ModelPricing {
+  model: string
+  input_per_mtok: number
+  output_per_mtok: number
+}
+
+/**
+ * Get model pricing for a specific group (with discount applied)
+ * @param groupId Group ID
+ * @returns List of models with their pricing
+ */
+export async function getGroupModelPricing(groupId: number): Promise<ModelPricing[]> {
+  const { data } = await apiClient.get<ModelPricing[]>(`/groups/${groupId}/model-pricing`)
+  return data
+}
+
 export const userGroupsAPI = {
   getAvailable,
-  getUserGroupRates
+  getUserGroupRates,
+  getGroupModelPricing
 }
 
 export default userGroupsAPI

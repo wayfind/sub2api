@@ -22,13 +22,20 @@ import (
 	"go.uber.org/zap"
 )
 
+// U 代币换算常量。所有从外部获取的 USD 定价在入内存时统一乘以 USDToU 转为 U。
+const (
+	RMBToU   = 10.0            // 1 RMB = 10 U
+	USDToRMB = 7.0             // 1 USD = 7 RMB
+	USDToU   = USDToRMB * RMBToU // 1 USD = 70 U
+)
+
 var (
 	openAIModelDatePattern     = regexp.MustCompile(`-\d{8}$`)
 	openAIModelBasePattern     = regexp.MustCompile(`^(gpt-\d+(?:\.\d+)?)(?:-|$)`)
 	openAIGPT54FallbackPricing = &LiteLLMModelPricing{
-		InputCostPerToken:               2.5e-06, // $2.5 per MTok
-		OutputCostPerToken:              1.5e-05, // $15 per MTok
-		CacheReadInputTokenCost:         2.5e-07, // $0.25 per MTok
+		InputCostPerToken:               2.5e-06 * USDToU, // $2.5 per MTok → U
+		OutputCostPerToken:              1.5e-05 * USDToU, // $15 per MTok → U
+		CacheReadInputTokenCost:         2.5e-07 * USDToU, // $0.25 per MTok → U
 		LongContextInputTokenThreshold:  272000,
 		LongContextInputCostMultiplier:  2.0,
 		LongContextOutputCostMultiplier: 1.5,
@@ -37,17 +44,17 @@ var (
 		SupportsPromptCaching:           true,
 	}
 	openAIGPT54MiniFallbackPricing = &LiteLLMModelPricing{
-		InputCostPerToken:       7.5e-07,
-		OutputCostPerToken:      4.5e-06,
-		CacheReadInputTokenCost: 7.5e-08,
+		InputCostPerToken:       7.5e-07 * USDToU,
+		OutputCostPerToken:      4.5e-06 * USDToU,
+		CacheReadInputTokenCost: 7.5e-08 * USDToU,
 		LiteLLMProvider:         "openai",
 		Mode:                    "chat",
 		SupportsPromptCaching:   true,
 	}
 	openAIGPT54NanoFallbackPricing = &LiteLLMModelPricing{
-		InputCostPerToken:       2e-07,
-		OutputCostPerToken:      1.25e-06,
-		CacheReadInputTokenCost: 2e-08,
+		InputCostPerToken:       2e-07 * USDToU,
+		OutputCostPerToken:      1.25e-06 * USDToU,
+		CacheReadInputTokenCost: 2e-08 * USDToU,
 		LiteLLMProvider:         "openai",
 		Mode:                    "chat",
 		SupportsPromptCaching:   true,
@@ -292,6 +299,9 @@ func (s *PricingService) downloadPricingData() error {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
 
+	// 将 USD 定价转为 U 代币单位
+	convertPricingMapToU(data)
+
 	// 保存到本地文件
 	pricingFile := s.getPricingFilePath()
 	if err := os.WriteFile(pricingFile, body, 0644); err != nil {
@@ -531,6 +541,9 @@ func (s *PricingService) loadPricingData(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
+
+	// 将 USD 定价转为 U 代币单位
+	convertPricingMapToU(pricingData)
 
 	// 计算哈希
 	hash := sha256.Sum256(data)
@@ -962,6 +975,82 @@ func isNumeric(s string) bool {
 		}
 	}
 	return true
+}
+
+// convertPricingMapToU 将从外部获取的 USD 定价全部转为 U 代币单位。
+// 仅转换价格字段，不转换倍率/阈值/布尔等非价格字段。
+// 注意：map 中可能有多个 key 指向同一个指针（如 provider/model 和 model），
+// 使用 visited 防止同一对象被重复乘。
+func convertPricingMapToU(data map[string]*LiteLLMModelPricing) {
+	visited := make(map[*LiteLLMModelPricing]bool)
+	for _, p := range data {
+		if visited[p] {
+			continue
+		}
+		visited[p] = true
+		p.InputCostPerToken *= USDToU
+		p.InputCostPerTokenPriority *= USDToU
+		p.OutputCostPerToken *= USDToU
+		p.OutputCostPerTokenPriority *= USDToU
+		p.CacheCreationInputTokenCost *= USDToU
+		p.CacheCreationInputTokenCostAbove1hr *= USDToU
+		p.CacheReadInputTokenCost *= USDToU
+		p.CacheReadInputTokenCostPriority *= USDToU
+		p.OutputCostPerImage *= USDToU
+	}
+}
+
+// ModelPricingSummary 用于 API 返回的模型价格摘要
+type ModelPricingSummary struct {
+	Model          string  `json:"model"`
+	InputPerMTok   float64 `json:"input_per_mtok"`  // U per million tokens
+	OutputPerMTok  float64 `json:"output_per_mtok"` // U per million tokens
+}
+
+// ListModelsByProvider 返回指定 provider（platform）下的模型及其价格摘要。
+// 只使用 "provider/model" 格式的 key 避免重复，只返回 chat 模式。
+func (s *PricingService) ListModelsByProvider(platform string) []ModelPricingSummary {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// platform → models.dev provider name
+	var providerPrefix string
+	switch strings.ToLower(platform) {
+	case "anthropic":
+		providerPrefix = "anthropic/"
+	case "openai":
+		providerPrefix = "openai/"
+	case "gemini":
+		providerPrefix = "google/"
+	default:
+		return nil
+	}
+
+	var results []ModelPricingSummary
+	for name, p := range s.pricingData {
+		// 只取 "provider/model" 格式的 key
+		if !strings.HasPrefix(name, providerPrefix) {
+			continue
+		}
+		if p.InputCostPerToken <= 0 && p.OutputCostPerToken <= 0 {
+			continue
+		}
+		if p.Mode != "" && p.Mode != "chat" {
+			continue
+		}
+
+		displayName := name[len(providerPrefix):]
+		results = append(results, ModelPricingSummary{
+			Model:         displayName,
+			InputPerMTok:  p.InputCostPerToken * 1e6,
+			OutputPerMTok: p.OutputCostPerToken * 1e6,
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Model < results[j].Model
+	})
+	return results
 }
 
 // SearchModels 模糊搜索定价模型名称

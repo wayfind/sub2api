@@ -28,17 +28,17 @@
       <div class="min-w-0 flex-1">
         <p class="text-xs font-medium text-gray-500">{{ t('usage.totalCost') }}</p>
         <p class="text-xl font-bold text-green-600">
-          ${{ ((stats?.total_account_cost ?? stats?.total_actual_cost) || 0).toFixed(4) }}
+          {{ formatCostU((stats?.total_account_cost ?? stats?.total_actual_cost) || 0) }} U
         </p>
         <p class="text-xs text-gray-400" v-if="stats?.total_account_cost != null">
           {{ t('usage.userBilled') }}:
-          <span class="text-gray-300">${{ (stats?.total_actual_cost || 0).toFixed(4) }}</span>
+          <span class="text-gray-300">{{ formatCostU(stats?.total_actual_cost || 0) }} U</span>
           · {{ t('usage.standardCost') }}:
-          <span class="text-gray-300">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+          <span class="text-gray-300">{{ formatCostU(stats?.total_cost || 0) }} U</span>
         </p>
         <p class="text-xs text-gray-400" v-else>
           {{ t('usage.standardCost') }}:
-          <span class="line-through">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+          <span class="line-through">{{ formatCostU(stats?.total_cost || 0) }} U</span>
         </p>
       </div>
     </div>
@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { formatCostU } from '@/utils/format'
 import type { AdminUsageStatsResponse } from '@/api/admin/usage'
 import Icon from '@/components/icons/Icon.vue'
 

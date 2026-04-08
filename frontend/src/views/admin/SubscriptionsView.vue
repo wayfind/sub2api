@@ -220,9 +220,9 @@
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    ${{ row.daily_usage_usd?.toFixed(2) || '0.00' }}
+                    {{ row.daily_usage_usd?.toFixed(2) || '0.00' }} U
                     <span class="text-gray-400">/</span>
-                    ${{ row.plan?.daily_limit_usd?.toFixed(2) }}
+                    {{ row.plan?.daily_limit_usd?.toFixed(2) }} U
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.daily_window_start">
@@ -257,9 +257,9 @@
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    ${{ row.weekly_usage_usd?.toFixed(2) || '0.00' }}
+                    {{ row.weekly_usage_usd?.toFixed(2) || '0.00' }} U
                     <span class="text-gray-400">/</span>
-                    ${{ row.plan?.weekly_limit_usd?.toFixed(2) }}
+                    {{ row.plan?.weekly_limit_usd?.toFixed(2) }} U
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.weekly_window_start">
@@ -294,9 +294,9 @@
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    ${{ row.monthly_usage_usd?.toFixed(2) || '0.00' }}
+                    {{ row.monthly_usage_usd?.toFixed(2) || '0.00' }} U
                     <span class="text-gray-400">/</span>
-                    ${{ row.plan?.monthly_limit_usd?.toFixed(2) }}
+                    {{ row.plan?.monthly_limit_usd?.toFixed(2) }} U
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.monthly_window_start">

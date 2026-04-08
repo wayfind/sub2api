@@ -31,7 +31,7 @@
               <tr v-else v-for="order in orders" :key="order.order_no" class="hover:bg-gray-50 dark:hover:bg-dark-750">
                 <td class="px-6 py-3 font-mono text-xs text-gray-600 dark:text-dark-300">{{ order.order_no }}</td>
                 <td class="px-6 py-3 text-gray-900 dark:text-white">
-                  ¥{{ (order.cny_fee / 100).toFixed(2) }} → ${{ Number(order.usd_amount).toFixed(2) }}
+                  ¥{{ (order.cny_fee / 100).toFixed(2) }} → {{ Number(order.usd_amount).toFixed(2) }} U
                 </td>
                 <td class="px-6 py-3">
                   <span :class="statusClass(order.status)" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium">

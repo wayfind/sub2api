@@ -90,19 +90,19 @@
 
           <template #cell-daily_limit_usd="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">
-              {{ value != null ? '$' + value : t('admin.subscriptionPlans.unlimited') }}
+              {{ value != null ? value + ' U' : t('admin.subscriptionPlans.unlimited') }}
             </span>
           </template>
 
           <template #cell-weekly_limit_usd="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">
-              {{ value != null ? '$' + value : t('admin.subscriptionPlans.unlimited') }}
+              {{ value != null ? value + ' U' : t('admin.subscriptionPlans.unlimited') }}
             </span>
           </template>
 
           <template #cell-monthly_limit_usd="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">
-              {{ value != null ? '$' + value : t('admin.subscriptionPlans.unlimited') }}
+              {{ value != null ? value + ' U' : t('admin.subscriptionPlans.unlimited') }}
             </span>
           </template>
 
@@ -114,7 +114,7 @@
 
           <template #cell-price="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">
-              {{ value > 0 ? '$' + value : t('admin.subscriptionPlans.notForSale') }}
+              {{ value > 0 ? value + ' U' : t('admin.subscriptionPlans.notForSale') }}
             </span>
           </template>
 

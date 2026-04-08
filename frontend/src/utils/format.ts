@@ -5,6 +5,53 @@
 
 import { i18n, getLocale } from '@/i18n'
 
+// ========= U 代币格式化 =========
+// 系统内部金额单位为 U 代币，1 U = 0.1 RMB。
+// 后端 API 返回的金额已经是 U，前端无需再做 USD 转换。
+
+/** 1 U = 0.1 RMB */
+export const U_TO_RMB = 0.1
+/** 1 RMB = 10 U */
+export const RMB_TO_U = 10
+
+/**
+ * 格式化 U 代币余额（大额，2位小数）
+ * 例："700.00"
+ */
+export function formatBalanceU(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '0.00'
+  return value.toFixed(2)
+}
+
+/**
+ * 格式化 U 代币费用（精确，默认4位小数）
+ * 例："0.1234"
+ */
+export function formatCostU(value: number, fractionDigits: number = 4): string {
+  return value.toFixed(fractionDigits)
+}
+
+/**
+ * 格式化 U 代币费用并附带约等于人民币
+ * 例："0.1234 U (≈¥0.01)"
+ */
+export function formatCostUWithRmb(value: number, fractionDigits: number = 4): string {
+  const rmb = Math.abs(value) * U_TO_RMB
+  const rmbStr = rmb < 0.01 && rmb > 0 ? '<¥0.01' : `¥${rmb.toFixed(2)}`
+  return `${value.toFixed(fractionDigits)} U (≈${value < 0 ? '-' : ''}${rmbStr})`
+}
+
+/**
+ * 格式化约等于人民币
+ * 例："≈¥0.70"
+ */
+export function formatRmbApprox(uValue: number): string {
+  const rmb = Math.abs(uValue) * U_TO_RMB
+  const sign = uValue < 0 ? '-' : ''
+  if (rmb < 0.01 && rmb > 0) return `≈${sign}<¥0.01`
+  return `≈${sign}¥${rmb.toFixed(2)}`
+}
+
 /**
  * 格式化相对时间
  * @param date 日期字符串或 Date 对象
@@ -53,25 +100,17 @@ export function formatNumber(num: number | null | undefined): string {
 }
 
 /**
- * 格式化货币金额
- * @param amount 金额
- * @param currency 货币代码，默认 USD
- * @returns 格式化后的字符串，如 "$1.25"
+ * 格式化货币金额（U 代币）
+ * @param amount 金额（U 代币）
+ * @returns 格式化后的字符串，如 "1.25 U"
  */
-export function formatCurrency(amount: number | null | undefined, currency: string = 'USD'): string {
-  if (amount === null || amount === undefined) return '$0.00'
-
-  const locale = getLocale()
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return '0.00 U'
 
   // For very small amounts, show more decimals
   const fractionDigits = amount > 0 && amount < 0.01 ? 6 : 2
 
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits
-  }).format(amount)
+  return amount.toFixed(fractionDigits) + ' U'
 }
 
 /**

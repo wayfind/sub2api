@@ -58,7 +58,7 @@
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每日限额</span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ merged.daily_used_usd.toFixed(2) }} / ${{ merged.daily_limit_usd.toFixed(2) }}
+                  {{ merged.daily_used_usd.toFixed(2) }} / {{ merged.daily_limit_usd.toFixed(2) }} U
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
@@ -69,7 +69,7 @@
                 ></div>
               </div>
               <p class="text-xs text-gray-400 dark:text-dark-500">
-                剩余 ${{ Math.max(0, merged.daily_limit_usd - merged.daily_used_usd).toFixed(2) }}
+                剩余 {{ Math.max(0, merged.daily_limit_usd - merged.daily_used_usd).toFixed(2) }} U
               </p>
             </div>
 
@@ -78,7 +78,7 @@
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每周限额</span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ merged.weekly_used_usd.toFixed(2) }} / ${{ merged.weekly_limit_usd.toFixed(2) }}
+                  {{ merged.weekly_used_usd.toFixed(2) }} / {{ merged.weekly_limit_usd.toFixed(2) }} U
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
@@ -89,7 +89,7 @@
                 ></div>
               </div>
               <p class="text-xs text-gray-400 dark:text-dark-500">
-                剩余 ${{ Math.max(0, merged.weekly_limit_usd - merged.weekly_used_usd).toFixed(2) }}
+                剩余 {{ Math.max(0, merged.weekly_limit_usd - merged.weekly_used_usd).toFixed(2) }} U
               </p>
             </div>
 
@@ -98,7 +98,7 @@
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">每月限额</span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ merged.monthly_used_usd.toFixed(2) }} / ${{ merged.monthly_limit_usd.toFixed(2) }}
+                  {{ merged.monthly_used_usd.toFixed(2) }} / {{ merged.monthly_limit_usd.toFixed(2) }} U
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
@@ -109,7 +109,7 @@
                 ></div>
               </div>
               <p class="text-xs text-gray-400 dark:text-dark-500">
-                剩余 ${{ Math.max(0, merged.monthly_limit_usd - merged.monthly_used_usd).toFixed(2) }}
+                剩余 {{ Math.max(0, merged.monthly_limit_usd - merged.monthly_used_usd).toFixed(2) }} U
               </p>
             </div>
           </div>
@@ -135,15 +135,15 @@
               <div class="mb-3 space-y-1 text-xs text-gray-600 dark:text-dark-300">
                 <div v-if="plan.daily_limit_usd" class="flex justify-between">
                   <span>{{ t('userSubscriptions.dailyLimit') }}</span>
-                  <span class="font-medium">${{ plan.daily_limit_usd.toFixed(2) }}</span>
+                  <span class="font-medium">{{ plan.daily_limit_usd.toFixed(2) }} U</span>
                 </div>
                 <div v-if="plan.weekly_limit_usd" class="flex justify-between">
                   <span>{{ t('userSubscriptions.weeklyLimit') }}</span>
-                  <span class="font-medium">${{ plan.weekly_limit_usd.toFixed(2) }}</span>
+                  <span class="font-medium">{{ plan.weekly_limit_usd.toFixed(2) }} U</span>
                 </div>
                 <div v-if="plan.monthly_limit_usd" class="flex justify-between">
                   <span>{{ t('userSubscriptions.monthlyLimit') }}</span>
-                  <span class="font-medium">${{ plan.monthly_limit_usd.toFixed(2) }}</span>
+                  <span class="font-medium">{{ plan.monthly_limit_usd.toFixed(2) }} U</span>
                 </div>
                 <div class="flex justify-between">
                   <span>{{ t('userSubscriptions.validity') }}</span>
@@ -152,7 +152,7 @@
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
-                  ${{ plan.price?.toFixed(2) || '0.00' }}
+                  {{ plan.price?.toFixed(2) || '0.00' }} U
                 </span>
                 <button
                   class="btn btn-primary btn-sm"
@@ -241,9 +241,9 @@
                       {{ t('userSubscriptions.daily') }}
                     </span>
                     <span class="text-sm text-gray-500 dark:text-dark-400">
-                      ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
+                      {{ (subscription.daily_usage_usd || 0).toFixed(2) }} / {{
                         subscription.plan.daily_limit_usd.toFixed(2)
-                      }}
+                      }} U
                     </span>
                   </div>
                   <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
@@ -282,9 +282,9 @@
                       {{ t('userSubscriptions.weekly') }}
                     </span>
                     <span class="text-sm text-gray-500 dark:text-dark-400">
-                      ${{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / ${{
+                      {{ (subscription.weekly_usage_usd || 0).toFixed(2) }} / {{
                         subscription.plan.weekly_limit_usd.toFixed(2)
-                      }}
+                      }} U
                     </span>
                   </div>
                   <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
@@ -323,9 +323,9 @@
                       {{ t('userSubscriptions.monthly') }}
                     </span>
                     <span class="text-sm text-gray-500 dark:text-dark-400">
-                      ${{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / ${{
+                      {{ (subscription.monthly_usage_usd || 0).toFixed(2) }} / {{
                         subscription.plan.monthly_limit_usd.toFixed(2)
-                      }}
+                      }} U
                     </span>
                   </div>
                   <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">

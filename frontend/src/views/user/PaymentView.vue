@@ -9,7 +9,7 @@
           </div>
           <p class="text-sm font-medium text-primary-100">当前余额</p>
           <p class="mt-2 text-4xl font-bold text-white">
-            ${{ user?.balance?.toFixed(2) || '0.00' }}
+            {{ formatBalanceU(user?.balance) }} U
           </p>
         </div>
       </div>
@@ -56,7 +56,7 @@
                 </div>
               </div>
               <p class="text-xl font-bold text-gray-900 dark:text-white">¥{{ pkg.cny_amount }}</p>
-              <p class="mt-1 text-sm text-blue-600 dark:text-blue-400">到账 ${{ pkg.usd_amount.toFixed(2) }}</p>
+              <p class="mt-1 text-sm text-blue-600 dark:text-blue-400">到账 {{ formatBalanceU(pkg.usd_amount) }} U</p>
             </button>
 
             <!-- 自定义金额卡片 -->
@@ -97,7 +97,7 @@
               />
             </div>
             <p v-if="customAmountStr && customAmount > 0 && customAmount <= 50000" class="mt-1 text-sm text-blue-600 dark:text-blue-400">
-              到账 ${{ customAmount.toFixed(2) }}
+              到账 {{ (customAmount * RMB_TO_U).toFixed(2) }} U
             </p>
             <p v-else-if="customAmountStr && customAmount > 50000" class="mt-1 text-sm text-red-500">
               单次充值上限 ¥50000
@@ -158,7 +158,7 @@
             </div>
             <p class="text-sm text-gray-500">请使用支付宝扫描上方二维码完成支付</p>
             <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">¥{{ pendingCnyAmount }}</p>
-            <p class="text-sm text-blue-600">到账 ${{ pendingCnyAmount.toFixed(2) }}</p>
+            <p class="text-sm text-blue-600">到账 {{ (pendingCnyAmount * RMB_TO_U).toFixed(2) }} U</p>
             <div class="mt-3 flex items-center justify-center gap-1 text-xs text-gray-400">
               <svg class="h-3 w-3 animate-pulse text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <circle cx="10" cy="10" r="10" />
@@ -177,8 +177,10 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { alipayAPI, type PaymentPackage } from '@/api/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import { RMB_TO_U } from '@/utils/format'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
+import { formatBalanceU } from '@/utils/format'
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)

@@ -49,7 +49,7 @@ type AlipayOrder struct {
 	UserID        int64      `json:"user_id"`
 	PackageID     int        `json:"package_id"`
 	CnyFee        int        `json:"cny_fee"`     // 人民币金额（分）
-	UsdAmount     float64    `json:"usd_amount"`  // 到账美元
+	UsdAmount     float64    `json:"usd_amount"`  // 到账金额（U 代币，字段名保留历史兼容）
 	Status        string     `json:"status"`      // pending / paid / expired / refunded
 	AlipayTradeNo *string    `json:"alipay_trade_no"`
 	QRCode        *string    `json:"-"`
@@ -230,7 +230,7 @@ func (s *AlipayService) SetEnabled(ctx context.Context, enabled bool) error {
 }
 
 // CreateOrder 创建支付宝当面付订单，返回二维码链接。
-// packageID > 0 时从套餐中查询金额；packageID == 0 时使用 cnyAmount（自定义金额，单位：元，1:1 换美元）。
+// packageID > 0 时从套餐中查询金额；packageID == 0 时使用 cnyAmount（自定义金额，单位：元，1 CNY = 10 U）。
 func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID int, cnyAmount float64) (*AlipayOrder, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, ErrAlipayNotEnabled
@@ -265,13 +265,13 @@ func (s *AlipayService) CreateOrder(ctx context.Context, userID int64, packageID
 		pkgCnyAmount = pkg.CnyAmount
 		pkgUsdAmount = pkg.UsdAmount
 	} else {
-		// 自定义金额，1:1 换算
+		// 自定义金额，1 CNY = RMBToU U
 		if cnyAmount < 1 || cnyAmount > 50000 {
 			return nil, infraerrors.BadRequest("ALIPAY_INVALID_AMOUNT", "amount must be between ¥1 and ¥50000")
 		}
 		pkgName = fmt.Sprintf("自定义充值 ¥%.2f", cnyAmount)
 		pkgCnyAmount = cnyAmount
-		pkgUsdAmount = cnyAmount // 1:1
+		pkgUsdAmount = cnyAmount * RMBToU
 	}
 
 	cfg, err := s.GetConfig(ctx)

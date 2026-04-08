@@ -735,7 +735,7 @@ const modelStats = computed<any[]>(() => resultData.value?.model_stats || [])
 
 function usd(value: number | null | undefined): string {
   if (value == null || value < 0) return '-'
-  return '$' + Number(value).toFixed(2)
+  return Number(value).toFixed(2) + ' U'
 }
 
 function fmtNum(val: number | null | undefined): string {

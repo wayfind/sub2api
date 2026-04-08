@@ -146,11 +146,11 @@
             <div v-else class="space-y-0.5 text-xs">
               <div class="text-gray-500 dark:text-gray-400">
                 <span class="text-gray-400 dark:text-gray-500">{{ t('admin.groups.usageToday') }}</span>
-                <span class="ml-1 font-medium text-gray-700 dark:text-gray-300">${{ formatCost(usageMap.get(row.id)?.today_cost ?? 0) }}</span>
+                <span class="ml-1 font-medium text-gray-700 dark:text-gray-300">{{ formatCost(usageMap.get(row.id)?.today_cost ?? 0) }} U</span>
               </div>
               <div class="text-gray-500 dark:text-gray-400">
                 <span class="text-gray-400 dark:text-gray-500">{{ t('admin.groups.usageTotal') }}</span>
-                <span class="ml-1 font-medium text-gray-700 dark:text-gray-300">${{ formatCost(usageMap.get(row.id)?.total_cost ?? 0) }}</span>
+                <span class="ml-1 font-medium text-gray-700 dark:text-gray-300">{{ formatCost(usageMap.get(row.id)?.total_cost ?? 0) }} U</span>
               </div>
             </div>
           </template>
