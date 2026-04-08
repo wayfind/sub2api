@@ -7575,9 +7575,9 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		}
 	}
 
-	if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
+	if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.ActualCost > 0 {
 		cmd.SubscriptionID = &p.Subscription.ID
-		cmd.SubscriptionCost = p.Cost.TotalCost
+		cmd.SubscriptionCost = p.Cost.ActualCost // 订阅额度按折后价消耗
 		// FIFOQueue 非空时，repo.Apply 内按 FIFO 分账（忽略单 SubscriptionID）
 		if len(p.FIFOQueue) > 1 {
 			cmd.FIFOQueue = p.FIFOQueue
@@ -7746,16 +7746,14 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
-	// 费率策略：订阅路径用分组费率（用户专属 > 分组默认 > 系统默认），余额路径固定 7.0
-	multiplier := 7.0
-	if subscription != nil {
-		if s.cfg != nil {
-			multiplier = s.cfg.Default.RateMultiplier
-		}
-		if apiKey.GroupID != nil && apiKey.Group != nil {
-			groupDefault := apiKey.Group.RateMultiplier
-			multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
-		}
+	// 费率策略：分组费率（用户专属 > 分组默认 > 系统默认）
+	multiplier := 1.0
+	if s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if apiKey.GroupID != nil && apiKey.Group != nil {
+		groupDefault := apiKey.Group.RateMultiplier
+		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 
 	var cost *CostBreakdown
@@ -7967,16 +7965,14 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
-	// 费率策略：订阅路径用分组费率（用户专属 > 分组默认 > 系统默认），余额路径固定 7.0
-	multiplier := 7.0
-	if subscription != nil {
-		if s.cfg != nil {
-			multiplier = s.cfg.Default.RateMultiplier
-		}
-		if apiKey.GroupID != nil && apiKey.Group != nil {
-			groupDefault := apiKey.Group.RateMultiplier
-			multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
-		}
+	// 费率策略：分组费率（用户专属 > 分组默认 > 系统默认）
+	multiplier := 1.0
+	if s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if apiKey.GroupID != nil && apiKey.Group != nil {
+		groupDefault := apiKey.Group.RateMultiplier
+		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 
 	var cost *CostBreakdown
