@@ -294,6 +294,36 @@
               {{ t('home.pricing.subtitle') }}
             </p>
           </div>
+
+          <!-- Billing mode comparison -->
+          <div class="mx-auto mb-10 grid max-w-3xl gap-4 md:grid-cols-2">
+            <!-- Pay-as-you-go -->
+            <div class="rounded-2xl border border-gray-200/50 bg-white/60 p-5 backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/60">
+              <div class="mb-2 flex items-center gap-2">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Icon name="creditCard" size="sm" class="text-blue-600 dark:text-blue-400" />
+                </div>
+                <h4 class="font-semibold text-gray-900 dark:text-white">{{ t('home.pricing.paygo.title') }}</h4>
+              </div>
+              <p class="mb-2 text-sm text-gray-600 dark:text-dark-400">{{ t('home.pricing.paygo.desc') }}</p>
+              <span class="inline-block rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                {{ t('home.pricing.paygo.badge') }}
+              </span>
+            </div>
+            <!-- Subscription -->
+            <div class="rounded-2xl border border-primary-200/50 bg-gradient-to-br from-primary-50/50 to-white/60 p-5 backdrop-blur-sm dark:border-primary-800/30 dark:from-primary-900/10 dark:to-dark-800/60">
+              <div class="mb-2 flex items-center gap-2">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                  <Icon name="bolt" size="sm" class="text-primary-600 dark:text-primary-400" />
+                </div>
+                <h4 class="font-semibold text-gray-900 dark:text-white">{{ t('home.pricing.subscription.title') }}</h4>
+              </div>
+              <p class="mb-2 text-sm text-gray-600 dark:text-dark-400">{{ t('home.pricing.subscription.desc') }}</p>
+              <span class="inline-block rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/20 dark:text-primary-400">
+                {{ t('home.pricing.subscription.badge') }}
+              </span>
+            </div>
+          </div>
           <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             <div
               v-for="plan in plans"

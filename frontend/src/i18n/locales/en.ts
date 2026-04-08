@@ -90,8 +90,18 @@ export default {
     },
     // Pricing
     pricing: {
-      title: 'Subscription Plans',
-      subtitle: 'Choose the plan that fits you. Subscription plans enjoy overage discounts',
+      title: 'Flexible Billing',
+      subtitle: 'Top up to use at official prices, or subscribe for discounts',
+      paygo: {
+        title: 'Pay-as-you-Go',
+        desc: 'Top up your balance and use at official API pricing. No subscription needed, flexible usage.',
+        badge: 'No commitment · Official pricing'
+      },
+      subscription: {
+        title: 'Subscription Plans',
+        desc: 'Subscribe monthly for discounted pricing with included usage quota. Overages also discounted.',
+        badge: 'Better value · Discounted pricing'
+      },
       popular: 'Most Popular',
       perMonth: '/mo',
       viewDetails: 'View Details',

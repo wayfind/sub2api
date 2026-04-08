@@ -90,8 +90,18 @@ export default {
     },
     // 定价套餐
     pricing: {
-      title: '订阅套餐',
-      subtitle: '选择适合你的方案，订阅套餐可享超额使用折扣',
+      title: '灵活计费',
+      subtitle: '充值即用或订阅享折扣，两种模式自由选择',
+      paygo: {
+        title: '直接充值',
+        desc: '充值余额后按官方 API 原价使用，无需订阅，灵活按量付费。',
+        badge: '零门槛 · 官方价格'
+      },
+      subscription: {
+        title: '订阅套餐',
+        desc: '按月订阅享折扣价格，包含固定用量额度，超额部分同样享受折扣。',
+        badge: '更优惠 · 折扣价格'
+      },
       popular: '最受欢迎',
       perMonth: '/月',
       viewDetails: '查看详情',
