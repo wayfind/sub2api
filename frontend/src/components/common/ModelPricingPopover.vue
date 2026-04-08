@@ -35,11 +35,11 @@
               <td class="py-1.5 pr-2 text-gray-700 dark:text-gray-300 truncate max-w-[140px]" :title="m.model">{{ m.model }}</td>
               <td class="py-1.5 text-right tabular-nums">
                 <div class="text-gray-600 dark:text-gray-400">{{ formatPrice(m.input_per_mtok) }} U</div>
-                <div class="text-gray-400 dark:text-gray-500 text-[10px]">${{ formatUsd(m.input_per_mtok) }}</div>
+                <div class="text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(m.input_per_mtok) }}</div>
               </td>
               <td class="py-1.5 text-right tabular-nums">
                 <div class="text-gray-600 dark:text-gray-400">{{ formatPrice(m.output_per_mtok) }} U</div>
-                <div class="text-gray-400 dark:text-gray-500 text-[10px]">${{ formatUsd(m.output_per_mtok) }}</div>
+                <div class="text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(m.output_per_mtok) }}</div>
               </td>
             </tr>
           </tbody>
@@ -52,6 +52,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { getGroupModelPricing, type ModelPricing } from '@/api/groups'
+import { formatUsdFromU } from '@/utils/format'
 
 interface Props {
   groupId: number
@@ -74,12 +75,6 @@ function formatPrice(v: number): string {
   if (v >= 1000) return Math.round(v).toLocaleString()
   if (v >= 1) return v.toFixed(2)
   return v.toFixed(4)
-}
-
-function formatUsd(uValue: number): string {
-  const usd = uValue / 70
-  if (usd >= 1) return usd.toFixed(2)
-  return usd.toFixed(4)
 }
 
 // 不支持按模型定价的平台
