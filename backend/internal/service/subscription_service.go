@@ -1391,8 +1391,13 @@ func (s *SubscriptionService) copyMergedState(src *MergedSubscriptionState) *Mer
 		dst.EffectiveMonthlyLimit = &v
 	}
 	if len(src.FIFOQueue) > 0 {
-		dst.FIFOQueue = make([]UserSubscription, len(src.FIFOQueue))
-		copy(dst.FIFOQueue, src.FIFOQueue)
+		now := time.Now()
+		dst.FIFOQueue = make([]UserSubscription, 0, len(src.FIFOQueue))
+		for _, sub := range src.FIFOQueue {
+			if sub.ExpiresAt.After(now) {
+				dst.FIFOQueue = append(dst.FIFOQueue, sub)
+			}
+		}
 	}
 	return dst
 }
