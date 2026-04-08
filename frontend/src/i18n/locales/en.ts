@@ -1,7 +1,6 @@
 export default {
   // Home Page
   home: {
-    viewOnGithub: 'View on GitHub',
     viewDocs: 'View Documentation',
     docs: 'Docs',
     switchToLight: 'Switch to Light Mode',
@@ -10,99 +9,96 @@ export default {
     login: 'Login',
     getStarted: 'Get Started',
     goToDashboard: 'Go to Dashboard',
-    // User-focused value proposition
-    heroSubtitle: 'One Key, All AI Models',
-    heroDescription: 'No need to manage multiple subscriptions. Access Claude, GPT, Gemini and more with a single API key',
+    viewPlans: 'View Plans',
+    // Hero
+    heroTitle: 'Metask',
+    heroSubtitle: 'AI Unified Gateway, Deeply Optimized for Claude Code',
+    heroDescription: 'Access Claude / GPT-5.4 / GLM-5.1 / MiniMax M2.5 in one place, with full support for web search, caching, planning, subagent and more',
     tags: {
-      subscriptionToApi: 'Subscription to API',
-      stickySession: 'Session Persistence',
-      realtimeBilling: 'Pay As You Go'
+      anthropicNative: 'Anthropic Native',
+      multiModel: 'Multi-Model',
+      enterprise: 'Enterprise Plans'
     },
-    // Pain points section
-    painPoints: {
-      title: 'Sound Familiar?',
-      items: {
-        expensive: {
-          title: 'High Subscription Costs',
-          desc: 'Paying for multiple AI subscriptions that add up every month'
-        },
-        complex: {
-          title: 'Account Chaos',
-          desc: 'Managing scattered accounts and API keys across different platforms'
-        },
-        unstable: {
-          title: 'Service Interruptions',
-          desc: 'Single accounts hitting rate limits and disrupting your workflow'
-        },
-        noControl: {
-          title: 'No Usage Control',
-          desc: "Can't track where your money goes or limit team member usage"
-        }
-      }
-    },
-    // Solutions section
-    solutions: {
-      title: 'We Solve These Problems',
-      subtitle: 'Three simple steps to stress-free AI access'
-    },
+    // Core Differentiators
     features: {
-      unifiedGateway: 'One-Click Access',
-      unifiedGatewayDesc: 'Get a single API key to call all connected AI models. No separate applications needed.',
-      multiAccount: 'Always Reliable',
-      multiAccountDesc: 'Smart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.',
-      balanceQuota: 'Pay What You Use',
-      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.'
+      title: 'Core Advantages',
+      anthropicNative: 'Anthropic Protocol Native Support',
+      anthropicNativeDesc: 'Full support for Claude Code client features: web search, caching, planning mode, subagent — not just simple API forwarding.',
+      multiModel: 'Multi-Model, One Key',
+      multiModelDesc: 'Native Claude + GPT-5.4 + GLM-5.1 + MiniMax M2.5, all covered with a single key, seamless switching.',
+      stableCoding: 'Stable Coding for China',
+      stableCodingDesc: 'Optimized for domestic network conditions. Stable, low latency, no proxy hassle — works out of the box.',
+      enterpriseHA: 'Enterprise High Availability',
+      enterpriseHADesc: 'Multi-upstream account pool with smart routing, load balancing, session affinity for large-scale team usage.'
     },
-    // Comparison section
-    comparison: {
-      title: 'Why Choose Us?',
-      headers: {
-        feature: 'Comparison',
-        official: 'Official Subscriptions',
-        us: 'Our Platform'
+    // Pricing
+    pricing: {
+      title: 'Subscription Plans',
+      subtitle: 'Choose the plan that fits you. Subscription plans enjoy overage discounts',
+      popular: 'Most Popular',
+      perMonth: '/mo',
+      viewDetails: 'View Details',
+      starter: {
+        name: 'Starter',
+        price: '365',
+        highlight: 'For individual developers',
+        features: ['Unlimited domestic models', 'Ideal for personal projects', 'Base usage quota']
       },
-      items: {
-        pricing: {
-          feature: 'Pricing',
-          official: 'Fixed monthly fee, pay even if unused',
-          us: 'Pay only for what you use'
-        },
-        models: {
-          feature: 'Model Selection',
-          official: 'Single provider only',
-          us: 'Switch between models freely'
-        },
-        management: {
-          feature: 'Account Management',
-          official: 'Manage each service separately',
-          us: 'Unified key, one dashboard'
-        },
-        stability: {
-          feature: 'Stability',
-          official: 'Single account rate limits',
-          us: 'Multi-account pool, auto-failover'
-        },
-        control: {
-          feature: 'Usage Control',
-          official: 'Not available',
-          us: 'Quotas & detailed analytics'
-        }
+      pro: {
+        name: 'Pro',
+        price: '1,000',
+        highlight: 'Matches official Max plan',
+        features: ['5-person team MiniMax unlimited', 'Team management', 'Overage discounts']
+      },
+      flagship: {
+        name: 'Flagship',
+        price: '2,000',
+        highlight: 'Power dev toolkit',
+        features: ['GPT-5.4 unlimited', 'All models high priority', 'Dedicated support']
+      },
+      ultimate: {
+        name: 'Ultimate',
+        price: '3,000',
+        highlight: 'Below official API pricing',
+        features: ['Top open-source models', 'Unlimited team size', 'SLA guarantee']
       }
     },
+    // Model Matrix
     providers: {
-      title: 'Supported AI Models',
-      description: 'One API, Multiple Choices',
-      supported: 'Supported',
-      soon: 'Soon',
-      claude: 'Claude',
-      gemini: 'Gemini',
-      antigravity: 'Antigravity',
-      more: 'More'
+      title: 'Supported Models',
+      subtitle: 'Comprehensive coverage of leading AI models, one API for all',
+      anthropic: {
+        label: 'Anthropic',
+        tag: 'Protocol-level optimization · Full CC experience',
+        models: 'Claude Opus 4.6 / Sonnet 4.6 / Haiku 4.5'
+      },
+      openai: {
+        label: 'OpenAI',
+        tag: 'Full series support',
+        models: 'GPT-5.4 / o3 / GPT-4.1'
+      },
+      domestic: {
+        label: 'Domestic Models',
+        tag: 'Recommended with MetaCode',
+        models: 'GLM-5.1 / MiniMax M2.5'
+      },
+      more: {
+        label: 'More Models',
+        tag: 'Continuously adding',
+        models: 'Gemini / DeepSeek / Qwen ...'
+      }
+    },
+    // About Us
+    about: {
+      title: 'About Us',
+      name: 'Metask Lab',
+      nameEn: 'Metask Lab',
+      description: 'Focused on AI transformation for enterprises, providing stable, efficient, and ready-to-use AI infrastructure for development teams.'
     },
     // CTA section
     cta: {
-      title: 'Ready to Get Started?',
-      description: 'Sign up now and get free trial credits to experience seamless AI access',
+      title: 'Ready to boost your team\'s AI development?',
+      description: 'Sign up now to access the world\'s leading AI models in one place',
       button: 'Sign Up Free'
     },
     footer: {

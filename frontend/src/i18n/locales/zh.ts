@@ -1,7 +1,6 @@
 export default {
   // Home Page
   home: {
-    viewOnGithub: '在 GitHub 上查看',
     viewDocs: '查看文档',
     docs: '文档',
     switchToLight: '切换到浅色模式',
@@ -10,99 +9,96 @@ export default {
     login: '登录',
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
-    // 新增：面向用户的价值主张
-    heroSubtitle: '一个密钥，畅用多个 AI 模型',
-    heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',
+    viewPlans: '查看套餐',
+    // Hero
+    heroTitle: 'Metask',
+    heroSubtitle: '为 Claude Code 深度优化的 AI 统一网关',
+    heroDescription: '一站式接入 Claude / GPT-5.4 / GLM-5.1 / MiniMax M2.5，完整支持 web search、缓存、计划、subagent 等复杂能力',
     tags: {
-      subscriptionToApi: '订阅转 API',
-      stickySession: '会话保持',
-      realtimeBilling: '按量计费'
+      anthropicNative: 'Anthropic 协议原生',
+      multiModel: '多模型一站式',
+      enterprise: '企业级订阅'
     },
-    // 用户痛点区块
-    painPoints: {
-      title: '你是否也遇到这些问题？',
-      items: {
-        expensive: {
-          title: '订阅费用高',
-          desc: '每个 AI 服务都要单独订阅，每月支出越来越多'
-        },
-        complex: {
-          title: '多账号难管理',
-          desc: '不同平台的账号、密钥分散各处，管理起来很麻烦'
-        },
-        unstable: {
-          title: '服务不稳定',
-          desc: '单一账号容易触发限制，影响正常使用'
-        },
-        noControl: {
-          title: '用量无法控制',
-          desc: '不知道钱花在哪了，也无法限制团队成员的使用'
-        }
-      }
-    },
-    // 解决方案区块
-    solutions: {
-      title: '我们帮你解决',
-      subtitle: '简单三步，开始省心使用 AI'
-    },
+    // 核心差异
     features: {
-      unifiedGateway: '一键接入',
-      unifiedGatewayDesc: '获取一个 API 密钥，即可调用所有已接入的 AI 模型，无需分别申请。',
-      multiAccount: '稳定可靠',
-      multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
-      balanceQuota: '用多少付多少',
-      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
+      title: '核心优势',
+      anthropicNative: 'Anthropic 协议原生支持',
+      anthropicNativeDesc: '完整支持 Claude Code 客户端的 web search、缓存、计划模式、subagent 等复杂能力，不是简单的 API 转发。',
+      multiModel: '多模型一站式',
+      multiModelDesc: 'Claude 原生 + GPT-5.4 + GLM-5.1 + MiniMax M2.5，一个 key 全覆盖，无缝切换。',
+      stableCoding: '中国企业的稳定 Coding 方案',
+      stableCodingDesc: '针对国内网络环境优化，稳定低延迟，无需折腾代理和网络配置，开箱即用。',
+      enterpriseHA: '企业级高可用',
+      enterpriseHADesc: '多上游账号池智能调度、负载均衡、会话粘性，支持团队大规模并发使用。'
     },
-    // 优势对比
-    comparison: {
-      title: '为什么选择我们？',
-      headers: {
-        feature: '对比项',
-        official: '官方订阅',
-        us: '本平台'
+    // 定价套餐
+    pricing: {
+      title: '订阅套餐',
+      subtitle: '选择适合你的方案，订阅套餐可享超额使用折扣',
+      popular: '最受欢迎',
+      perMonth: '/月',
+      viewDetails: '查看详情',
+      starter: {
+        name: '入门版',
+        price: '365',
+        highlight: '个人开发者首选',
+        features: ['国产模型畅用体验', '适合个人项目开发', '基础用量配额']
       },
-      items: {
-        pricing: {
-          feature: '付费方式',
-          official: '固定月费，用不完也付',
-          us: '按量付费，用多少付多少'
-        },
-        models: {
-          feature: '模型选择',
-          official: '单一服务商',
-          us: '多模型随意切换'
-        },
-        management: {
-          feature: '账号管理',
-          official: '每个服务单独管理',
-          us: '统一密钥，一站管理'
-        },
-        stability: {
-          feature: '服务稳定性',
-          official: '单账号易触发限制',
-          us: '多账号池，自动切换'
-        },
-        control: {
-          feature: '用量控制',
-          official: '无法限制',
-          us: '可设配额、查明细'
-        }
+      pro: {
+        name: '专业版',
+        price: '1,000',
+        highlight: '对标官方 Max 套餐',
+        features: ['5 人团队 MiniMax 畅用', '团队协作管理', '超额折扣优惠']
+      },
+      flagship: {
+        name: '旗舰版',
+        price: '2,000',
+        highlight: '高效开发利器',
+        features: ['GPT-5.4 畅用', '全模型高优先级', '专属技术支持']
+      },
+      ultimate: {
+        name: '全能版',
+        price: '3,000',
+        highlight: '官方 API 8 折以下',
+        features: ['全球最先进开源模型', '不限团队规模', 'SLA 保障']
       }
     },
+    // 模型矩阵
     providers: {
-      title: '已支持的 AI 模型',
-      description: '一个 API，多种选择',
-      supported: '已支持',
-      soon: '即将推出',
-      claude: 'Claude',
-      gemini: 'Gemini',
-      antigravity: 'Antigravity',
-      more: '更多'
+      title: '支持的模型',
+      subtitle: '全面覆盖主流 AI 模型，一个 API 全部搞定',
+      anthropic: {
+        label: 'Anthropic',
+        tag: '协议级优化 · CC 完整体验',
+        models: 'Claude Opus 4.6 / Sonnet 4.6 / Haiku 4.5'
+      },
+      openai: {
+        label: 'OpenAI',
+        tag: '全系列支持',
+        models: 'GPT-5.4 / o3 / GPT-4.1'
+      },
+      domestic: {
+        label: '国产模型',
+        tag: '推荐搭配 MetaCode',
+        models: 'GLM-5.1 / MiniMax M2.5'
+      },
+      more: {
+        label: '更多模型',
+        tag: '持续接入中',
+        models: 'Gemini / DeepSeek / Qwen ...'
+      }
+    },
+    // 关于我们
+    about: {
+      title: '关于我们',
+      name: '元任务实验室',
+      nameEn: 'Metask Lab',
+      description: '专注于中国企业的 AI 转型，为开发团队提供稳定、高效、开箱即用的 AI 基础设施。'
     },
     // CTA 区块
     cta: {
-      title: '准备好开始了吗？',
-      description: '注册即可获得免费试用额度，体验一站式 AI 服务',
+      title: '准备好提升团队的 AI 开发效率了吗？',
+      description: '注册即可开始体验，一站式接入全球顶尖 AI 模型',
       button: '免费注册'
     },
     footer: {
