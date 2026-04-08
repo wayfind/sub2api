@@ -448,7 +448,7 @@ onUnmounted(() => {
 }
 
 .sora-task-progress-fill.generating {
-  background: var(--sora-accent-gradient, linear-gradient(135deg, #14b8a6, #0d9488));
+  background: var(--sora-accent-gradient, linear-gradient(135deg, #b08450, #a07845));
   animation: sora-progress-shimmer 2s ease-in-out infinite;
 }
 
@@ -523,13 +523,13 @@ onUnmounted(() => {
 }
 
 .sora-action-btn.primary {
-  background: var(--sora-accent-gradient, linear-gradient(135deg, #14b8a6, #0d9488));
+  background: var(--sora-accent-gradient, linear-gradient(135deg, #b08450, #a07845));
   color: white;
 }
 
 .sora-action-btn.primary:hover {
-  background: var(--sora-accent-gradient-hover, linear-gradient(135deg, #2dd4bf, #14b8a6));
-  box-shadow: var(--sora-shadow-glow, 0 0 20px rgba(20,184,166,0.3));
+  background: var(--sora-accent-gradient-hover, linear-gradient(135deg, #dbb87a, #b08450));
+  box-shadow: var(--sora-shadow-glow, 0 0 20px rgba(176,132,80,0.3));
 }
 
 .sora-action-btn.secondary {

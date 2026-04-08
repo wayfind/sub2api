@@ -54,7 +54,7 @@ function formatBytes(bytes: number): string {
 
 .sora-quota-bar-fill {
   height: 100%;
-  background: var(--sora-accent-gradient, linear-gradient(135deg, #14b8a6, #0d9488));
+  background: var(--sora-accent-gradient, linear-gradient(135deg, #b08450, #a07845));
   border-radius: 2px;
   transition: width 400ms ease;
 }

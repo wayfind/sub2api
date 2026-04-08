@@ -2832,12 +2832,12 @@ onMounted(() => {
 
 .settings-tab-active {
   @apply text-primary-600 dark:text-primary-400;
-  background: linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(20, 184, 166, 0.03));
-  box-shadow: 0 1px 2px rgba(20, 184, 166, 0.1);
+  background: linear-gradient(135deg, rgba(176, 132, 80, 0.08), rgba(176, 132, 80, 0.03));
+  box-shadow: 0 1px 2px rgba(176, 132, 80, 0.1);
 }
 
 :root.dark .settings-tab-active {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(45, 212, 191, 0.05));
+  background: linear-gradient(135deg, rgba(196, 154, 108, 0.12), rgba(196, 154, 108, 0.05));
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
 }
 
