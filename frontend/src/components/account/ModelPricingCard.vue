@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import accountsAPI, { type ModelPricingLookupResult } from '@/api/admin/accounts'
+import { formatUsdFromU } from '@/utils/format'
 
 const { t } = useI18n()
 
@@ -171,6 +172,11 @@ function formatPricePerMTok(v: number): string {
   if (!v) return '0 U'
   return (v * 1e6).toFixed(2) + ' U/MTok'
 }
+
+function formatPricePerMTokUsd(v: number): string {
+  if (!v) return '$0'
+  return formatUsdFromU(v * 1e6) + '/MTok'
+}
 </script>
 
 <template>
@@ -277,10 +283,10 @@ function formatPricePerMTok(v: number): string {
       <div v-else-if="lookupResult?.found && lookupResult.pricing" class="mt-2 rounded bg-green-50 p-2 text-xs dark:bg-green-900/20">
         <div class="mb-1 font-medium text-green-700 dark:text-green-400">LiteLLM price found for {{ lookupResult.model }}:</div>
         <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-green-600 dark:text-green-300">
-          <span>Input: {{ formatPricePerMTok(lookupResult.pricing.input_cost_per_token) }}</span>
-          <span>Output: {{ formatPricePerMTok(lookupResult.pricing.output_cost_per_token) }}</span>
-          <span>Cache Create: {{ formatPricePerMTok(lookupResult.pricing.cache_creation_input_token_cost) }}</span>
-          <span>Cache Read: {{ formatPricePerMTok(lookupResult.pricing.cache_read_input_token_cost) }}</span>
+          <span>Input: {{ formatPricePerMTok(lookupResult.pricing.input_cost_per_token) }} <span class="text-gray-400 dark:text-gray-500 text-[9px]">{{ formatPricePerMTokUsd(lookupResult.pricing.input_cost_per_token) }}</span></span>
+          <span>Output: {{ formatPricePerMTok(lookupResult.pricing.output_cost_per_token) }} <span class="text-gray-400 dark:text-gray-500 text-[9px]">{{ formatPricePerMTokUsd(lookupResult.pricing.output_cost_per_token) }}</span></span>
+          <span>Cache Create: {{ formatPricePerMTok(lookupResult.pricing.cache_creation_input_token_cost) }} <span class="text-gray-400 dark:text-gray-500 text-[9px]">{{ formatPricePerMTokUsd(lookupResult.pricing.cache_creation_input_token_cost) }}</span></span>
+          <span>Cache Read: {{ formatPricePerMTok(lookupResult.pricing.cache_read_input_token_cost) }} <span class="text-gray-400 dark:text-gray-500 text-[9px]">{{ formatPricePerMTokUsd(lookupResult.pricing.cache_read_input_token_cost) }}</span></span>
         </div>
         <div class="mt-1 text-[10px] text-green-500">Prices will be auto-filled when you click "Add"</div>
       </div>

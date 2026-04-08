@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatUsdFromU } from '@/utils/format'
 
 const props = defineProps<{
   used: number
@@ -45,5 +46,6 @@ const fmt = (v: number) => v.toFixed(2)
     <span class="font-mono">{{ fmt(used) }} U</span>
     <span class="text-gray-400 dark:text-gray-500">/</span>
     <span class="font-mono">{{ fmt(limit) }} U</span>
+    <span class="ml-0.5 text-gray-400 dark:text-gray-500 text-[9px]">{{ formatUsdFromU(used) }}/{{ formatUsdFromU(limit) }}</span>
   </span>
 </template>

@@ -13,6 +13,19 @@ import { i18n, getLocale } from '@/i18n'
 export const U_TO_RMB = 0.1
 /** 1 RMB = 10 U */
 export const RMB_TO_U = 10
+/** 1 USD = 70 U (用于展示换算) */
+export const USD_TO_U = 70
+
+/**
+ * U 值换算为美元字符串
+ * 例：350 → "$5.00"，0.35 → "$0.0050"
+ */
+export function formatUsdFromU(uValue: number): string {
+  const usd = uValue / USD_TO_U
+  if (usd >= 1) return `$${usd.toFixed(2)}`
+  if (usd >= 0.01) return `$${usd.toFixed(4)}`
+  return `$${usd.toFixed(6)}`
+}
 
 /**
  * 格式化 U 代币余额（大额，2位小数）

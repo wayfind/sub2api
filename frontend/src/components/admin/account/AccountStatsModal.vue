@@ -58,14 +58,17 @@
             </div>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">
               {{ formatCost(stats.summary.total_cost) }} U
+              <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.total_cost) }}</span>
             </p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.stats.accumulatedCost') }}
               <span class="text-gray-400 dark:text-gray-500">
-                ({{ t('usage.userBilled') }}: {{ formatCost(stats.summary.total_user_cost) }} U ·
+                ({{ t('usage.userBilled') }}: {{ formatCost(stats.summary.total_user_cost) }} U
+                <span class="text-[10px]">{{ formatUsdFromU(stats.summary.total_user_cost) }}</span> ·
                 {{ t('admin.accounts.stats.standardCost') }}: {{
                   formatCost(stats.summary.total_standard_cost)
-                }} U)
+                }} U
+                <span class="text-[10px]">{{ formatUsdFromU(stats.summary.total_standard_cost) }}</span>)
               </span>
             </p>
           </div>
@@ -108,6 +111,7 @@
             </div>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">
               {{ formatCost(stats.summary.avg_daily_cost) }} U
+              <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.avg_daily_cost) }}</span>
             </p>
              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {{
@@ -116,7 +120,8 @@
                 })
               }}
               <span class="text-gray-400 dark:text-gray-500">
-                ({{ t('usage.userBilled') }}: {{ formatCost(stats.summary.avg_daily_user_cost) }} U)
+                ({{ t('usage.userBilled') }}: {{ formatCost(stats.summary.avg_daily_user_cost) }} U
+                <span class="text-[10px]">{{ formatUsdFromU(stats.summary.avg_daily_user_cost) }}</span>)
               </span>
             </p>
           </div>
@@ -170,13 +175,15 @@
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.accountBilled') }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.today?.cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.today?.cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.today?.cost || 0) }}</span></span
                 >
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.userBilled') }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.today?.user_cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.today?.user_cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.today?.user_cost || 0) }}</span></span
                 >
               </div>
               <div class="flex items-center justify-between">
@@ -220,13 +227,15 @@
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.accountBilled') }}</span>
                 <span class="text-sm font-semibold text-orange-600 dark:text-orange-400"
-                  >{{ formatCost(stats.summary.highest_cost_day?.cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.highest_cost_day?.cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.highest_cost_day?.cost || 0) }}</span></span
                 >
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.userBilled') }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.highest_cost_day?.user_cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.highest_cost_day?.user_cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.highest_cost_day?.user_cost || 0) }}</span></span
                 >
               </div>
               <div class="flex items-center justify-between">
@@ -274,13 +283,15 @@
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.accountBilled') }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.highest_request_day?.cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.highest_request_day?.cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.highest_request_day?.cost || 0) }}</span></span
                 >
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('usage.userBilled') }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.highest_request_day?.user_cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.highest_request_day?.user_cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.highest_request_day?.user_cost || 0) }}</span></span
                 >
               </div>
             </div>
@@ -385,7 +396,8 @@
                   t('admin.accounts.stats.todayCost')
                 }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-white"
-                  >{{ formatCost(stats.summary.today?.cost || 0) }} U</span
+                  >{{ formatCost(stats.summary.today?.cost || 0) }} U
+                  <span class="ml-1 text-gray-400 dark:text-gray-500 text-[10px]">{{ formatUsdFromU(stats.summary.today?.cost || 0) }}</span></span
                 >
               </div>
             </div>
@@ -468,6 +480,7 @@ import ModelDistributionChart from '@/components/charts/ModelDistributionChart.v
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
+import { formatUsdFromU } from '@/utils/format'
 import type { Account, AccountUsageStatsResponse } from '@/types'
 
 ChartJS.register(
@@ -572,7 +585,7 @@ const lineChartOptions = computed(() => ({
           const label = context.dataset.label || ''
           const value = context.raw
           if (label.includes('U')) {
-            return `${label}: ${formatCost(value)} U`
+            return `${label}: ${formatCost(value)} U (${formatUsdFromU(value)})`
           }
           return `${label}: ${formatNumber(value)}`
         }
@@ -605,7 +618,7 @@ const lineChartOptions = computed(() => ({
         font: {
           size: 10
         },
-        callback: (value: string | number) => formatCost(Number(value)) + ' U'
+        callback: (value: string | number) => formatCost(Number(value)) + ' U (' + formatUsdFromU(Number(value)) + ')'
       },
       title: {
         display: true,

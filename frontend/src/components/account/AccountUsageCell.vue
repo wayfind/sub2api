@@ -390,6 +390,7 @@
           </span>
           <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
             A {{ formatKeyCost }} U
+            <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(todayStats?.cost || 0) }}</span>
           </span>
           <span
             v-if="todayStats.user_cost != null"
@@ -397,6 +398,7 @@
             :title="t('usage.userBilled')"
           >
             Usr {{ formatKeyUserCost }} U
+            <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(todayStats?.user_cost || 0) }}</span>
           </span>
         </div>
       </div>
@@ -444,7 +446,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { Account, AccountUsageInfo, GeminiCredentials, WindowStats } from '@/types'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
-import { formatCompactNumber } from '@/utils/format'
+import { formatCompactNumber, formatUsdFromU } from '@/utils/format'
 import UsageProgressBar from './UsageProgressBar.vue'
 import AccountQuotaInfo from './AccountQuotaInfo.vue'
 

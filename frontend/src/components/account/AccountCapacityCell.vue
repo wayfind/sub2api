@@ -32,6 +32,7 @@
         <span class="font-mono">{{ formatCost(currentWindowCost) }} U</span>
         <span class="text-gray-400 dark:text-gray-500">/</span>
         <span class="font-mono">{{ formatCost(account.window_cost_limit) }} U</span>
+        <span class="ml-0.5 text-gray-400 dark:text-gray-500 text-[9px]">{{ formatUsdFromU(currentWindowCost) }}/{{ formatUsdFromU(account.window_cost_limit || 0) }}</span>
       </span>
     </div>
 
@@ -83,6 +84,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
+import { formatUsdFromU } from '@/utils/format'
 import QuotaBadge from './QuotaBadge.vue'
 
 const props = defineProps<{
