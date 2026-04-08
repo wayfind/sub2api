@@ -1759,6 +1759,7 @@ export default {
       deleteConfirm: 'Are you sure you want to delete plan "{name}"? This action cannot be undone.',
       visibility: {
         public: 'Public',
+        private: 'Private',
         hidden: 'Hidden'
       },
       status: {

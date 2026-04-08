@@ -1839,6 +1839,7 @@ export default {
       deleteConfirm: '确定要删除计划 "{name}" 吗？此操作不可撤销。',
       visibility: {
         public: '公开',
+        private: '私有',
         hidden: '隐藏'
       },
       status: {

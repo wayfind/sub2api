@@ -528,11 +528,13 @@ const statusOptions = computed(() => [
 const visibilityOptions = computed(() => [
   { value: '', label: t('admin.subscriptionPlans.allVisibility') },
   { value: 'public', label: t('admin.subscriptionPlans.visibility.public') },
+  { value: 'private', label: t('admin.subscriptionPlans.visibility.private') },
   { value: 'hidden', label: t('admin.subscriptionPlans.visibility.hidden') }
 ])
 
 const visibilityFormOptions = computed(() => [
   { value: 'public', label: t('admin.subscriptionPlans.visibility.public') },
+  { value: 'private', label: t('admin.subscriptionPlans.visibility.private') },
   { value: 'hidden', label: t('admin.subscriptionPlans.visibility.hidden') }
 ])
 
