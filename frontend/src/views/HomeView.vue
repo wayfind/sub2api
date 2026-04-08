@@ -42,7 +42,7 @@
         <!-- Logo -->
         <div class="flex items-center">
           <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
-            <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
+            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
           </div>
         </div>
 
@@ -141,8 +141,8 @@
               <span
                 class="inline-flex items-center gap-2 rounded-full border border-gray-200/50 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 dark:border-dark-700/50 dark:bg-dark-800/80 dark:text-dark-200"
               >
-                <Icon name="server" size="xs" />
-                {{ t('home.tags.multiModel') }}
+                <Icon name="bolt" size="xs" />
+                {{ t('home.tags.metacodeOptimized') }}
               </span>
               <span
                 class="inline-flex items-center gap-2 rounded-full border border-gray-200/50 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 dark:border-dark-700/50 dark:bg-dark-800/80 dark:text-dark-200"
@@ -219,32 +219,67 @@
           </div>
         </div>
 
-        <!-- ===== Section 2: Core Differentiators (2x2 grid) ===== -->
+        <!-- ===== Section 2: Product Suite ===== -->
         <div class="mb-20">
-          <h2 class="mb-8 text-center text-2xl font-bold text-gray-900 dark:text-white">
-            {{ t('home.features.title') }}
-          </h2>
-          <div class="grid gap-6 md:grid-cols-2">
-            <div
-              v-for="feat in features"
-              :key="feat.key"
-              class="group rounded-2xl border bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:bg-dark-800/60"
-              :class="feat.highlight
-                ? 'border-primary-200/50 dark:border-primary-800/30'
-                : 'border-gray-200/50 dark:border-dark-700/50'"
-            >
-              <div
-                class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl shadow-lg transition-transform group-hover:scale-110"
-                :class="[`bg-gradient-to-br ${feat.gradient}`, feat.shadow]"
-              >
-                <Icon :name="feat.icon" size="lg" class="text-white" />
+          <div class="mb-8 text-center">
+            <h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+              {{ t('home.products.title') }}
+            </h2>
+            <p class="text-sm text-gray-600 dark:text-dark-400">
+              {{ t('home.products.subtitle') }}
+            </p>
+          </div>
+          <div class="grid gap-6 md:grid-cols-3">
+            <!-- Gateway -->
+            <div class="group rounded-2xl border border-primary-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-primary-800/30 dark:bg-dark-800/60">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-110">
+                <Icon name="shield" size="lg" class="text-white" />
               </div>
-              <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-                {{ t(`home.features.${feat.key}`) }}
-              </h3>
-              <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-                {{ t(`home.features.${feat.key}Desc`) }}
-              </p>
+              <div class="mb-1 text-xs font-medium uppercase tracking-wider text-primary-600 dark:text-primary-400">{{ t('home.products.gateway.tagline') }}</div>
+              <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{{ t('home.products.gateway.name') }}</h3>
+              <p class="mb-4 text-sm text-gray-600 dark:text-dark-400">{{ t('home.products.gateway.description') }}</p>
+              <ul class="space-y-2 text-sm text-gray-600 dark:text-dark-400">
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-primary-500" /> {{ t('home.products.gateway.f1') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-primary-500" /> {{ t('home.products.gateway.f2') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-primary-500" /> {{ t('home.products.gateway.f3') }}</li>
+              </ul>
+            </div>
+
+            <!-- MetaCode -->
+            <div class="group rounded-2xl border border-emerald-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/10 dark:border-emerald-800/30 dark:bg-dark-800/60">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30 transition-transform group-hover:scale-110">
+                <Icon name="bolt" size="lg" class="text-white" />
+              </div>
+              <div class="mb-1 text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ t('home.products.metacode.tagline') }}</div>
+              <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{{ t('home.products.metacode.name') }}</h3>
+              <p class="mb-4 text-sm text-gray-600 dark:text-dark-400">{{ t('home.products.metacode.description') }}</p>
+              <ul class="mb-4 space-y-2 text-sm text-gray-600 dark:text-dark-400">
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-emerald-500" /> {{ t('home.products.metacode.f1') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-emerald-500" /> {{ t('home.products.metacode.f2') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-emerald-500" /> {{ t('home.products.metacode.f3') }}</li>
+              </ul>
+              <a href="https://metacode.pages.dev/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                {{ t('home.products.metacode.cta') }}
+                <Icon name="arrowRight" size="xs" />
+              </a>
+            </div>
+
+            <!-- MetaWork -->
+            <div class="group relative rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 dark:border-dark-700/50 dark:bg-dark-800/60">
+              <span class="absolute right-4 top-4 rounded-full border border-purple-200 bg-purple-50 px-3 py-0.5 text-[10px] font-semibold text-purple-600 dark:border-purple-800/50 dark:bg-purple-900/20 dark:text-purple-400">
+                {{ t('home.products.metawork.badge') }}
+              </span>
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 transition-transform group-hover:scale-110">
+                <Icon name="cube" size="lg" class="text-white" />
+              </div>
+              <div class="mb-1 text-xs font-medium uppercase tracking-wider text-purple-600 dark:text-purple-400">{{ t('home.products.metawork.tagline') }}</div>
+              <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{{ t('home.products.metawork.name') }}</h3>
+              <p class="mb-4 text-sm text-gray-600 dark:text-dark-400">{{ t('home.products.metawork.description') }}</p>
+              <ul class="space-y-2 text-sm text-gray-500 dark:text-dark-500">
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-purple-400" /> {{ t('home.products.metawork.f1') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-purple-400" /> {{ t('home.products.metawork.f2') }}</li>
+                <li class="flex items-start gap-2"><Icon name="check" size="xs" class="mt-0.5 shrink-0 text-purple-400" /> {{ t('home.products.metawork.f3') }}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -305,44 +340,89 @@
           </div>
         </div>
 
-        <!-- ===== Section 4: Model Matrix ===== -->
+        <!-- ===== Section 4: Usage Scenarios + Price Comparison ===== -->
         <div class="mb-20">
           <div class="mb-8 text-center">
             <h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-              {{ t('home.providers.title') }}
+              {{ t('home.scenarios.title') }}
             </h2>
             <p class="text-sm text-gray-600 dark:text-dark-400">
-              {{ t('home.providers.subtitle') }}
+              {{ t('home.scenarios.subtitle') }}
             </p>
           </div>
-          <div class="grid gap-4 md:grid-cols-2">
+
+          <!-- Scenario Cards — large, clear client + model combos -->
+          <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             <div
-              v-for="provider in providers"
-              :key="provider.key"
-              class="rounded-2xl border p-5 backdrop-blur-sm"
-              :class="provider.highlight
-                ? 'border-primary-200 bg-gradient-to-br from-primary-50/80 to-white/60 dark:border-primary-800/40 dark:from-primary-900/10 dark:to-dark-800/60'
-                : provider.dimmed
-                  ? 'border-gray-200/50 bg-white/40 opacity-70 dark:border-dark-700/50 dark:bg-dark-800/40'
-                  : 'border-gray-200/50 bg-white/60 dark:border-dark-700/50 dark:bg-dark-800/60'"
+              v-for="s in scenarios"
+              :key="s.key"
+              class="rounded-2xl border p-6 backdrop-blur-sm transition-all duration-300"
+              :class="s.highlight
+                ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white/60 shadow-md dark:border-emerald-800/40 dark:from-emerald-900/10 dark:to-dark-800/60'
+                : 'border-gray-200/50 bg-white/60 dark:border-dark-700/50 dark:bg-dark-800/60'"
             >
-              <div class="mb-2 flex items-center gap-3">
-                <div
-                  class="flex h-9 w-9 items-center justify-center rounded-lg"
-                  :class="`bg-gradient-to-br ${provider.gradient}`"
-                >
-                  <span class="text-sm font-bold text-white">{{ provider.letter }}</span>
+              <span
+                class="mb-4 inline-block rounded-full px-3 py-1 text-xs font-semibold"
+                :class="s.highlight
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-400'"
+              >{{ t(`home.scenarios.${s.key}.label`) }}</span>
+              <div class="mb-1 text-lg font-bold text-gray-900 dark:text-white">
+                {{ t(`home.scenarios.${s.key}.client`) }}
+              </div>
+              <div class="mb-1 text-base font-semibold text-primary-600 dark:text-primary-400">
+                + {{ t(`home.scenarios.${s.key}.model`) }}
+              </div>
+              <p class="text-sm leading-relaxed text-gray-500 dark:text-dark-400">
+                {{ t(`home.scenarios.${s.key}.desc`) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Price Comparison Panel — 3 models vs official pricing -->
+          <div class="mt-10 rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/60 md:p-8">
+            <h3 class="mb-6 text-center text-lg font-bold text-gray-900 dark:text-white">
+              {{ t('home.scenarios.priceCompare.title') }}
+            </h3>
+            <div v-if="priceCompareData.length > 0" class="grid gap-6 md:grid-cols-3">
+              <div
+                v-for="item in priceCompareData"
+                :key="item.model"
+                class="text-center"
+              >
+                <!-- Model name -->
+                <div class="mb-2 font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ item.model }}</div>
+                <!-- Our price -->
+                <div class="mb-1 text-2xl font-bold text-primary-600 dark:text-primary-400">
+                  {{ formatUsdFromU(item.ourOutput) }}<span class="text-sm font-normal text-gray-400">/MTok</span>
                 </div>
-                <div>
-                  <span class="font-semibold text-gray-900 dark:text-white">{{ t(`home.providers.${provider.key}.label`) }}</span>
-                  <span
-                    class="ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium"
-                    :class="provider.badgeClass"
-                  >{{ t(`home.providers.${provider.key}.tag`) }}</span>
+                <!-- Official price strikethrough -->
+                <div class="mb-2 text-sm text-gray-400 line-through dark:text-dark-500">
+                  {{ t('home.scenarios.priceCompare.official') }} {{ formatUsdFromU(item.officialOutput) }}/MTok
+                </div>
+                <!-- Discount badge -->
+                <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  {{ t('home.scenarios.priceCompare.discount') }}
+                </span>
+                <!-- Best client -->
+                <div class="mt-2 text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('home.scenarios.priceCompare.bestWith') }} {{ item.bestClient }}
                 </div>
               </div>
-              <p class="text-sm text-gray-500 dark:text-dark-400">{{ t(`home.providers.${provider.key}.models`) }}</p>
             </div>
+            <div v-else class="py-4 text-center text-sm text-gray-400">
+              {{ t('home.scenarios.priceCompare.loading') }}
+            </div>
+          </div>
+
+          <div class="mt-6 text-center">
+            <router-link
+              to="/pricing"
+              class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              {{ t('home.scenarios.viewPricing') }}
+              <Icon name="arrowRight" size="sm" />
+            </router-link>
           </div>
         </div>
 
@@ -400,14 +480,6 @@
           >
             {{ t('home.docs') }}
           </a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            GitHub
-          </a>
         </div>
       </div>
     </footer>
@@ -418,6 +490,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
+import { formatUsdFromU, USD_TO_U } from '@/utils/format'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -430,11 +503,11 @@ const appStore = useAppStore()
 // NOTE: Tailwind class tokens (e.g. 'from-primary-500') appear as full strings in source,
 // so the purge scanner matches them correctly even though they're in JS variables.
 
-const features = [
-  { key: 'anthropicNative', icon: 'shield', gradient: 'from-primary-500 to-primary-600', shadow: 'shadow-primary-500/30', highlight: true },
-  { key: 'multiModel', icon: 'server', gradient: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/30', highlight: false },
-  { key: 'stableCoding', icon: 'bolt', gradient: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/30', highlight: false },
-  { key: 'enterpriseHA', icon: 'users', gradient: 'from-purple-500 to-purple-600', shadow: 'shadow-purple-500/30', highlight: false },
+const scenarios = [
+  { key: 'best', highlight: false },
+  { key: 'value', highlight: false },
+  { key: 'domestic', highlight: true },
+  { key: 'enterprise', highlight: false },
 ] as const
 
 const plans = [
@@ -442,13 +515,6 @@ const plans = [
   { key: 'pro', popular: true },
   { key: 'flagship', popular: false },
   { key: 'ultimate', popular: false },
-] as const
-
-const providers = [
-  { key: 'anthropic', letter: 'A', gradient: 'from-primary-500 to-primary-600', badgeClass: 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400', highlight: true, dimmed: false },
-  { key: 'openai', letter: 'O', gradient: 'from-green-500 to-green-600', badgeClass: 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-dark-400', highlight: false, dimmed: false },
-  { key: 'domestic', letter: 'CN', gradient: 'from-rose-500 to-pink-600', badgeClass: 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400', highlight: false, dimmed: false },
-  { key: 'more', letter: '+', gradient: 'from-gray-500 to-gray-600', badgeClass: 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-dark-400', highlight: false, dimmed: true },
 ] as const
 
 const planFeatures = computed(() => {
@@ -479,7 +545,6 @@ const isDark = ref(document.documentElement.classList.contains('dark'))
 
 // ── External links ──
 
-const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 
 // ── Auth state ──
 
@@ -493,6 +558,36 @@ const userInitial = computed(() => {
 })
 
 const currentYear = computed(() => new Date().getFullYear())
+
+// ── Price comparison data (from pricing API, cached) ──
+
+interface PriceCompareItem {
+  model: string
+  ourOutput: number
+  officialOutput: number
+  bestClient: string
+}
+
+const priceCompareData = ref<PriceCompareItem[]>([
+  {
+    model: 'Claude Sonnet 4.6',
+    ourOutput: 15 * 0.83 * USD_TO_U,   // $12.45/MTok → U
+    officialOutput: 15 * USD_TO_U,      // $15/MTok → U (Anthropic official, 2026-04)
+    bestClient: 'Claude Code',
+  },
+  {
+    model: 'Claude Opus 4.6',
+    ourOutput: 25 * 0.83 * USD_TO_U,   // $20.75/MTok → U
+    officialOutput: 25 * USD_TO_U,      // $25/MTok → U (Anthropic official, 2026-04)
+    bestClient: 'Claude Code',
+  },
+  {
+    model: 'MiniMax M2.5',
+    ourOutput: 1.1 * 0.83 * USD_TO_U,  // $0.913/MTok → U
+    officialOutput: 1.1 * USD_TO_U,     // $1.1/MTok → U (MiniMax official, 2026-04)
+    bestClient: 'MetaCode',
+  },
+])
 
 function toggleTheme() {
   isDark.value = !isDark.value

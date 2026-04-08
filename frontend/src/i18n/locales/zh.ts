@@ -12,24 +12,81 @@ export default {
     viewPlans: '查看套餐',
     // Hero
     heroTitle: 'Metask',
-    heroSubtitle: '为 Claude Code 深度优化的 AI 统一网关',
-    heroDescription: '一站式接入 Claude / GPT-5.4 / GLM-5.1 / MiniMax M2.5，完整支持 web search、缓存、计划、subagent 等复杂能力',
+    heroSubtitle: 'AI 编码基础设施，而非简单的 API 中转',
+    heroDescription: '元任务网关 + MetaCode + MetaWork，为中国开发者构建从模型接入到编码工具的完整技术栈',
     tags: {
       anthropicNative: 'Anthropic 协议原生',
-      multiModel: '多模型一站式',
+      metacodeOptimized: 'MetaCode 国产优化',
       enterprise: '企业级订阅'
     },
-    // 核心差异
-    features: {
-      title: '核心优势',
-      anthropicNative: 'Anthropic 协议原生支持',
-      anthropicNativeDesc: '完整支持 Claude Code 客户端的 web search、缓存、计划模式、subagent 等复杂能力，不是简单的 API 转发。',
-      multiModel: '多模型一站式',
-      multiModelDesc: 'Claude 原生 + GPT-5.4 + GLM-5.1 + MiniMax M2.5，一个 key 全覆盖，无缝切换。',
-      stableCoding: '中国企业的稳定 Coding 方案',
-      stableCodingDesc: '针对国内网络环境优化，稳定低延迟，无需折腾代理和网络配置，开箱即用。',
-      enterpriseHA: '企业级高可用',
-      enterpriseHADesc: '多上游账号池智能调度、负载均衡、会话粘性，支持团队大规模并发使用。'
+    // 产品矩阵
+    products: {
+      title: '产品矩阵',
+      subtitle: '三个产品，覆盖从 API 接入到编码工具的完整链路',
+      gateway: {
+        name: '元任务网关',
+        tagline: 'AI Gateway',
+        description: '统一 API，智能调度，稳定兜底',
+        f1: 'Anthropic 协议原生，完整 CC 能力',
+        f2: '多上游账号池智能负载均衡',
+        f3: '先进模型不可用时，国产模型自动兜底'
+      },
+      metacode: {
+        name: 'MetaCode',
+        tagline: 'AI 编码助手',
+        description: '为国产模型深度优化的 AI 编码助手',
+        f1: '各大编码榜单提升约 15%',
+        f2: '响应速度更快，体验接近 Claude Code',
+        f3: '完美搭配 MiniMax M2.5、GLM-5.1',
+        cta: '了解 MetaCode'
+      },
+      metawork: {
+        name: 'MetaWork',
+        tagline: 'GUI 编码工具',
+        description: '图形化 AI 编码，零门槛上手',
+        f1: '无需命令行，可视化操作',
+        f2: '内置项目管理与协作',
+        f3: '支持全平台模型接入',
+        badge: '即将推出'
+      }
+    },
+    // 使用场景
+    scenarios: {
+      title: '选择适合你的方案',
+      subtitle: '不同场景，最优组合',
+      best: {
+        label: '极致体验',
+        client: 'Claude Code',
+        model: 'Claude Opus 4.6',
+        desc: '原生协议，最强 AI 编码能力'
+      },
+      value: {
+        label: '性价比之选',
+        client: 'Claude Code',
+        model: 'GPT-5.4',
+        desc: 'CC 完整体验，OpenAI 价格'
+      },
+      domestic: {
+        label: '国产最优',
+        client: 'MetaCode',
+        model: 'MiniMax M2.5',
+        desc: '榜单 +15%，速度快，成本最低',
+        highlight: true
+      },
+      enterprise: {
+        label: '企业稳定',
+        client: 'CC / MetaCode',
+        model: '自动 fallback',
+        desc: '先进模型不可用时，国产模型自动兜底'
+      },
+      priceCompare: {
+        title: '主流模型价格对比',
+        official: '官方',
+        bestWith: '推荐搭配',
+        loading: '加载中...',
+        discount: '8.3 折'
+      },
+      viewPricing: '查看详细模型定价'
     },
     // 定价套餐
     pricing: {
@@ -61,31 +118,6 @@ export default {
         price: '3,000',
         highlight: '官方 API 8 折以下',
         features: ['全球最先进开源模型', '不限团队规模', 'SLA 保障']
-      }
-    },
-    // 模型矩阵
-    providers: {
-      title: '支持的模型',
-      subtitle: '全面覆盖主流 AI 模型，一个 API 全部搞定',
-      anthropic: {
-        label: 'Anthropic',
-        tag: '协议级优化 · CC 完整体验',
-        models: 'Claude Opus 4.6 / Sonnet 4.6 / Haiku 4.5'
-      },
-      openai: {
-        label: 'OpenAI',
-        tag: '全系列支持',
-        models: 'GPT-5.4 / o3 / GPT-4.1'
-      },
-      domestic: {
-        label: '国产模型',
-        tag: '推荐搭配 MetaCode',
-        models: 'GLM-5.1 / MiniMax M2.5'
-      },
-      more: {
-        label: '更多模型',
-        tag: '持续接入中',
-        models: 'Gemini / DeepSeek / Qwen ...'
       }
     },
     // 关于我们

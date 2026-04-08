@@ -12,24 +12,81 @@ export default {
     viewPlans: 'View Plans',
     // Hero
     heroTitle: 'Metask',
-    heroSubtitle: 'AI Unified Gateway, Deeply Optimized for Claude Code',
-    heroDescription: 'Access Claude / GPT-5.4 / GLM-5.1 / MiniMax M2.5 in one place, with full support for web search, caching, planning, subagent and more',
+    heroSubtitle: 'AI Coding Infrastructure, Not Just an API Proxy',
+    heroDescription: 'Metask Gateway + MetaCode + MetaWork — a complete tech stack from model access to coding tools, built for developers',
     tags: {
       anthropicNative: 'Anthropic Native',
-      multiModel: 'Multi-Model',
+      metacodeOptimized: 'MetaCode Optimized',
       enterprise: 'Enterprise Plans'
     },
-    // Core Differentiators
-    features: {
-      title: 'Core Advantages',
-      anthropicNative: 'Anthropic Protocol Native Support',
-      anthropicNativeDesc: 'Full support for Claude Code client features: web search, caching, planning mode, subagent — not just simple API forwarding.',
-      multiModel: 'Multi-Model, One Key',
-      multiModelDesc: 'Native Claude + GPT-5.4 + GLM-5.1 + MiniMax M2.5, all covered with a single key, seamless switching.',
-      stableCoding: 'Stable Coding for China',
-      stableCodingDesc: 'Optimized for domestic network conditions. Stable, low latency, no proxy hassle — works out of the box.',
-      enterpriseHA: 'Enterprise High Availability',
-      enterpriseHADesc: 'Multi-upstream account pool with smart routing, load balancing, session affinity for large-scale team usage.'
+    // Products
+    products: {
+      title: 'Product Suite',
+      subtitle: 'Three products covering the full chain from API access to coding tools',
+      gateway: {
+        name: 'Metask Gateway',
+        tagline: 'AI Gateway',
+        description: 'Unified API, smart routing, stable fallback',
+        f1: 'Anthropic protocol native, full CC capabilities',
+        f2: 'Multi-upstream account pool with smart load balancing',
+        f3: 'Auto fallback to domestic models when advanced models are unavailable'
+      },
+      metacode: {
+        name: 'MetaCode',
+        tagline: 'AI Coding Assistant',
+        description: 'AI coding assistant deeply optimized for domestic models',
+        f1: '~15% improvement on major coding benchmarks',
+        f2: 'Faster response, experience close to Claude Code',
+        f3: 'Perfect match with MiniMax M2.5, GLM-5.1',
+        cta: 'Learn about MetaCode'
+      },
+      metawork: {
+        name: 'MetaWork',
+        tagline: 'GUI Coding Tool',
+        description: 'Visual AI coding, zero barrier to entry',
+        f1: 'No CLI needed, visual interface',
+        f2: 'Built-in project management & collaboration',
+        f3: 'Full model support across platforms',
+        badge: 'Coming Soon'
+      }
+    },
+    // Scenarios
+    scenarios: {
+      title: 'Choose Your Setup',
+      subtitle: 'Different needs, optimal combinations',
+      best: {
+        label: 'Best Experience',
+        client: 'Claude Code',
+        model: 'Claude Opus 4.6',
+        desc: 'Native protocol, top AI coding power'
+      },
+      value: {
+        label: 'Best Value',
+        client: 'Claude Code',
+        model: 'GPT-5.4',
+        desc: 'Full CC experience at OpenAI pricing'
+      },
+      domestic: {
+        label: 'Domestic Best',
+        client: 'MetaCode',
+        model: 'MiniMax M2.5',
+        desc: 'Benchmark +15%, fast, lowest cost',
+        highlight: true
+      },
+      enterprise: {
+        label: 'Enterprise Stable',
+        client: 'CC / MetaCode',
+        model: 'Auto fallback',
+        desc: 'Domestic model fallback when advanced models are down'
+      },
+      priceCompare: {
+        title: 'Model Price Comparison',
+        official: 'Official',
+        bestWith: 'Best with',
+        loading: 'Loading...',
+        discount: '17% OFF'
+      },
+      viewPricing: 'View detailed model pricing'
     },
     // Pricing
     pricing: {
@@ -61,31 +118,6 @@ export default {
         price: '3,000',
         highlight: 'Below official API pricing',
         features: ['Top open-source models', 'Unlimited team size', 'SLA guarantee']
-      }
-    },
-    // Model Matrix
-    providers: {
-      title: 'Supported Models',
-      subtitle: 'Comprehensive coverage of leading AI models, one API for all',
-      anthropic: {
-        label: 'Anthropic',
-        tag: 'Protocol-level optimization · Full CC experience',
-        models: 'Claude Opus 4.6 / Sonnet 4.6 / Haiku 4.5'
-      },
-      openai: {
-        label: 'OpenAI',
-        tag: 'Full series support',
-        models: 'GPT-5.4 / o3 / GPT-4.1'
-      },
-      domestic: {
-        label: 'Domestic Models',
-        tag: 'Recommended with MetaCode',
-        models: 'GLM-5.1 / MiniMax M2.5'
-      },
-      more: {
-        label: 'More Models',
-        tag: 'Continuously adding',
-        models: 'Gemini / DeepSeek / Qwen ...'
       }
     },
     // About Us
