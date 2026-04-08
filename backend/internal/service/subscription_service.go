@@ -1228,13 +1228,16 @@ type MergedSubscriptionState struct {
 	NeedsMaintenance bool
 }
 
-// FIFOTarget 返回最早过期的活跃订阅（FIFOQueue[0]），如果队列为空则返回 nil。
+// FIFOTarget 返回第一个未过期的活跃订阅，如果队列为空或全部过期则返回 nil。
 // 用于需要单个"代表性订阅"的场景（状态检查、展示）。
 func (s *MergedSubscriptionState) FIFOTarget() *UserSubscription {
-	if len(s.FIFOQueue) == 0 {
-		return nil
+	now := time.Now()
+	for i := range s.FIFOQueue {
+		if s.FIFOQueue[i].ExpiresAt.After(now) {
+			return &s.FIFOQueue[i]
+		}
 	}
-	return &s.FIFOQueue[0]
+	return nil
 }
 
 // recalcUsage 重新计算合并用量（窗口重置后调用）
