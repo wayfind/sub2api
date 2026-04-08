@@ -180,6 +180,21 @@ export default {
     queryFailedRetry: '查询失败，请稍后重试',
   },
 
+  // Pricing page
+  pricing: {
+    title: '模型价格',
+    subtitle: '查看所有可用模型的价格和折扣信息',
+    searchPlaceholder: '搜索模型名称...',
+    modelName: '模型',
+    inputPrice: '输入价格 / MTok',
+    outputPrice: '输出价格 / MTok',
+    models: '个模型',
+    lastUpdated: '价格更新时间',
+    noData: '暂无价格数据',
+    noResults: '没有匹配的模型',
+    retry: '重试',
+  },
+
   // Setup Wizard
   setup: {
     title: 'Sub2API 安装向导',

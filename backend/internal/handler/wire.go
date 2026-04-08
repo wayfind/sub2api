@@ -96,6 +96,7 @@ func ProvideHandlers(
 	totpHandler *TotpHandler,
 	wechatPayHandler *WechatPayHandler,
 	alipayHandler *AlipayHandler,
+	pricingHandler *PricingHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -116,6 +117,7 @@ func ProvideHandlers(
 		Totp:          totpHandler,
 		WechatPay:     wechatPayHandler,
 		Alipay:        alipayHandler,
+		Pricing:       pricingHandler,
 	}
 }
 
@@ -136,6 +138,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 	NewWechatPayHandler,
 	NewAlipayHandler,
+	NewPricingHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

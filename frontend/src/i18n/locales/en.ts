@@ -180,6 +180,21 @@ export default {
     queryFailedRetry: 'Query failed, please try again later',
   },
 
+  // Pricing page
+  pricing: {
+    title: 'Model Pricing',
+    subtitle: 'View pricing and discount information for all available models',
+    searchPlaceholder: 'Search model name...',
+    modelName: 'Model',
+    inputPrice: 'Input / MTok',
+    outputPrice: 'Output / MTok',
+    models: 'models',
+    lastUpdated: 'Last updated',
+    noData: 'No pricing data available',
+    noResults: 'No matching models found',
+    retry: 'Retry',
+  },
+
   // Setup Wizard
   setup: {
     title: 'Sub2API Setup',
