@@ -11,13 +11,13 @@ export default {
     goToDashboard: 'Go to Dashboard',
     viewPlans: 'View Plans',
     // Hero
-    heroTitle: 'Metask',
-    heroSubtitle: 'AI Coding Infrastructure, Not Just an API Proxy',
-    heroDescription: 'Metask Gateway + MetaCode + MetaWork — a complete tech stack from model access to coding tools, built for developers',
+    heroTitle: 'Metask Gateway',
+    heroSubtitle: 'From AI Coding to AI Everything',
+    heroDescription: 'More than an API proxy — Metask Gateway is your unified entry point to the world\'s AI models. From Claude Code to enterprise AI workflows, one gateway connects it all.',
     tags: {
-      anthropicNative: 'Anthropic Native',
-      metacodeOptimized: 'MetaCode Optimized',
-      enterprise: 'Enterprise Plans'
+      anthropicNative: 'Claude Native',
+      multiModel: 'All Models, One API',
+      enterprise: 'Enterprise Fallback'
     },
     // Products
     products: {

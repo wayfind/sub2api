@@ -123,10 +123,10 @@
             >
               {{ t('home.heroTitle') }}
             </h1>
-            <p class="mb-4 text-lg font-medium text-primary-600 dark:text-primary-400 md:text-xl">
+            <p class="mb-4 text-lg font-medium italic text-primary-600 dark:text-primary-400 md:text-xl">
               {{ t('home.heroSubtitle') }}
             </p>
-            <p class="mb-8 text-base text-gray-600 dark:text-dark-300">
+            <p class="mb-8 text-base leading-relaxed text-gray-600 dark:text-dark-300">
               {{ t('home.heroDescription') }}
             </p>
 
@@ -141,13 +141,13 @@
               <span
                 class="inline-flex items-center gap-2 rounded-full border border-gray-200/50 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 dark:border-dark-700/50 dark:bg-dark-800/80 dark:text-dark-200"
               >
-                <Icon name="bolt" size="xs" />
-                {{ t('home.tags.metacodeOptimized') }}
+                <Icon name="server" size="xs" />
+                {{ t('home.tags.multiModel') }}
               </span>
               <span
                 class="inline-flex items-center gap-2 rounded-full border border-gray-200/50 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 dark:border-dark-700/50 dark:bg-dark-800/80 dark:text-dark-200"
               >
-                <Icon name="creditCard" size="xs" />
+                <Icon name="bolt" size="xs" />
                 {{ t('home.tags.enterprise') }}
               </span>
             </div>

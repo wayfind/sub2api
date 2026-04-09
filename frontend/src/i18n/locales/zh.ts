@@ -11,13 +11,13 @@ export default {
     goToDashboard: '进入控制台',
     viewPlans: '查看套餐',
     // Hero
-    heroTitle: 'Metask',
-    heroSubtitle: 'AI 编码基础设施，而非简单的 API 中转',
-    heroDescription: '元任务网关 + MetaCode + MetaWork，为中国开发者构建从模型接入到编码工具的完整技术栈',
+    heroTitle: '元任务网关',
+    heroSubtitle: 'From AI Coding to AI Everything',
+    heroDescription: '不只是 API 中转——元任务网关是你接入全球 AI 模型的统一入口。从 Claude Code 编码到企业 AI 工作流，一个网关连接一切。',
     tags: {
-      anthropicNative: 'Anthropic 协议原生',
-      metacodeOptimized: 'MetaCode 国产优化',
-      enterprise: '企业级订阅'
+      anthropicNative: 'Claude 协议原生',
+      multiModel: '全模型统一接入',
+      enterprise: '企业级稳定兜底'
     },
     // 产品矩阵
     products: {
