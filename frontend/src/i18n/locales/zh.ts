@@ -42,10 +42,10 @@ export default {
       },
       metawork: {
         name: 'MetaWork',
-        tagline: 'GUI 编码工具',
-        description: '图形化 AI 编码，零门槛上手',
+        tagline: 'AI 办公助手',
+        description: '图形化 AI 办公，零门槛上手',
         f1: '无需命令行，可视化操作',
-        f2: '内置项目管理与协作',
+        f2: '内置文档、表格、报告等办公场景',
         f3: '支持全平台模型接入',
         badge: '即将推出'
       }

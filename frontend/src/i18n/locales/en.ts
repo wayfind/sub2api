@@ -42,10 +42,10 @@ export default {
       },
       metawork: {
         name: 'MetaWork',
-        tagline: 'GUI Coding Tool',
-        description: 'Visual AI coding, zero barrier to entry',
+        tagline: 'AI Office Assistant',
+        description: 'Visual AI for office work, zero barrier to entry',
         f1: 'No CLI needed, visual interface',
-        f2: 'Built-in project management & collaboration',
+        f2: 'Built-in docs, spreadsheets, reports & more',
         f3: 'Full model support across platforms',
         badge: 'Coming Soon'
       }
