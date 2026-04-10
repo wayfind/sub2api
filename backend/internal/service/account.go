@@ -1603,13 +1603,13 @@ func (a *Account) GetModelPricingOverride(model string) *ModelPricing {
 			continue
 		}
 		pricing := &ModelPricing{
-			InputPricePerToken:             parseExtraFloat64(m["input_cost_per_token"]),
-			InputPricePerTokenPriority:     parseExtraFloat64(m["input_cost_per_token_priority"]),
-			OutputPricePerToken:            parseExtraFloat64(m["output_cost_per_token"]),
-			OutputPricePerTokenPriority:    parseExtraFloat64(m["output_cost_per_token_priority"]),
-			CacheCreationPricePerToken:     parseExtraFloat64(m["cache_creation_input_token_cost"]),
-			CacheReadPricePerToken:         parseExtraFloat64(m["cache_read_input_token_cost"]),
-			CacheReadPricePerTokenPriority: parseExtraFloat64(m["cache_read_input_token_cost_priority"]),
+			InputPricePerToken:             parseExtraFloat64(m["input_cost_per_token"]) * USDToU,
+			InputPricePerTokenPriority:     parseExtraFloat64(m["input_cost_per_token_priority"]) * USDToU,
+			OutputPricePerToken:            parseExtraFloat64(m["output_cost_per_token"]) * USDToU,
+			OutputPricePerTokenPriority:    parseExtraFloat64(m["output_cost_per_token_priority"]) * USDToU,
+			CacheCreationPricePerToken:     parseExtraFloat64(m["cache_creation_input_token_cost"]) * USDToU,
+			CacheReadPricePerToken:         parseExtraFloat64(m["cache_read_input_token_cost"]) * USDToU,
+			CacheReadPricePerTokenPriority: parseExtraFloat64(m["cache_read_input_token_cost_priority"]) * USDToU,
 		}
 		// 至少有一个价格维度 > 0 才视为有效
 		if pricing.InputPricePerToken > 0 || pricing.OutputPricePerToken > 0 {
