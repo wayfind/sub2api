@@ -138,8 +138,8 @@ func (s *AccountPricingSyncService) checkModelPricing(ctx context.Context, accou
 	title := fmt.Sprintf("模型定价偏差: %s (Account #%d)", model, account.ID)
 	desc := fmt.Sprintf(
 		"Account「%s」(#%d) 的模型 %s 定价与 LiteLLM 偏差 %.1f%%。\n"+
-			"Account input: $%.8f/token, LiteLLM input: $%.8f/token\n"+
-			"Account output: $%.8f/token, LiteLLM output: $%.8f/token\n"+
+			"Account input: %.8f U/token, LiteLLM input: %.8f U/token\n"+
+			"Account output: %.8f U/token, LiteLLM output: %.8f U/token\n"+
 			"请确认是否需要更新 Account 定价。",
 		account.Name, account.ID, model, maxDiff*100,
 		accountPricing.InputPricePerToken, litellmPricing.InputCostPerToken,
