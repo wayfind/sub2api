@@ -2179,19 +2179,18 @@ func (h *AccountHandler) LookupModelPricing(c *gin.Context) {
 		return
 	}
 
-	// 返回 USD 单位（DB Extra["model_pricing"] 存储的是 USD）
-	// BillingService 内部价格已转为 U，这里需要转回 USD 保持一致
+	// 返回 U 单位（与 DB Extra["model_pricing"] 存储单位一致）
 	c.JSON(http.StatusOK, gin.H{
 		"found": true,
 		"model": model,
 		"pricing": gin.H{
-			"input_cost_per_token":                 pricing.InputPricePerToken / service.USDToU,
-			"input_cost_per_token_priority":        pricing.InputPricePerTokenPriority / service.USDToU,
-			"output_cost_per_token":                pricing.OutputPricePerToken / service.USDToU,
-			"output_cost_per_token_priority":       pricing.OutputPricePerTokenPriority / service.USDToU,
-			"cache_creation_input_token_cost":      pricing.CacheCreationPricePerToken / service.USDToU,
-			"cache_read_input_token_cost":          pricing.CacheReadPricePerToken / service.USDToU,
-			"cache_read_input_token_cost_priority": pricing.CacheReadPricePerTokenPriority / service.USDToU,
+			"input_cost_per_token":                 pricing.InputPricePerToken,
+			"input_cost_per_token_priority":        pricing.InputPricePerTokenPriority,
+			"output_cost_per_token":                pricing.OutputPricePerToken,
+			"output_cost_per_token_priority":       pricing.OutputPricePerTokenPriority,
+			"cache_creation_input_token_cost":      pricing.CacheCreationPricePerToken,
+			"cache_read_input_token_cost":          pricing.CacheReadPricePerToken,
+			"cache_read_input_token_cost_priority": pricing.CacheReadPricePerTokenPriority,
 		},
 	})
 }
