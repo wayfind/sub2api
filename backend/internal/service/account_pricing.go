@@ -16,12 +16,14 @@ func ResolveModelPricing(account *Account, billingModel string, billingService *
 	// 1. Account 人工确认价格
 	if account != nil {
 		if pricing := account.GetModelPricingOverride(billingModel); pricing != nil {
+			pricing.Source = "account"
 			return pricing
 		}
 	}
 
-	// 2. LiteLLM + 硬编码回退��现有链路，GetModelPricing 内部已包含 fallback）
+	// 2. LiteLLM + 硬编码回退（现有链路，GetModelPricing 内部已包含 fallback）
 	if pricing, err := billingService.GetModelPricing(billingModel); err == nil && pricing != nil {
+		// Source 已在 GetModelPricing 内部设置（"litellm" 或 "fallback"）
 		return pricing
 	}
 

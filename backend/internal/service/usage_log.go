@@ -152,6 +152,11 @@ type UsageLog struct {
 	// nil 表示使用默认的 forwardResultBillingModel 逻辑（向后兼容历史数据）
 	BillingModel *string
 
+	// PricingSnapshot 当时使用的 per-token 单价快照（JSONB, nullable）
+	PricingSnapshot *PricingSnapshot
+	// EffectiveRate 当时实际生效的折扣率（nullable, 新字段优先于 RateMultiplier）
+	EffectiveRate *float64
+
 	// 图片生成字段
 	ImageCount int
 	ImageSize  *string

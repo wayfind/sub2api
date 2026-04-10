@@ -56,6 +56,7 @@ type ModelPricing struct {
 	LongContextInputThreshold      int     // 超过阈值后按整次会话提升输入价格
 	LongContextInputMultiplier     float64 // 长上下文整次会话输入倍率
 	LongContextOutputMultiplier    float64 // 长上下文整次会话输出倍率
+	Source                         string  // 定价来源: "account" / "litellm" / "fallback"
 }
 
 const (
@@ -103,7 +104,22 @@ type CostBreakdown struct {
 	CacheCreationCost float64
 	CacheReadCost     float64
 	TotalCost         float64
-	ActualCost        float64 // 应用倍率后的实际费用
+	ActualCost        float64          // 应用倍率后的实际费用
+	PricingSnapshot   *PricingSnapshot // 当时使用的 per-token 单价快照
+}
+
+// PricingSnapshot 记录计费时实际使用的 per-token 单价（U 单位）
+type PricingSnapshot struct {
+	Input            float64 `json:"input"`
+	Output           float64 `json:"output"`
+	CacheCreation    float64 `json:"cache_creation,omitempty"`
+	CacheRead        float64 `json:"cache_read,omitempty"`
+	InputPriority    float64 `json:"input_priority,omitempty"`
+	OutputPriority   float64 `json:"output_priority,omitempty"`
+	CacheReadPri     float64 `json:"cache_read_priority,omitempty"`
+	CacheCreation5m  float64 `json:"cache_creation_5m,omitempty"`
+	CacheCreation1h  float64 `json:"cache_creation_1h,omitempty"`
+	Source           string  `json:"source"` // "account" / "litellm" / "fallback"
 }
 
 // BillingService 计费服务
@@ -376,6 +392,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				LongContextInputThreshold:      litellmPricing.LongContextInputTokenThreshold,
 				LongContextInputMultiplier:     litellmPricing.LongContextInputCostMultiplier,
 				LongContextOutputMultiplier:    litellmPricing.LongContextOutputCostMultiplier,
+				Source:                         "litellm",
 			}), nil
 		}
 	}
@@ -384,6 +401,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	fallback := s.getFallbackPricing(model)
 	if fallback != nil {
 		log.Printf("[Billing] Using fallback pricing for model: %s", model)
+		fallback.Source = "fallback"
 		return s.applyModelSpecificPricingPolicy(model, fallback), nil
 	}
 
@@ -472,6 +490,20 @@ func (s *BillingService) CalculateCostWithPricing(pricing *ModelPricing, tokens 
 		rateMultiplier = 1.0
 	}
 	breakdown.ActualCost = breakdown.TotalCost * rateMultiplier
+
+	// 构建定价快照（记录实际使用的 per-token 单价）
+	breakdown.PricingSnapshot = &PricingSnapshot{
+		Input:           inputPricePerToken,
+		Output:          outputPricePerToken,
+		CacheCreation:   pricing.CacheCreationPricePerToken,
+		CacheRead:       cacheReadPricePerToken,
+		InputPriority:   pricing.InputPricePerTokenPriority,
+		OutputPriority:  pricing.OutputPricePerTokenPriority,
+		CacheReadPri:    pricing.CacheReadPricePerTokenPriority,
+		CacheCreation5m: pricing.CacheCreation5mPrice,
+		CacheCreation1h: pricing.CacheCreation1hPrice,
+		Source:          pricing.Source,
+	}
 
 	return breakdown
 }

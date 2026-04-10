@@ -78,6 +78,8 @@ var usageLogInsertArgTypes = [...]string{
 	"text",        // upstream_endpoint
 	"boolean",     // cache_ttl_overridden
 	"text",        // billing_model
+	"jsonb",       // pricing_snapshot
+	"numeric",     // effective_rate
 	"timestamptz", // created_at
 }
 
@@ -352,6 +354,8 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
@@ -359,7 +363,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			$10, $11, $12, $13,
 			$14, $15,
 			$16, $17, $18, $19, $20, $21,
-			$22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+			$22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -785,6 +789,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		) AS (VALUES `)
 
@@ -857,6 +863,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				upstream_endpoint,
 				cache_ttl_overridden,
 				billing_model,
+				pricing_snapshot,
+				effective_rate,
 				created_at
 			)
 			SELECT
@@ -900,6 +908,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				upstream_endpoint,
 				cache_ttl_overridden,
 				billing_model,
+				pricing_snapshot,
+				effective_rate,
 				created_at
 			FROM input
 			ON CONFLICT (request_id, api_key_id) DO NOTHING
@@ -983,6 +993,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		) AS (VALUES `)
 
@@ -1052,6 +1064,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		)
 		SELECT
@@ -1095,6 +1109,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		FROM input
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
@@ -1146,6 +1162,8 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			upstream_endpoint,
 			cache_ttl_overridden,
 			billing_model,
+			pricing_snapshot,
+			effective_rate,
 			created_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
@@ -1153,7 +1171,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			$10, $11, $12, $13,
 			$14, $15,
 			$16, $17, $18, $19, $20, $21,
-			$22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+			$22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1194,6 +1212,15 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 	var requestIDArg any
 	if requestID != "" {
 		requestIDArg = requestID
+	}
+
+	var pricingSnapshotJSON []byte
+	if log.PricingSnapshot != nil {
+		pricingSnapshotJSON, _ = json.Marshal(log.PricingSnapshot)
+	}
+	var pricingArg any
+	if len(pricingSnapshotJSON) > 0 {
+		pricingArg = pricingSnapshotJSON
 	}
 
 	return usageLogInsertPrepared{
@@ -1242,6 +1269,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			upstreamEndpoint,
 			log.CacheTTLOverridden,
 			nullString(log.BillingModel),
+			pricingArg,
+			log.EffectiveRate,
 			createdAt,
 		},
 	}

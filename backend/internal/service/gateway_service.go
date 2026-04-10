@@ -7870,6 +7870,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		MediaType:             mediaType,
 		CacheTTLOverridden:    cacheTTLOverridden,
 		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
+		PricingSnapshot:       cost.PricingSnapshot,
+		EffectiveRate:         &multiplier,
 		CreatedAt:             time.Now(),
 	}
 
@@ -8067,6 +8069,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		ImageSize:             imageSize,
 		CacheTTLOverridden:    cacheTTLOverridden,
 		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
+		PricingSnapshot:       cost.PricingSnapshot,
+		EffectiveRate:         &multiplier,
 		CreatedAt:             time.Now(),
 	}
 

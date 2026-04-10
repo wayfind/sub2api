@@ -4225,6 +4225,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		DurationMs:            &durationMs,
 		FirstTokenMs:          result.FirstTokenMs,
 		BillingModel:          optionalNonEqualStringPtr(billingModel, result.Model),
+		PricingSnapshot:       cost.PricingSnapshot,
+		EffectiveRate:         &multiplier,
 		CreatedAt:             time.Now(),
 	}
 	// 添加 UserAgent
