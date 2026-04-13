@@ -106,16 +106,13 @@ const dayOptions = [
 ]
 
 const onTotalInput = (e: Event) => {
-  const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:totalLimit', Number.isNaN(raw) ? null : usdToURound(raw))
+  emit('update:totalLimit', usdToURound((e.target as HTMLInputElement).valueAsNumber))
 }
 const onDailyInput = (e: Event) => {
-  const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:dailyLimit', Number.isNaN(raw) ? null : usdToURound(raw))
+  emit('update:dailyLimit', usdToURound((e.target as HTMLInputElement).valueAsNumber))
 }
 const onWeeklyInput = (e: Event) => {
-  const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:weeklyLimit', Number.isNaN(raw) ? null : usdToURound(raw))
+  emit('update:weeklyLimit', usdToURound((e.target as HTMLInputElement).valueAsNumber))
 }
 
 const onDailyModeChange = (e: Event) => {

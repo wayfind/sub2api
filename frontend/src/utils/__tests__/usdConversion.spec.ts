@@ -20,18 +20,18 @@ describe('USD ↔ U 数值转换', () => {
     })
 
     it('非整除 U 转 USD 时 round 到 4 位小数', () => {
-      // 25000000 / 70 = 357142.857142857...
+      // 25000000 / 70 = 357142.857142857... → ×10000 = 3571428571.4285... → round = 3571428571 → /10000
       expect(uToUsdRound(25000000)).toBe(357142.8571)
-      // 800000 / 70 = 11428.571428...
+      // 800000 / 70 = 11428.5714285714... → ×10000 = 114285714.2857... → round = 114285714 → /10000
       expect(uToUsdRound(800000)).toBe(11428.5714)
-      // 1 / 70 = 0.01428571... → round 到 4 位 = 0.0143
+      // 1 / 70 = 0.0142857142... → ×10000 = 142.857... → round = 143 → /10000
       expect(uToUsdRound(1)).toBe(0.0143)
     })
 
     it('小金额', () => {
-      // 0.7 / 70 = 0.01
+      // 0.7 / 70 = 0.01 → ×10000 = 100 → round = 100 → /10000
       expect(uToUsdRound(0.7)).toBe(0.01)
-      // 0.07 / 70 = 0.001
+      // 0.07 / 70 = 0.001 → ×10000 = 10 → round = 10 → /10000
       expect(uToUsdRound(0.07)).toBe(0.001)
     })
   })
@@ -93,12 +93,47 @@ describe('USD ↔ U 数值转换', () => {
         const usd = uToUsdRound(u)
         expect(usd).not.toBeNull()
         const uBack = usdToURound(usd)
-        // 注意：当 u/70 不是 4 位小数能精确表达时，会有微小漂移
-        // 这是预期的 lossy 转换，4 位小数下漂移 ≤ 70 * 5e-5 = 0.0035 U
+        // 漂移上界推导：
+        //   uToUsdRound 内部做 round(u/70 × 10000)/10000，最大舍入误差 ±0.00005 USD
+        //   usdToURound 把这个 USD 值 ×70 还原 → ±0.00005 × 70 = ±0.0035 U
+        //   第二步本身又会引入 ±0.00005 USD ≈ ±0.0035/10000 U，相对前者可忽略
+        // 因此 round-trip 漂移上界严格 ≤ 0.0035 U
         const drift = Math.abs((uBack ?? 0) - u)
         expect(drift).toBeLessThanOrEqual(0.0035)
       })
     }
+
+    // 上界紧致性测试：确认 0.0035 这个上界不是过于宽松，至少有一个真实样本能逼近它。
+    // 这是上面 uInputs 里"看似没毛病的整数 U 样本"覆盖不到的——它们除以 70 之后
+    // 大部分小数会落在 round 边界的安全区域，drift 远小于 0.0035。
+    // 如果未来有人误以为"实际 drift 极小"而把上界缩小到 0.001，这个测试会立刻挂。
+    it('round-trip 漂移在最坏情况下能逼近 0.0035 U 上界', () => {
+      // 找一个 u 使得 u/70 的 ×10000 后小数部分 ≈ 0.5（半位舍入边界）。
+      // u/70 × 10000 = n + 0.5  ⇒  u = (n + 0.5) × 0.007
+      // 取 n=5000 → u = 35.0035。
+      // 验算：35.0035 / 70 = 0.500050 → ×10000 = 5000.5
+      // Math.round(5000.5) → JS 是 half-away-from-zero，但浮点表示 5000.5
+      //   实际浮点值可能略小于 5000.5，导致 round 到 5000；这取决于 IEEE 754 表示。
+      // 不论 round 到 5000 还是 5001，drift 都 ≈ 0.0035 U。
+      const u = 35.0035
+      const uBack = usdToURound(uToUsdRound(u))
+      const drift = Math.abs((uBack ?? 0) - u)
+      expect(drift).toBeLessThanOrEqual(0.0035)
+      // 紧致性：drift 应该明显大于 0.001（上界至少不能被收紧 3 倍以上）
+      expect(drift).toBeGreaterThan(0.001)
+    })
+
+    // 另一个最坏情况样本：使用更大的整数避免浮点表示精度干扰
+    it('大数最坏情况 round-trip 也在上界内', () => {
+      // u = 35000.0035 → /70 = 500.0000500 → ×10000 = 5000000.5
+      // round 到 5000000 或 5000001 → /10000 = 500.0000 或 500.0001
+      // ×70 = 35000.0 或 35000.007 → drift ≈ 0.0035
+      const u = 35000.0035
+      const uBack = usdToURound(uToUsdRound(u))
+      const drift = Math.abs((uBack ?? 0) - u)
+      expect(drift).toBeLessThanOrEqual(0.0035)
+      expect(drift).toBeGreaterThan(0.001)
+    })
   })
 
   describe('formatUsdFromU 边界值', () => {
