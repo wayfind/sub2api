@@ -1266,33 +1266,33 @@ func (a *Account) GetCacheTTLOverrideTarget() string {
 	return "5m"
 }
 
-// GetQuotaLimit 获取 API Key 账号的配额限制（美元）
+// GetQuotaLimit 获取 API Key 账号的配额限制（U 单位）
 // 返回 0 表示未启用
 func (a *Account) GetQuotaLimit() float64 {
 	return a.getExtraFloat64("quota_limit")
 }
 
-// GetQuotaUsed 获取 API Key 账号的已用配额（美元）
+// GetQuotaUsed 获取 API Key 账号的已用配额（U 单位）
 func (a *Account) GetQuotaUsed() float64 {
 	return a.getExtraFloat64("quota_used")
 }
 
-// GetQuotaDailyLimit 获取日额度限制（美元），0 表示未启用
+// GetQuotaDailyLimit 获取日额度限制（U 单位），0 表示未启用
 func (a *Account) GetQuotaDailyLimit() float64 {
 	return a.getExtraFloat64("quota_daily_limit")
 }
 
-// GetQuotaDailyUsed 获取当日已用额度（美元）
+// GetQuotaDailyUsed 获取当日已用额度（U 单位）
 func (a *Account) GetQuotaDailyUsed() float64 {
 	return a.getExtraFloat64("quota_daily_used")
 }
 
-// GetQuotaWeeklyLimit 获取周额度限制（美元），0 表示未启用
+// GetQuotaWeeklyLimit 获取周额度限制（U 单位），0 表示未启用
 func (a *Account) GetQuotaWeeklyLimit() float64 {
 	return a.getExtraFloat64("quota_weekly_limit")
 }
 
-// GetQuotaWeeklyUsed 获取本周已用额度（美元）
+// GetQuotaWeeklyUsed 获取本周已用额度（U 单位）
 func (a *Account) GetQuotaWeeklyUsed() float64 {
 	return a.getExtraFloat64("quota_weekly_used")
 }
@@ -1769,7 +1769,7 @@ func (a *Account) IsQuotaExceeded() bool {
 	return false
 }
 
-// GetWindowCostLimit 获取 5h 窗口费用阈值（美元）
+// GetWindowCostLimit 获取 5h 窗口费用阈值（U 单位）
 // 返回 0 表示未启用
 func (a *Account) GetWindowCostLimit() float64 {
 	if a.Extra == nil {
@@ -1781,7 +1781,7 @@ func (a *Account) GetWindowCostLimit() float64 {
 	return 0
 }
 
-// GetWindowCostStickyReserve 获取粘性会话预留额度（美元）
+// GetWindowCostStickyReserve 获取粘性会话预留额度（U 单位）
 // 默认值为 10
 func (a *Account) GetWindowCostStickyReserve() float64 {
 	if a.Extra == nil {
