@@ -307,7 +307,13 @@ func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, tx *sql.Tx, apiKe
 }
 
 func incrementUsageBillingAccountQuota(ctx context.Context, tx *sql.Tx, accountID int64, amount float64) error {
-	rows, err := tx.QueryContext(ctx,
+	// 注意：使用 QueryRowContext 而不是 QueryContext。
+	// 早期版本用 QueryContext+rows.Next()，在 rows 未 drain/Close 时就在同一 tx 上
+	// 调用 enqueueSchedulerOutbox 的 ExecContext，触发 lib/pq 的
+	// "unexpected Parse response 'C'" 协议错乱错误，事务被回滚，
+	// 导致跨阈值的 quota_used 增量永久丢失，账号"满了还能用"。
+	var newUsed, limit float64
+	err := tx.QueryRowContext(ctx,
 		`UPDATE accounts SET extra = (
 			COALESCE(extra, '{}'::jsonb)
 			|| jsonb_build_object('quota_used', COALESCE((extra->>'quota_used')::numeric, 0) + $1)
@@ -344,24 +350,11 @@ func incrementUsageBillingAccountQuota(ctx context.Context, tx *sql.Tx, accountI
 		RETURNING
 			COALESCE((extra->>'quota_used')::numeric, 0),
 			COALESCE((extra->>'quota_limit')::numeric, 0)`,
-		amount, accountID)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-
-	var newUsed, limit float64
-	if rows.Next() {
-		if err := rows.Scan(&newUsed, &limit); err != nil {
-			return err
-		}
-	} else {
-		if err := rows.Err(); err != nil {
-			return err
-		}
+		amount, accountID).Scan(&newUsed, &limit)
+	if errors.Is(err, sql.ErrNoRows) {
 		return service.ErrAccountNotFound
 	}
-	if err := rows.Err(); err != nil {
+	if err != nil {
 		return err
 	}
 	if limit > 0 && newUsed >= limit && (newUsed-amount) < limit {
