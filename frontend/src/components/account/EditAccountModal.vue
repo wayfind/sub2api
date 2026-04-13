@@ -1296,12 +1296,12 @@
             <div>
               <label class="input-label">{{ t('admin.accounts.quotaControl.windowCost.limit') }}</label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
                 <input
-                  v-model.number="windowCostLimit"
+                  v-model.number="windowCostLimitUsd"
                   type="number"
                   min="0"
-                  step="1"
+                  step="0.01"
                   class="input pl-7"
                   :placeholder="t('admin.accounts.quotaControl.windowCost.limitPlaceholder')"
                 />
@@ -1311,12 +1311,12 @@
             <div>
               <label class="input-label">{{ t('admin.accounts.quotaControl.windowCost.stickyReserve') }}</label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
                 <input
-                  v-model.number="windowCostStickyReserve"
+                  v-model.number="windowCostStickyReserveUsd"
                   type="number"
                   min="0"
-                  step="1"
+                  step="0.01"
                   class="input pl-7"
                   :placeholder="t('admin.accounts.quotaControl.windowCost.stickyReservePlaceholder')"
                 />
@@ -1744,7 +1744,7 @@ import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import ModelPricingCard from '@/components/account/ModelPricingCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
-import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import { formatDateTimeLocalInput, parseDateTimeLocalInput, uToUsdRound, usdToURound } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
   // OPENAI_WS_MODE_CTX_POOL,
@@ -1853,6 +1853,20 @@ const antigravityMixedChannelConfirmed = ref(false)
 const windowCostEnabled = ref(false)
 const windowCostLimit = ref<number | null>(null)
 const windowCostStickyReserve = ref<number | null>(null)
+// USD 展示视图：UI 上用美元，内部 ref 仍是 U，保存链路不改动。
+// 转换 helper 见 @/utils/format 的 uToUsdRound / usdToURound。
+const windowCostLimitUsd = computed({
+  get: () => uToUsdRound(windowCostLimit.value),
+  set: (usd: number | null) => {
+    windowCostLimit.value = usdToURound(usd)
+  }
+})
+const windowCostStickyReserveUsd = computed({
+  get: () => uToUsdRound(windowCostStickyReserve.value),
+  set: (usd: number | null) => {
+    windowCostStickyReserve.value = usdToURound(usd)
+  }
+})
 const sessionLimitEnabled = ref(false)
 const maxSessions = ref<number | null>(null)
 const sessionIdleTimeout = ref<number | null>(null)

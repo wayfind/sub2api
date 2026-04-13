@@ -13,16 +13,14 @@
           {{ formatTokens }}
         </span>
         <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-          A {{ formatAccountCost }} U
-          <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(windowStats?.cost || 0) }}</span>
+          A {{ formatUsdFromU(windowStats?.cost || 0) }}
         </span>
         <span
           v-if="windowStats?.user_cost != null"
           class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
           :title="t('usage.userBilled')"
         >
-          Usr {{ formatUserCost }} U
-          <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(windowStats?.user_cost || 0) }}</span>
+          Usr {{ formatUsdFromU(windowStats?.user_cost || 0) }}
         </span>
       </div>
     </div>
@@ -183,16 +181,6 @@ const formatRequests = computed(() => {
 const formatTokens = computed(() => {
   if (!props.windowStats) return ''
   return formatCompactNumber(props.windowStats.tokens)
-})
-
-const formatAccountCost = computed(() => {
-  if (!props.windowStats) return '0.00'
-  return props.windowStats.cost.toFixed(2)
-})
-
-const formatUserCost = computed(() => {
-  if (!props.windowStats || props.windowStats.user_cost == null) return '0.00'
-  return props.windowStats.user_cost.toFixed(2)
 })
 
 </script>

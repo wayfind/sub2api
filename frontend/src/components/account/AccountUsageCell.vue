@@ -389,16 +389,14 @@
             {{ formatKeyTokens }}
           </span>
           <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-            A {{ formatKeyCost }} U
-            <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(todayStats?.cost || 0) }}</span>
+            A {{ formatUsdFromU(todayStats?.cost || 0) }}
           </span>
           <span
             v-if="todayStats.user_cost != null"
             class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
             :title="t('usage.userBilled')"
           >
-            Usr {{ formatKeyUserCost }} U
-            <span class="text-gray-400 dark:text-gray-500 text-[8px]">{{ formatUsdFromU(todayStats?.user_cost || 0) }}</span>
+            Usr {{ formatUsdFromU(todayStats?.user_cost || 0) }}
           </span>
         </div>
       </div>
@@ -1029,16 +1027,6 @@ const formatKeyRequests = computed(() => {
 const formatKeyTokens = computed(() => {
   if (!props.todayStats) return ''
   return formatCompactNumber(props.todayStats.tokens)
-})
-
-const formatKeyCost = computed(() => {
-  if (!props.todayStats) return '0.00'
-  return props.todayStats.cost.toFixed(2)
-})
-
-const formatKeyUserCost = computed(() => {
-  if (!props.todayStats || props.todayStats.user_cost == null) return '0.00'
-  return props.todayStats.user_cost.toFixed(2)
 })
 
 onMounted(() => {

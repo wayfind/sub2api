@@ -28,6 +28,25 @@ export function formatUsdFromU(uValue: number): string {
 }
 
 /**
+ * U → USD 数值转换（用于 input 显示），保留 4 位小数避免 float 漂移。
+ * 与 usdToURound 配对使用，构成 round-trip 一致的双向换算。
+ * null / 非数字传入返回 null。
+ */
+export function uToUsdRound(u: number | null | undefined): number | null {
+  if (u == null || Number.isNaN(u)) return null
+  return Math.round((u / USD_TO_U) * 10000) / 10000
+}
+
+/**
+ * USD → U 数值转换（用于保存到 DB 前），保留 4 位小数。
+ * 与 uToUsdRound 配对使用。
+ */
+export function usdToURound(usd: number | null | undefined): number | null {
+  if (usd == null || Number.isNaN(usd)) return null
+  return Math.round(usd * USD_TO_U * 10000) / 10000
+}
+
+/**
  * 格式化 U 代币余额（大额，2位小数）
  * 例："700.00"
  */
@@ -110,20 +129,6 @@ export function formatNumber(num: number | null | undefined): string {
   })
 
   return formatter.format(num)
-}
-
-/**
- * 格式化货币金额（U 代币）
- * @param amount 金额（U 代币）
- * @returns 格式化后的字符串，如 "1.25 U"
- */
-export function formatCurrency(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return '0.00 U'
-
-  // For very small amounts, show more decimals
-  const fractionDigits = amount > 0 && amount < 0.01 ? 6 : 2
-
-  return amount.toFixed(fractionDigits) + ' U'
 }
 
 /**

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { uToUsdRound, usdToURound } from '@/utils/format'
 
 const { t } = useI18n()
 
@@ -27,6 +28,13 @@ const emit = defineEmits<{
   'update:weeklyResetHour': [value: number | null]
   'update:resetTimezone': [value: string | null]
 }>()
+
+// U ↔ USD 展示转换：组件对外 prop/emit 都是 U 单位（与后端字段语义一致），
+// 组件内部 input 显示和接收都是 USD。保存到后端的数值仍是 U。
+// 转换 helper 见 @/utils/format 的 uToUsdRound / usdToURound。
+const totalLimitUsd = computed(() => uToUsdRound(props.totalLimit))
+const dailyLimitUsd = computed(() => uToUsdRound(props.dailyLimit))
+const weeklyLimitUsd = computed(() => uToUsdRound(props.weeklyLimit))
 
 const enabled = computed(() =>
   (props.totalLimit != null && props.totalLimit > 0) ||
@@ -99,15 +107,15 @@ const dayOptions = [
 
 const onTotalInput = (e: Event) => {
   const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:totalLimit', Number.isNaN(raw) ? null : raw)
+  emit('update:totalLimit', Number.isNaN(raw) ? null : usdToURound(raw))
 }
 const onDailyInput = (e: Event) => {
   const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:dailyLimit', Number.isNaN(raw) ? null : raw)
+  emit('update:dailyLimit', Number.isNaN(raw) ? null : usdToURound(raw))
 }
 const onWeeklyInput = (e: Event) => {
   const raw = (e.target as HTMLInputElement).valueAsNumber
-  emit('update:weeklyLimit', Number.isNaN(raw) ? null : raw)
+  emit('update:weeklyLimit', Number.isNaN(raw) ? null : usdToURound(raw))
 }
 
 const onDailyModeChange = (e: Event) => {
@@ -161,16 +169,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaDailyLimit') }}</label>
           <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
-              :value="dailyLimit"
+              :value="dailyLimitUsd"
               @input="onDailyInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pr-8"
+              class="input pl-7"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <!-- 日配额重置模式 -->
           <div class="mt-2 flex items-center gap-2">
@@ -209,16 +217,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaWeeklyLimit') }}</label>
           <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
-              :value="weeklyLimit"
+              :value="weeklyLimitUsd"
               @input="onWeeklyInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pr-8"
+              class="input pl-7"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <!-- 周配额重置模式 -->
           <div class="mt-2 flex items-center gap-2">
@@ -277,16 +285,16 @@ const onWeeklyModeChange = (e: Event) => {
         <div>
           <label class="input-label">{{ t('admin.accounts.quotaTotalLimit') }}</label>
           <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
             <input
-              :value="totalLimit"
+              :value="totalLimitUsd"
               @input="onTotalInput"
               type="number"
               min="0"
               step="0.01"
-              class="input pr-8"
+              class="input pl-7"
               :placeholder="t('admin.accounts.quotaLimitPlaceholder')"
             />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">U</span>
           </div>
           <p class="input-hint">{{ t('admin.accounts.quotaTotalLimitHint') }}</p>
         </div>
