@@ -111,28 +111,32 @@ describe('USD ↔ U 数值转换', () => {
       // 找一个 u 使得 u/70 的 ×10000 后小数部分 ≈ 0.5（半位舍入边界）。
       // u/70 × 10000 = n + 0.5  ⇒  u = (n + 0.5) × 0.007
       // 取 n=5000 → u = 35.0035。
-      // 验算：35.0035 / 70 = 0.500050 → ×10000 = 5000.5
-      // Math.round(5000.5) → JS 是 half-away-from-zero，但浮点表示 5000.5
-      //   实际浮点值可能略小于 5000.5，导致 round 到 5000；这取决于 IEEE 754 表示。
-      // 不论 round 到 5000 还是 5001，drift 都 ≈ 0.0035 U。
+      // 验算：35.0035 / 70 = 0.50005... → ×10000 = 5000.5...
+      // round 到 5001 → /10000 = 0.5001 → ×70 = 35.007
+      // drift = |35.007 - 35.0035| = 0.0035
       const u = 35.0035
       const uBack = usdToURound(uToUsdRound(u))
       const drift = Math.abs((uBack ?? 0) - u)
+      // 严格上界守卫
       expect(drift).toBeLessThanOrEqual(0.0035)
-      // 紧致性：drift 应该明显大于 0.001（上界至少不能被收紧 3 倍以上）
-      expect(drift).toBeGreaterThan(0.001)
+      // 紧致断言：实测 drift 应当极接近 0.0035（差异 < 5e-5）。
+      // toBeCloseTo(0.0035, 4) 检查 |drift - 0.0035| < 0.5×10^-4。
+      // 当前实测：drift ≈ 0.0035 - 5e-12（V8 浮点表示下）。
+      // 如果未来 V8 升级让这个样本不再触发最坏情况，本测试会挂——
+      // 这是预期行为：失败时换样本，不要降低断言精度。
+      expect(drift).toBeCloseTo(0.0035, 4)
     })
 
     // 另一个最坏情况样本：使用更大的整数避免浮点表示精度干扰
     it('大数最坏情况 round-trip 也在上界内', () => {
-      // u = 35000.0035 → /70 = 500.0000500 → ×10000 = 5000000.5
-      // round 到 5000000 或 5000001 → /10000 = 500.0000 或 500.0001
-      // ×70 = 35000.0 或 35000.007 → drift ≈ 0.0035
+      // u = 35000.0035 → /70 = 500.00005 → ×10000 = 5000000.5
+      // round 到 5000001 → /10000 = 500.0001 → ×70 = 35000.007
+      // drift = |35000.007 - 35000.0035| = 0.0035
       const u = 35000.0035
       const uBack = usdToURound(uToUsdRound(u))
       const drift = Math.abs((uBack ?? 0) - u)
       expect(drift).toBeLessThanOrEqual(0.0035)
-      expect(drift).toBeGreaterThan(0.001)
+      expect(drift).toBeCloseTo(0.0035, 4)
     })
   })
 
