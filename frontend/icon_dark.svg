@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="navyGrad" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="54" fill="url(#navyGrad)"/>
+  <rect x="28" y="28" width="64" height="64" rx="14" fill="none" stroke="url(#accentGrad)" stroke-width="3"/>
+  <rect x="34" y="34" width="52" height="52" rx="11" fill="none" stroke="url(#accentGrad)" stroke-width="2.5" transform="rotate(15, 60, 60)"/>
+  <rect x="50" y="50" width="20" height="20" rx="4" fill="url(#accentGrad)" transform="rotate(45, 60, 60)"/>
+</svg>
