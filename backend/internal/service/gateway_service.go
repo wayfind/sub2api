@@ -126,7 +126,8 @@ func openAIStreamEventIsTerminal(data string) bool {
 }
 
 func anthropicStreamEventIsTerminal(eventName, data string) bool {
-	if strings.EqualFold(strings.TrimSpace(eventName), "message_stop") {
+	name := strings.ToLower(strings.TrimSpace(eventName))
+	if name == "message_stop" || name == "error" {
 		return true
 	}
 	trimmed := strings.TrimSpace(data)
@@ -136,7 +137,79 @@ func anthropicStreamEventIsTerminal(eventName, data string) bool {
 	if trimmed == "[DONE]" {
 		return true
 	}
-	return gjson.Get(trimmed, "type").String() == "message_stop"
+	t := gjson.Get(trimmed, "type").String()
+	return t == "message_stop" || t == "error"
+}
+
+// inlineAnthropicErrorPrefix 是裸 JSON Anthropic 错误对象的稳定前缀。
+// 做热路径廉价检查用，匹配了才做完整 JSON 解析。
+const inlineAnthropicErrorPrefix = `{"type":"error"`
+
+// parseInlineAnthropicErrorJSON 识别上游非规范 SSE 响应里一行裸 Anthropic 错误 JSON
+// （形如 `{"type":"error","error":{"type":"...","message":"..."}}`，无 SSE 前缀）。
+// 返回推荐的 HTTP 状态码、原始 JSON body 和是否匹配。
+// sglang-proxy 对 max_tokens/context 超限场景会用 HTTP 200 + 这种裸 JSON 结束流，
+// 客户端（Claude Code）需要实际的 HTTP 4xx 才能解析 body 并触发 auto compact。
+//
+// 调用方有责任先用 strings.HasPrefix(trimmed, inlineAnthropicErrorPrefix) 做前缀短路，
+// 避免在正常 SSE 热路径上对每行做 JSON 全量解析。
+func parseInlineAnthropicErrorJSON(trimmed string) (int, []byte, bool) {
+	if !strings.HasPrefix(trimmed, inlineAnthropicErrorPrefix) {
+		return 0, nil, false
+	}
+	if !gjson.Valid(trimmed) {
+		return 0, nil, false
+	}
+	// 第一次 Valid 已经校验过 JSON 合法。type 一定是 "error"（前缀已锁定）。
+	errType := strings.ToLower(strings.TrimSpace(gjson.Get(trimmed, "error.type").String()))
+	if errType == "" {
+		return 0, nil, false
+	}
+	status := http.StatusBadRequest
+	switch errType {
+	case "authentication_error":
+		status = http.StatusUnauthorized
+	case "permission_error":
+		status = http.StatusForbidden
+	case "not_found_error":
+		status = http.StatusNotFound
+	case "rate_limit_error":
+		status = http.StatusTooManyRequests
+	case "overloaded_error":
+		status = 529
+	case "api_error":
+		// Anthropic 语义：上游内部错误。映射到 503 Service Unavailable 比 502 Bad Gateway 更贴近。
+		status = http.StatusServiceUnavailable
+	}
+	return status, []byte(trimmed), true
+}
+
+// resetToJSONErrorHeaders 用于从流式响应头切换到 JSON 错误响应头。
+// 白名单语义：清空所有已设置的 header，仅保留 X-Request-Id（方便客户端排障追踪）。
+// 避免逐个 Del 黑名单遗漏（如透传过来的 Transfer-Encoding: chunked 会和 JSON body 编码冲突）。
+func resetToJSONErrorHeaders(h http.Header) {
+	reqID := h.Get("X-Request-Id")
+	for k := range h {
+		h.Del(k)
+	}
+	if reqID != "" {
+		h.Set("X-Request-Id", reqID)
+	}
+}
+
+// writeInlineUpstreamErrorResponse 把裸 JSON 错误统一写给客户端。
+// 未写过响应：重置为 HTTP <status> + JSON body。
+// 已开始流式输出：降级为 SSE event: error 事件收尾。
+// 返回是否以 HTTP 错误（而非 SSE 降级）完成 —— 调用方据此决定 return 的 error。
+func writeInlineUpstreamErrorResponse(c *gin.Context, flusher http.Flusher, errStatus int, errBody []byte) (wroteHTTPError bool) {
+	if !c.Writer.Written() {
+		resetToJSONErrorHeaders(c.Writer.Header())
+		c.Data(errStatus, "application/json", errBody)
+		return true
+	}
+	_, _ = fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", string(errBody))
+	flusher.Flush()
+	return false
 }
 
 func cloneStringSlice(src []string) []string {
@@ -4947,6 +5020,10 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 	var firstTokenMs *int
 	clientDisconnected := false
 	sawTerminalEvent := false
+	// firstNonEmptyLine 限定 inline error JSON 检查只在流的首个非空行上做，
+	// 避开正常 SSE 热路径（content_block_delta 等）不必要的 JSON 解析。
+	firstNonEmptyLine := true
+
 
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
@@ -5032,6 +5109,19 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 			}
 
 			line := ev.line
+			// 上游非规范响应：裸 JSON Anthropic 错误对象（无 SSE 前缀）。
+			// 只在首个非空行上检查，避免每行都调用 JSON 解析。
+			trimmedLine := strings.TrimSpace(line)
+			if firstNonEmptyLine && trimmedLine != "" {
+				firstNonEmptyLine = false
+				if errStatus, errBody, matched := parseInlineAnthropicErrorJSON(trimmedLine); matched {
+					sawTerminalEvent = true
+					if writeInlineUpstreamErrorResponse(c, flusher, errStatus, errBody) {
+						return &streamingResult{usage: usage, firstTokenMs: firstTokenMs}, fmt.Errorf("upstream inline error: status=%d", errStatus)
+					}
+					return &streamingResult{usage: usage, firstTokenMs: firstTokenMs, clientDisconnect: clientDisconnected}, nil
+				}
+			}
 			if data, ok := extractAnthropicSSEDataLine(line); ok {
 				trimmed := strings.TrimSpace(data)
 				if anthropicStreamEventIsTerminal("", trimmed) {
@@ -6455,7 +6545,9 @@ func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Res
 
 	switch resp.StatusCode {
 	case 400:
-		c.Data(http.StatusBadRequest, "application/json", body)
+		// 和 inline 分支保持 body 一致：去掉上游可能带的尾部 \n 等空白字符，
+		// 防止客户端流式 JSON parser 遇到尾部字节时偶发解析失败。
+		c.Data(http.StatusBadRequest, "application/json", bytes.TrimSpace(body))
 		summary := upstreamMsg
 		if summary == "" {
 			summary = truncateForLog(body, 512)
@@ -6742,6 +6834,8 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 	needModelReplace := originalModel != mappedModel
 	clientDisconnected := false // 客户端断开标志，断开后继续读取上游以获取完整usage
 	sawTerminalEvent := false
+	// firstNonEmptyLine 限定 inline error JSON 检查只在流的首个非空行上做。
+	firstNonEmptyLine := true
 
 	pendingEventLines := make([]string, 0, 4)
 
@@ -6764,7 +6858,35 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 		}
 
 		if eventName == "error" {
-			return nil, dataLine, nil, errors.New("have error in stream")
+			// 透传 error event 给客户端，并根据 error type 触发账号错误处理。
+			// invalid_request_error (400) 是用户侧错误（如 context overflow），不影响账号状态。
+			// 其他类型（authentication_error/permission_error/overloaded_error）需要标记账号。
+			block := "event: error\n"
+			if dataLine != "" {
+				block += "data: " + dataLine + "\n"
+			}
+			block += "\n"
+
+			if s.rateLimitService != nil && dataLine != "" {
+				errType := gjson.Get(dataLine, "error.type").String()
+				var syntheticStatus int
+				switch errType {
+				case "authentication_error":
+					syntheticStatus = 401
+				case "permission_error":
+					syntheticStatus = 403
+				case "overloaded_error":
+					syntheticStatus = 529
+				case "rate_limit_error":
+					syntheticStatus = 429
+				// invalid_request_error 和其他用户侧错误：不处理，不影响账号状态
+				}
+				if syntheticStatus != 0 {
+					s.rateLimitService.HandleUpstreamError(ctx, account, syntheticStatus, nil, []byte(dataLine))
+				}
+			}
+			sawTerminalEvent = true
+			return []string{block}, dataLine, nil, nil
 		}
 
 		if dataLine == "" {
@@ -6903,6 +7025,21 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 			line := ev.line
 			trimmed := strings.TrimSpace(line)
+
+			// 上游非规范响应：HTTP 200 但 body 是一行裸 JSON 错误对象（无 SSE 前缀）。
+			// 例：sglang-proxy 对 max_tokens 超限返回 {"type":"error","error":{"type":"invalid_request_error",...}}。
+			// 客户端（Claude Code）需要 HTTP 4xx 才能触发 auto compact 重试逻辑。
+			// 只在首个非空行上检查，避免每行都调用 JSON 解析。
+			if firstNonEmptyLine && trimmed != "" {
+				firstNonEmptyLine = false
+				if errStatus, errBody, matched := parseInlineAnthropicErrorJSON(trimmed); matched {
+					sawTerminalEvent = true
+					if writeInlineUpstreamErrorResponse(c, flusher, errStatus, errBody) {
+						return &streamingResult{usage: usage, firstTokenMs: firstTokenMs}, fmt.Errorf("upstream inline error: status=%d", errStatus)
+					}
+					return &streamingResult{usage: usage, firstTokenMs: firstTokenMs, clientDisconnect: clientDisconnected}, nil
+				}
+			}
 
 			if trimmed == "" {
 				if len(pendingEventLines) == 0 {

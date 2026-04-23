@@ -218,3 +218,177 @@ func TestHandleStreamingResponse_SpecialCharactersInJSON(t *testing.T) {
 	body := rec.Body.String()
 	require.Contains(t, body, "content_block_delta", "响应应包含转发的 SSE 事件")
 }
+
+// 上游非规范响应：HTTP 200 + 一行裸 JSON 错误对象（无 SSE 前缀）。
+// 典型来自 sglang-proxy 的 max_tokens 超限。客户端需要 HTTP 4xx 才能触发 auto compact。
+func TestHandleStreamingResponse_InlineJSONErrorRewritesToHTTPStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newMinimalGatewayService()
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: pr}
+
+	errJSON := `{"type":"error","error":{"type":"invalid_request_error","message":"Requested token count exceeds the model's maximum context length of 196608 tokens. You requested a total of 216936 tokens."}}`
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		_, _ = pw.Write([]byte(errJSON + "\n"))
+	}()
+
+	_, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "model", "model", false)
+	_ = pr.Close()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "upstream inline error")
+	require.Equal(t, http.StatusBadRequest, rec.Code, "invalid_request_error 必须映射为 HTTP 400")
+	require.Contains(t, rec.Body.String(), "invalid_request_error")
+	require.Contains(t, rec.Body.String(), "216936", "body 里应保留上游的 token 计数，供客户端解析")
+	require.Equal(t, "application/json", rec.Header().Get("Content-Type"), "必须改为 JSON 响应，而非 text/event-stream")
+}
+
+func TestParseInlineAnthropicErrorJSON(t *testing.T) {
+	cases := []struct {
+		name      string
+		in        string
+		wantMatch bool
+		wantCode  int
+	}{
+		{"invalid_request", `{"type":"error","error":{"type":"invalid_request_error","message":"x"}}`, true, 400},
+		{"authentication", `{"type":"error","error":{"type":"authentication_error","message":"x"}}`, true, 401},
+		{"rate_limit", `{"type":"error","error":{"type":"rate_limit_error","message":"x"}}`, true, 429},
+		{"overloaded", `{"type":"error","error":{"type":"overloaded_error","message":"x"}}`, true, 529},
+		{"empty", ``, false, 0},
+		{"sse_data_line", `data: {"type":"error","error":{"type":"invalid_request_error"}}`, false, 0},
+		{"not_error_type", `{"type":"message_start","message":{}}`, false, 0},
+		{"error_without_subtype", `{"type":"error","error":{}}`, false, 0},
+		{"malformed_json", `{"type":"error"`, false, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, body, matched := parseInlineAnthropicErrorJSON(tc.in)
+			require.Equal(t, tc.wantMatch, matched)
+			if tc.wantMatch {
+				require.Equal(t, tc.wantCode, status)
+				require.NotEmpty(t, body)
+			}
+		})
+	}
+}
+
+// 上游 body 带尾部换行/空白：gateway 应 trim 后再透给客户端，
+// 防止客户端流式 JSON parser 偶发解析失败。
+func TestHandleStreamingResponse_InlineJSONErrorTrimsTrailingWhitespace(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newMinimalGatewayService()
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: pr}
+
+	errJSON := `{"type":"error","error":{"type":"invalid_request_error","message":"x"}}`
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		// 上游 body 带尾部换行和空白
+		_, _ = pw.Write([]byte(errJSON + "\n\r\n  "))
+	}()
+
+	_, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "model", "model", false)
+	_ = pr.Close()
+	require.Error(t, err)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	// Body 应该完全等于原始 JSON（不含尾部空白）
+	require.Equal(t, errJSON, rec.Body.String())
+}
+
+// api_error 需映射到 503（而非之前的 502）。
+func TestParseInlineAnthropicErrorJSON_APIErrorMapsTo503(t *testing.T) {
+	in := `{"type":"error","error":{"type":"api_error","message":"internal"}}`
+	status, _, matched := parseInlineAnthropicErrorJSON(in)
+	require.True(t, matched)
+	require.Equal(t, http.StatusServiceUnavailable, status)
+}
+
+// 正常 SSE 流中间行如果偶发含 `{"type":"error"` 的文本片段（例如在 text delta 里），
+// 不应被 inline error 检查触发。firstNonEmptyLine 守卫要求检查只发生在首个非空行上。
+func TestHandleStreamingResponse_InlineErrorCheckOnlyOnFirstLine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newMinimalGatewayService()
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: pr}
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		_, _ = pw.Write([]byte("data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":5}}}\n\n"))
+		// 第二行 data 内恰好是一个 error 样式 JSON —— 不应触发 inline 重写响应。
+		_, _ = pw.Write([]byte(`{"type":"error","error":{"type":"invalid_request_error","message":"evil"}}` + "\n"))
+		_, _ = pw.Write([]byte("data: {\"type\":\"message_stop\"}\n\n"))
+	}()
+
+	result, err := svc.handleStreamingResponse(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "model", "model", false)
+	_ = pr.Close()
+	require.NoError(t, err, "中途的裸 JSON 不应被识别为 inline error")
+	require.NotNil(t, result)
+	// 响应不应被重置为 HTTP 400
+	require.NotEqual(t, http.StatusBadRequest, rec.Code)
+}
+
+// Passthrough 路径（Anthropic apikey passthrough 账号）也需识别 inline error。
+func TestHandleStreamingResponseAnthropicAPIKeyPassthrough_InlineErrorRewritesToHTTPStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := newMinimalGatewayService()
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	pr, pw := io.Pipe()
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: pr}
+
+	errJSON := `{"type":"error","error":{"type":"invalid_request_error","message":"max_tokens too large"}}`
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+		_, _ = pw.Write([]byte(errJSON + "\n"))
+	}()
+
+	_, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "model")
+	_ = pr.Close()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "upstream inline error")
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, errJSON, rec.Body.String())
+}
+
+// resetToJSONErrorHeaders 保留 X-Request-Id，删除所有其他 header。
+func TestResetToJSONErrorHeaders(t *testing.T) {
+	h := http.Header{}
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Connection", "keep-alive")
+	h.Set("X-Accel-Buffering", "no")
+	h.Set("Transfer-Encoding", "chunked")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("X-Request-Id", "req_abc123")
+
+	resetToJSONErrorHeaders(h)
+
+	require.Equal(t, "req_abc123", h.Get("X-Request-Id"))
+	require.Empty(t, h.Get("Content-Type"))
+	require.Empty(t, h.Get("Cache-Control"))
+	require.Empty(t, h.Get("Connection"))
+	require.Empty(t, h.Get("X-Accel-Buffering"))
+	require.Empty(t, h.Get("Transfer-Encoding"))
+	require.Empty(t, h.Get("X-Frame-Options"))
+}
