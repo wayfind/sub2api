@@ -409,6 +409,12 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				accountReleaseFunc()
 			}
 			if err != nil {
+				// Forward 可能已经写出 SSE；同步 Writer 状态，避免 streamStarted
+				// 只反映等待槽位期间的 ping，导致残缺流没有 terminal event。
+				if reqStream && c.Writer.Size() != writerSizeBeforeForward {
+					streamStarted = true
+				}
+
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
 					// 流式内容已写入客户端，无法撤销，禁止 failover 以防止流拼接腐化
@@ -694,6 +700,14 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				accountReleaseFunc()
 			}
 			if err != nil {
+				// Forward 可能已经写出 SSE（例如只收到 message_start 后上游 EOF），
+				// 但 streamStarted 只由等待槽位期间的 ping 设置，不能单独用它判断
+				// Forward 是否已经开始向客户端输出。同步 Writer 状态，确保后续错误
+				// 路径补发 terminal SSE error，而不是留下无终止事件的残缺流。
+				if reqStream && c.Writer.Size() != writerSizeBeforeForward {
+					streamStarted = true
+				}
+
 				// Beta policy block: return 400 immediately, no failover
 				var betaBlockedErr *service.BetaBlockedError
 				if errors.As(err, &betaBlockedErr) {

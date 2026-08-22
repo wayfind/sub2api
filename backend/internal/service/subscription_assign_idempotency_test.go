@@ -194,6 +194,36 @@ func (s *subscriptionUserSubRepoStub) GetByID(_ context.Context, id int64) (*Use
 	return &cp, nil
 }
 
+func TestAssignNewSubscriptionPackageAlwaysCreatesIndependentPackage(t *testing.T) {
+	planRepo := &planRepoStub{
+		plan: &SubscriptionPlan{ID: 1, Status: StatusActive},
+	}
+	subRepo := newSubscriptionUserSubRepoStub()
+	subRepo.seed(&UserSubscription{
+		ID:        10,
+		UserID:    1001,
+		PlanID:    1,
+		StartsAt:  time.Now().Add(-31 * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(-24 * time.Hour),
+		Status:    SubscriptionStatusExpired,
+		Notes:     "first package",
+	})
+
+	svc := NewSubscriptionService(planRepo, subRepo, nil, nil, nil, nil)
+	second, err := svc.AssignNewSubscriptionPackage(context.Background(), &AssignSubscriptionInput{
+		UserID:       1001,
+		PlanID:       1,
+		ValidityDays: 30,
+		Notes:        "second package",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, second)
+	require.NotEqual(t, int64(10), second.ID, "a new package must have its own subscription row")
+	require.Equal(t, 1, subRepo.createCalls)
+	require.Equal(t, SubscriptionStatusActive, second.Status)
+	require.True(t, second.ExpiresAt.After(time.Now()))
+}
+
 func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 	start := time.Date(2026, 2, 20, 10, 0, 0, 0, time.UTC)
 	planRepo := &planRepoStub{

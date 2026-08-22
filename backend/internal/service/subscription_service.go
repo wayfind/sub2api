@@ -271,6 +271,16 @@ func (s *SubscriptionService) PurchaseSubscription(ctx context.Context, input *P
 	s.InvalidateSubCache(input.UserID, input.PlanID)
 	s.InvalidateMergedSubCache(input.UserID)
 	if s.billingCacheService != nil {
+		// 购买会新增一个同 plan 的独立额度包。必须同步清除 Redis 中
+		// 旧的订阅快照，否则购买后短时间内计费检查仍可能读到旧包的
+		// expires_at/status，尤其是旧包刚过期时会误报订阅无效。
+		cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := s.billingCacheService.InvalidateUserSubscriptions(cacheCtx, input.UserID); err != nil {
+			slog.Warn("failed to invalidate subscription billing cache after purchase", "user_id", input.UserID, "error", err)
+		}
+		cancel()
+	}
+	if s.billingCacheService != nil {
 		s.billingCacheService.QueueDeductBalance(input.UserID, price)
 	}
 
@@ -295,7 +305,28 @@ func (s *SubscriptionService) AssignSubscription(ctx context.Context, input *Ass
 	return sub, nil
 }
 
-// AssignOrExtendSubscription 分配或续期订阅（用于兑换码等场景）
+// AssignNewSubscriptionPackage 创建一个独立的订阅额度包，不复用或延长已有订阅。
+// 用于兑换/购买等“买一次得一个新包”的场景；已有订阅的用量、有效期
+// 和记录都保持不变，由合并订阅状态按 FIFO 顺序消费。
+func (s *SubscriptionService) AssignNewSubscriptionPackage(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, error) {
+	if input == nil {
+		return nil, ErrSubscriptionNilInput
+	}
+	if _, err := s.planRepo.GetByID(ctx, input.PlanID); err != nil {
+		return nil, fmt.Errorf("plan not found: %w", err)
+	}
+	sub, err := s.createSubscription(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	// L1 失效可以在外层事务提交前做；即使外层回滚，下一次请求只会回源，
+	// 不会把新订阅误当成已存在。Redis 计费缓存由提交后的调用方失效。
+	s.InvalidateSubCache(input.UserID, input.PlanID)
+	s.InvalidateMergedSubCache(input.UserID)
+	return sub, nil
+}
+
+// AssignOrExtendSubscription 分配或续期订阅（用于默认订阅、管理员续期等场景）
 // 如果用户已有同分组的订阅：
 //   - 未过期：从当前过期时间累加天数
 //   - 已过期：从当前时间开始计算新的过期时间，并激活订阅

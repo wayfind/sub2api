@@ -332,7 +332,7 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 		if validityDays <= 0 {
 			validityDays = 30
 		}
-		_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+		_, err := s.subscriptionService.AssignNewSubscriptionPackage(txCtx, &AssignSubscriptionInput{
 			UserID:       userID,
 			PlanID:       *redeemCode.PlanID,
 			ValidityDays: validityDays,
@@ -340,7 +340,7 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 			Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("assign or extend subscription: %w", err)
+			return nil, fmt.Errorf("create subscription package: %w", err)
 		}
 
 	default:
@@ -389,6 +389,13 @@ func (s *RedeemService) invalidateRedeemCaches(ctx context.Context, userID int64
 	case RedeemTypeSubscription:
 		if s.authCacheInvalidator != nil {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+		}
+		// 兑换事务提交后，确保本地合并订阅缓存也不会继续返回旧快照。
+		// AssignNewSubscriptionPackage 会在事务内先做一次失效，这里再做一次
+		// 提交后的失效，覆盖事务期间发生的并发回填。
+		if s.subscriptionService != nil {
+			s.subscriptionService.InvalidateSubCache(userID, *redeemCode.PlanID)
+			s.subscriptionService.InvalidateMergedSubCache(userID)
 		}
 		if s.billingCacheService == nil {
 			return

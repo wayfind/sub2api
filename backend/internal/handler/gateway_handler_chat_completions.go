@@ -216,6 +216,12 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 
 		if err != nil {
+			// Forward 可能已经写出 SSE；streamStarted 也可能只由等待槽位期间
+			// 的 ping 设置，因此用本次 Forward 的 Writer 增量补齐状态。
+			if reqStream && c.Writer.Size() != writerSizeBeforeForward {
+				streamStarted = true
+			}
+
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if c.Writer.Size() != writerSizeBeforeForward {

@@ -216,6 +216,12 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 
 		if err != nil {
+			// Forward 可能已经写出 SSE；同步本次 Forward 的 Writer 增量，
+			// 避免残缺流没有 terminal event。
+			if reqStream && c.Writer.Size() != writerSizeBeforeForward {
+				streamStarted = true
+			}
+
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				// Can't failover if streaming content already sent
