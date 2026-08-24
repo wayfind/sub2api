@@ -218,7 +218,7 @@ func TestOpenAIGatewayService_Forward_WSv2_RewriteModelAndToolCallsOnCompletedEv
 
 	captureConn := &openAIWSCaptureConn{
 		events: [][]byte{
-			[]byte(`{"type":"response.completed","response":{"id":"resp_model_tool_1","model":"gpt-5.1","tool_calls":[{"function":{"name":"apply_patch","arguments":"{\"file_path\":\"/tmp/a.txt\",\"old_string\":\"a\",\"new_string\":\"b\"}"}}],"usage":{"input_tokens":2,"output_tokens":1}},"tool_calls":[{"function":{"name":"apply_patch","arguments":"{\"file_path\":\"/tmp/a.txt\",\"old_string\":\"a\",\"new_string\":\"b\"}"}}]}`),
+			[]byte(`{"type":"response.completed","response":{"id":"resp_model_tool_1","model":"kimi-k3_b300_5","tool_calls":[{"function":{"name":"apply_patch","arguments":"{\"file_path\":\"/tmp/a.txt\",\"old_string\":\"a\",\"new_string\":\"b\"}"}}],"usage":{"input_tokens":2,"output_tokens":1}},"tool_calls":[{"function":{"name":"apply_patch","arguments":"{\"file_path\":\"/tmp/a.txt\",\"old_string\":\"a\",\"new_string\":\"b\"}"}}]}`),
 		},
 	}
 	captureDialer := &openAIWSCaptureDialer{conn: captureConn}
@@ -245,7 +245,7 @@ func TestOpenAIGatewayService_Forward_WSv2_RewriteModelAndToolCallsOnCompletedEv
 		Credentials: map[string]any{
 			"api_key": "sk-test",
 			"model_mapping": map[string]any{
-				"custom-original-model": "gpt-5.1",
+				"custom-original-model": "kimi-k3_b300_5",
 			},
 		},
 		Extra: map[string]any{
@@ -258,6 +258,8 @@ func TestOpenAIGatewayService_Forward_WSv2_RewriteModelAndToolCallsOnCompletedEv
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "resp_model_tool_1", result.RequestID)
+	require.Len(t, captureConn.writes, 1)
+	require.Equal(t, "kimi-k3_b300_5", gjson.Get(requestToJSONString(captureConn.writes[0]), "model").String(), "显式映射的自定义模型应原样发往 WS 上游")
 	require.Equal(t, "custom-original-model", gjson.GetBytes(rec.Body.Bytes(), "model").String(), "响应模型应回写为原始请求模型")
 	require.Equal(t, "edit", gjson.GetBytes(rec.Body.Bytes(), "tool_calls.0.function.name").String(), "工具名称应被修正为 OpenCode 规范")
 }
