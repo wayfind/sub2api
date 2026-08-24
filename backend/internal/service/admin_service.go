@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -636,6 +637,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
 	oldRole := user.Role
+	oldAllowedGroups := slices.Clone(user.AllowedGroups)
 
 	if input.Email != "" {
 		user.Email = input.Email
@@ -688,7 +690,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || !slices.Equal(user.AllowedGroups, oldAllowedGroups) {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -1367,7 +1369,13 @@ func (s *adminServiceImpl) AddGroupMember(ctx context.Context, groupID, userID i
 	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
 		return err
 	}
-	return s.userRepo.AddGroupToAllowedGroups(ctx, userID, groupID)
+	if err := s.userRepo.AddGroupToAllowedGroups(ctx, userID, groupID); err != nil {
+		return err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+	}
+	return nil
 }
 
 // RemoveGroupMember 移除分组的用户授权
@@ -1376,7 +1384,13 @@ func (s *adminServiceImpl) RemoveGroupMember(ctx context.Context, groupID, userI
 	if _, err := s.groupRepo.GetByID(ctx, groupID); err != nil {
 		return err
 	}
-	return s.userRepo.RemoveGroupFromUserAllowedGroups(ctx, userID, groupID)
+	if err := s.userRepo.RemoveGroupFromUserAllowedGroups(ctx, userID, groupID); err != nil {
+		return err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+	}
+	return nil
 }
 
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定
