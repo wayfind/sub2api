@@ -662,7 +662,7 @@ func TestSoraHandleFailoverExhausted_StreamPassesUpstreamMessage(t *testing.T) {
 
 	errorObj, ok := parsed["error"].(map[string]any)
 	require.True(t, ok)
-	require.Equal(t, "upstream_error", errorObj["type"])
+	require.Equal(t, "api_error", errorObj["type"])
 	require.Equal(t, "invalid \"prompt\"\nline2", errorObj["message"])
 }
 
