@@ -17,6 +17,7 @@ type RequestMetadata struct {
 	PrefetchedStickyAccountID  *int64
 	PrefetchedStickyGroupID    *int64
 	SingleAccountRetry         *bool
+	SingleAccountGroup         *bool
 	AccountSwitchCount         *int
 }
 
@@ -107,6 +108,15 @@ func WithSingleAccountRetry(ctx context.Context, value bool, bridgeOldKeys bool)
 	})
 }
 
+// WithSingleAccountGroup 标记当前请求所属分组只有一个可调度账号（无备用账号可切换）。
+// 新增标记，无旧版 context key 需要桥接。
+func WithSingleAccountGroup(ctx context.Context, value bool) context.Context {
+	return updateRequestMetadata(ctx, false, func(md *RequestMetadata) {
+		v := value
+		md.SingleAccountGroup = &v
+	}, nil)
+}
+
 func WithAccountSwitchCount(ctx context.Context, value int, bridgeOldKeys bool) context.Context {
 	return updateRequestMetadata(ctx, bridgeOldKeys, func(md *RequestMetadata) {
 		v := value
@@ -192,6 +202,13 @@ func SingleAccountRetryFromContext(ctx context.Context) (bool, bool) {
 	if value, ok := ctx.Value(ctxkey.SingleAccountRetry).(bool); ok {
 		requestMetadataFallbackSingleAccountRetryTotal.Add(1)
 		return value, true
+	}
+	return false, false
+}
+
+func SingleAccountGroupFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.SingleAccountGroup != nil {
+		return *md.SingleAccountGroup, true
 	}
 	return false, false
 }

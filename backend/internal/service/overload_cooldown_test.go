@@ -223,6 +223,28 @@ func TestHandle529_DisabledFromDB_SkipsAccount(t *testing.T) {
 	require.Equal(t, 0, accountRepo.overloadCalls, "should NOT pause when disabled")
 }
 
+func TestHandle529_SingleAccountGroup_SkipsCooldown(t *testing.T) {
+	accountRepo := &overloadAccountRepoStub{}
+	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+
+	account := &Account{ID: 42, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	ctx := WithSingleAccountGroup(context.Background(), true)
+	svc.handle529(ctx, account)
+
+	require.Equal(t, 0, accountRepo.overloadCalls, "single-account group should skip 529 cooldown")
+}
+
+func TestHandle529_SingleAccountGroupFalse_StillPauses(t *testing.T) {
+	accountRepo := &overloadAccountRepoStub{}
+	svc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+
+	account := &Account{ID: 42, Platform: PlatformAnthropic, Type: AccountTypeOAuth}
+	ctx := WithSingleAccountGroup(context.Background(), false)
+	svc.handle529(ctx, account)
+
+	require.Equal(t, 1, accountRepo.overloadCalls, "multi-account group keeps 529 cooldown")
+}
+
 func TestHandle529_NilSettingService_FallsBackToConfig(t *testing.T) {
 	accountRepo := &overloadAccountRepoStub{}
 	cfg := &config.Config{}

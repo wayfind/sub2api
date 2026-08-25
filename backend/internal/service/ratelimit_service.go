@@ -1099,6 +1099,13 @@ func parseOpenAIRateLimitResetTime(body []byte) *int64 {
 // handle529 处理529过载错误
 // 根据配置决定是否暂停账号调度及冷却时长
 func (s *RateLimitService) handle529(ctx context.Context, account *Account) {
+	// 单账号分组豁免：分组内无备用账号可切换时，过载冷却会让整组在冷却期内全部 503。
+	// 529 是上游瞬时过载，客户端重试即可恢复，跳过冷却以保住分组可用性。
+	if single, _ := SingleAccountGroupFromContext(ctx); single {
+		slog.Info("account_529_cooldown_skipped", "account_id", account.ID, "reason", "single_account_group")
+		return
+	}
+
 	var settings *OverloadCooldownSettings
 	if s.settingService != nil {
 		var err error

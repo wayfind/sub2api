@@ -261,7 +261,8 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	// 获取平台：优先使用强制平台（/antigravity 路由，中间件已设置 request.Context），否则使用分组平台
 	platform := ""
-	if forcePlatform, ok := middleware2.GetForcePlatformFromContext(c); ok {
+	forcePlatform, hasForcePlatform := middleware2.GetForcePlatformFromContext(c)
+	if hasForcePlatform {
 		platform = forcePlatform
 	} else if apiKey.Group != nil {
 		platform = apiKey.Group.Platform
@@ -521,6 +522,12 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	if h.gatewayService.IsSingleAntigravityAccountGroup(c.Request.Context(), currentAPIKey.GroupID) {
 		ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
 		c.Request = c.Request.WithContext(ctx)
+	}
+
+	// 单账号分组提前设置 SingleAccountGroup 标记：分组内无备用账号可切换时，
+	// 上游 529 不触发过载冷却，避免一次 529 让整组在冷却期内连续 503（No available accounts）。
+	if platform != "" && h.gatewayService.IsSingleAccountGroup(c.Request.Context(), currentAPIKey.GroupID, platform, hasForcePlatform) {
+		c.Request = c.Request.WithContext(service.WithSingleAccountGroup(c.Request.Context(), true))
 	}
 
 	for {

@@ -2241,6 +2241,17 @@ func (s *GatewayService) IsSingleAntigravityAccountGroup(ctx context.Context, gr
 	return len(accounts) == 1
 }
 
+// IsSingleAccountGroup 检查指定分组在给定平台调度池中是否只有一个可调度账号。
+// 用于 Handler 层提前设置 SingleAccountGroup context，
+// 让限流层对无备用账号可切换的分组跳过 529 过载冷却，避免一次 529 导致整组连续 503。
+func (s *GatewayService) IsSingleAccountGroup(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) bool {
+	accounts, _, err := s.listSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
+	if err != nil {
+		return false
+	}
+	return len(accounts) == 1
+}
+
 func (s *GatewayService) isAccountAllowedForPlatform(account *Account, platform string, useMixed bool) bool {
 	if account == nil {
 		return false
