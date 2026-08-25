@@ -1813,8 +1813,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("instructions", "You are a helpful coding assistant.")
 	}
 
-	// 对所有请求执行模型映射（包含 Codex CLI）。
-	mappedModel := account.GetMappedModel(reqModel)
+	// 对所有请求执行模型映射（包含 Codex CLI）。显式账号映射是否命中会在
+	// 后续规范化阶段使用：自定义上游模型名必须保持为管理员配置的最终值。
+	mappedModel, accountMappingMatched := account.ResolveMappedModel(reqModel)
 	if mappedModel != reqModel {
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, mappedModel, account.Name, isCodexCLI)
 		reqBody["model"] = mappedModel
@@ -1824,7 +1825,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	// 针对所有 OpenAI 账号执行 Codex 模型名规范化，确保上游识别一致。
 	if model, ok := reqBody["model"].(string); ok {
-		normalizedModel := normalizeCodexModel(model)
+		normalizedModel := normalizeOpenAIModelAfterAccountMapping(model, accountMappingMatched)
 		if normalizedModel != "" && normalizedModel != model {
 			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Codex model normalization: %s -> %s (account: %s, type: %s, isCodexCLI: %v)",
 				model, normalizedModel, account.Name, account.Type, isCodexCLI)

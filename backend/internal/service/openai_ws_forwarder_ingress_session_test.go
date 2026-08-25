@@ -2537,7 +2537,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ClientDisconnect
 		Credentials: map[string]any{
 			"api_key": "sk-test",
 			"model_mapping": map[string]any{
-				"custom-original-model": "gpt-5.1",
+				"custom-original-model": "kimi-k3_b300_5",
 			},
 		},
 		Extra: map[string]any{
@@ -2618,4 +2618,6 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ClientDisconnect
 	case <-time.After(2 * time.Second):
 		t.Fatal("未收到断连后的 turn 结果回调")
 	}
+	require.Len(t, captureConn.writes, 1)
+	require.Equal(t, "kimi-k3_b300_5", gjson.Get(requestToJSONString(captureConn.writes[0]), "model").String(), "ingress WS 应保留显式映射的自定义模型")
 }
