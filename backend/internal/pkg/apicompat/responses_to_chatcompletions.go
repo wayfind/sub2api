@@ -36,7 +36,8 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 		switch item.Type {
 		case "message":
 			for _, part := range item.Content {
-				if part.Type == "output_text" && part.Text != "" {
+				// 部分 OpenAI 兼容上游用 "text" 而非规范的 "output_text"
+				if (part.Type == "output_text" || part.Type == "text") && part.Text != "" {
 					contentText += part.Text
 				}
 			}
@@ -64,7 +65,10 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	if len(toolCalls) > 0 {
 		msg.ToolCalls = toolCalls
 	}
-	if contentText != "" {
+	// content 键始终存在：纯 tool_calls 时为 null（对齐 OpenAI），其余为字符串
+	if contentText == "" && len(toolCalls) > 0 {
+		msg.Content = json.RawMessage("null")
+	} else {
 		raw, _ := json.Marshal(contentText)
 		msg.Content = raw
 	}

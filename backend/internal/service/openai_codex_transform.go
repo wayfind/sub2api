@@ -146,8 +146,8 @@ func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact
 	}
 
 	// Strip parameters unsupported by codex models via the Responses API.
+	// max_output_tokens 必须保留：删掉会导致客户端 max_tokens 完全失效、输出无上限。
 	for _, key := range []string{
-		"max_output_tokens",
 		"max_completion_tokens",
 		"temperature",
 		"top_p",
@@ -237,6 +237,26 @@ func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact
 	}
 
 	return result
+}
+
+// codexModelRecognized reports whether normalizeCodexModel resolves the model
+// via the alias table or a model-family fuzzy match, rather than the blind
+// gpt-5.1 final fallback. 完全无关的模型名（如乱写的字符串）返回 false，
+// 由调用方决定拒绝；gpt/codex 家族的旧名仍走兜底以兼容存量客户端。
+func codexModelRecognized(model string) bool {
+	if model == "" {
+		return true // 空模型名由 normalizeCodexModel 填默认值
+	}
+	modelID := model
+	if strings.Contains(modelID, "/") {
+		parts := strings.Split(modelID, "/")
+		modelID = parts[len(parts)-1]
+	}
+	if getNormalizedCodexModel(modelID) != "" {
+		return true
+	}
+	normalized := strings.ToLower(modelID)
+	return strings.Contains(normalized, "gpt") || strings.Contains(normalized, "codex")
 }
 
 func normalizeCodexModel(model string) string {

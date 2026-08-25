@@ -20,6 +20,10 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 	if err != nil {
 		return nil, err
 	}
+	if input == nil {
+		// messages 为空时 input 序列化为 []，避免上游收到 null 报 "Invalid type for 'input'"
+		input = []ResponsesInputItem{}
+	}
 
 	inputJSON, err := json.Marshal(input)
 	if err != nil {

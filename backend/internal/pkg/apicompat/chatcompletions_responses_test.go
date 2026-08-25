@@ -398,6 +398,58 @@ func TestResponsesToChatCompletions_ToolCalls(t *testing.T) {
 	assert.Equal(t, `{"city":"NYC"}`, msg.ToolCalls[0].Function.Arguments)
 }
 
+func TestResponsesToChatCompletions_TextPartTypeCompat(t *testing.T) {
+	// 部分 OpenAI 兼容上游的 message 分片用 "text" 而非规范的 "output_text"
+	resp := &ResponsesResponse{
+		ID:     "resp_compat",
+		Status: "completed",
+		Output: []ResponsesOutput{
+			{
+				Type: "message",
+				Content: []ResponsesContentPart{
+					{Type: "text", Text: "compat text"},
+				},
+			},
+		},
+	}
+
+	chat := ResponsesToChatCompletions(resp, "gpt-4o")
+	require.Len(t, chat.Choices, 1)
+
+	var content string
+	require.NoError(t, json.Unmarshal(chat.Choices[0].Message.Content, &content))
+	assert.Equal(t, "compat text", content)
+}
+
+func TestResponsesToChatCompletions_ContentKeyAlwaysPresent(t *testing.T) {
+	// 无正文时 content 也必须存在：空字符串（无 tool_calls）
+	resp := &ResponsesResponse{ID: "resp_empty", Status: "completed"}
+	chat := ResponsesToChatCompletions(resp, "gpt-4o")
+	require.Len(t, chat.Choices, 1)
+	require.NotEmpty(t, chat.Choices[0].Message.Content)
+	assert.Equal(t, `""`, string(chat.Choices[0].Message.Content))
+
+	// 纯 tool_calls 时 content 为 null（对齐 OpenAI）
+	resp = &ResponsesResponse{
+		ID:     "resp_tools",
+		Status: "completed",
+		Output: []ResponsesOutput{
+			{Type: "function_call", CallID: "call_1", Name: "fn", Arguments: "{}"},
+		},
+	}
+	chat = ResponsesToChatCompletions(resp, "gpt-4o")
+	require.Len(t, chat.Choices, 1)
+	assert.Equal(t, "null", string(chat.Choices[0].Message.Content))
+}
+
+func TestChatCompletionsToResponses_EmptyMessagesMarshalsEmptyInputArray(t *testing.T) {
+	req := &ChatCompletionsRequest{Model: "gpt-4o"}
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+	// input 必须是 []，不能是 null（上游会报 Invalid type for 'input'）
+	assert.Equal(t, "[]", string(resp.Input))
+}
+
 func TestResponsesToChatCompletions_Reasoning(t *testing.T) {
 	resp := &ResponsesResponse{
 		ID:     "resp_789",

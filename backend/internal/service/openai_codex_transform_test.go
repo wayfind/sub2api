@@ -314,20 +314,20 @@ func TestNormalizeCodexModel_Gpt53(t *testing.T) {
 
 func TestNormalizeCodexModel_Gpt56(t *testing.T) {
 	cases := map[string]string{
-		"gpt-5.6-sol":              "gpt-5.6-sol",
-		"gpt-5.6-sol-high":         "gpt-5.6-sol",
-		"gpt-5.6-sol-chat-latest":  "gpt-5.6-sol",
-		"gpt 5.6 sol":              "gpt-5.6-sol",
-		"gpt-5.6-terra":            "gpt-5.6-terra",
-		"gpt-5.6-terra-xhigh":      "gpt-5.6-terra",
+		"gpt-5.6-sol":               "gpt-5.6-sol",
+		"gpt-5.6-sol-high":          "gpt-5.6-sol",
+		"gpt-5.6-sol-chat-latest":   "gpt-5.6-sol",
+		"gpt 5.6 sol":               "gpt-5.6-sol",
+		"gpt-5.6-terra":             "gpt-5.6-terra",
+		"gpt-5.6-terra-xhigh":       "gpt-5.6-terra",
 		"gpt-5.6-terra-chat-latest": "gpt-5.6-terra",
-		"gpt 5.6 terra":            "gpt-5.6-terra",
-		"gpt-5.6-luna":             "gpt-5.6-luna",
-		"gpt-5.6-luna-medium":      "gpt-5.6-luna",
-		"gpt 5.6 luna":             "gpt-5.6-luna",
+		"gpt 5.6 terra":             "gpt-5.6-terra",
+		"gpt-5.6-luna":              "gpt-5.6-luna",
+		"gpt-5.6-luna-medium":       "gpt-5.6-luna",
+		"gpt 5.6 luna":              "gpt-5.6-luna",
 		// 裸 gpt-5.6 回退到 terra
-		"gpt-5.6":                  "gpt-5.6-terra",
-		"gpt 5.6":                  "gpt-5.6-terra",
+		"gpt-5.6": "gpt-5.6-terra",
+		"gpt 5.6": "gpt-5.6-terra",
 	}
 
 	for input, expected := range cases {
@@ -574,6 +574,46 @@ func TestIsInstructionsEmpty(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isInstructionsEmpty(tt.reqBody)
 			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestApplyCodexOAuthTransform_PreservesMaxOutputTokens(t *testing.T) {
+	// max_output_tokens 必须透传上游，否则客户端 max_tokens 完全失效
+	reqBody := map[string]any{
+		"model":             "gpt-5.2",
+		"max_output_tokens": float64(128),
+		"temperature":       0.7,
+		"top_p":             0.9,
+		"input":             []any{map[string]any{"role": "user", "content": "hi"}},
+	}
+
+	applyCodexOAuthTransform(reqBody, false, false)
+
+	require.Equal(t, float64(128), reqBody["max_output_tokens"])
+	// 其余不支持参数仍应被剥离
+	require.NotContains(t, reqBody, "temperature")
+	require.NotContains(t, reqBody, "top_p")
+}
+
+func TestCodexModelRecognized(t *testing.T) {
+	tests := []struct {
+		model    string
+		expected bool
+	}{
+		{"", true},                               // 空模型走默认
+		{"gpt-5.2", true},                        // 别名表精确命中
+		{"openai/gpt-5.3-codex", true},           // 带前缀
+		{"GPT-5.1-Codex", true},                  // 大小写不敏感
+		{"gpt-4o", true},                         // gpt 家族旧名，保留兜底兼容
+		{"codex-something", true},                // codex 家族
+		{"this-model-does-not-exist-999", false}, // 乱写的模型名
+		{"claude-sonnet-5", false},               // 其他厂商模型
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			require.Equal(t, tt.expected, codexModelRecognized(tt.model))
 		})
 	}
 }

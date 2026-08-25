@@ -47,6 +47,22 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	// derive a stable seed from the final upstream model family.
 	mappedModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
 
+	// OAuth 上游会把任意未知模型名兜底成 gpt-5.1，导致乱写的模型也返回 200。
+	// 未被账号映射/分组默认映射接住、且不属于 gpt/codex 家族的模型直接拒绝。
+	if account.Type == AccountTypeOAuth {
+		if _, matched := account.ResolveMappedModel(originalModel); !matched &&
+			defaultMappedModel == "" && !codexModelRecognized(originalModel) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"type":    "invalid_request_error",
+					"code":    "model_not_found",
+					"message": fmt.Sprintf("The model '%s' does not exist or you do not have access to it.", originalModel),
+				},
+			})
+			return nil, fmt.Errorf("model not found: %s", originalModel)
+		}
+	}
+
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
 	if promptCacheKey == "" && account.Type == AccountTypeOAuth && shouldAutoInjectPromptCacheKeyForCompat(mappedModel) {
@@ -239,6 +255,11 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	var finalResponse *apicompat.ResponsesResponse
 	var usage OpenAIUsage
 
+	// 按 output_index 累计文本增量：部分上游的终端事件不携带（或不完整携带）
+	// output 正文，此时以增量拼出的文本兜底，避免 200 响应 content 为空。
+	textByOutputIndex := make(map[int]*strings.Builder)
+	var textOutputOrder []int
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data: ") || line == "data: [DONE]" {
@@ -253,6 +274,31 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 				zap.String("request_id", requestID),
 			)
 			continue
+		}
+
+		switch event.Type {
+		case "response.output_text.delta":
+			if event.Delta != "" {
+				b, ok := textByOutputIndex[event.OutputIndex]
+				if !ok {
+					b = &strings.Builder{}
+					textByOutputIndex[event.OutputIndex] = b
+					textOutputOrder = append(textOutputOrder, event.OutputIndex)
+				}
+				b.WriteString(event.Delta)
+			}
+		case "response.output_text.done":
+			// done 事件携带该分片全文，以其为准覆盖增量累计
+			if event.Text != "" {
+				b, ok := textByOutputIndex[event.OutputIndex]
+				if !ok {
+					b = &strings.Builder{}
+					textByOutputIndex[event.OutputIndex] = b
+					textOutputOrder = append(textOutputOrder, event.OutputIndex)
+				}
+				b.Reset()
+				b.WriteString(event.Text)
+			}
 		}
 
 		if (event.Type == "response.completed" || event.Type == "response.incomplete" || event.Type == "response.failed") &&
@@ -282,6 +328,25 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	if finalResponse == nil {
 		writeChatCompletionsError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event")
 		return nil, fmt.Errorf("upstream stream ended without terminal event")
+	}
+
+	// 终端事件没带正文而流式增量有内容时，用增量文本补一个 message 输出项
+	if !responsesOutputHasText(finalResponse.Output) {
+		var rebuilt strings.Builder
+		for _, idx := range textOutputOrder {
+			rebuilt.WriteString(textByOutputIndex[idx].String())
+		}
+		if rebuilt.Len() > 0 {
+			logger.L().Info("openai chat_completions buffered: terminal event missing text output, rebuilt from deltas",
+				zap.String("request_id", requestID),
+				zap.Int("rebuilt_len", rebuilt.Len()),
+			)
+			finalResponse.Output = append(finalResponse.Output, apicompat.ResponsesOutput{
+				Type:    "message",
+				Role:    "assistant",
+				Content: []apicompat.ResponsesContentPart{{Type: "output_text", Text: rebuilt.String()}},
+			})
+		}
 	}
 
 	chatResp := apicompat.ResponsesToChatCompletions(finalResponse, originalModel)
@@ -516,6 +581,22 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 			c.Writer.Flush()
 		}
 	}
+}
+
+// responsesOutputHasText reports whether any message output item carries
+// non-empty text content.
+func responsesOutputHasText(output []apicompat.ResponsesOutput) bool {
+	for _, item := range output {
+		if item.Type != "message" {
+			continue
+		}
+		for _, part := range item.Content {
+			if (part.Type == "output_text" || part.Type == "text") && part.Text != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // writeChatCompletionsError writes an error response in OpenAI Chat Completions format.
