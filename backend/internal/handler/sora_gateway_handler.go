@@ -175,6 +175,7 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 	streamStarted := false
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	maxWait := service.CalculateMaxWait(subject.Concurrency)
 	canWait, err := h.concurrencyHelper.IncrementWaitCount(c.Request.Context(), subject.UserID, maxWait)
@@ -411,17 +412,18 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-				InboundEndpoint:    inboundEndpoint,
-				UpstreamEndpoint:   upstreamEndpoint,
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      inboundEndpoint,
+				UpstreamEndpoint:     upstreamEndpoint,
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				RequestPayloadHash:   requestPayloadHash,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.sora_gateway.chat_completions"),

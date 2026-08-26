@@ -50,6 +50,109 @@ func newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo UsageLogReposi
 	return svc
 }
 
+func TestGatewayServiceRecordUsage_BalanceInSubscriptionPeriodUsesGroupRate(t *testing.T) {
+	groupID := int64(31)
+	userRate := 0.4
+	rateRepo := &openAIUserGroupRateRepoStub{rate: &userRate}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, subRepo)
+	svc.userGroupRateResolver = newUserGroupRateResolver(rateRepo, nil, time.Minute, nil, "service.gateway.test")
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_balance_in_subscription_period",
+			Usage:     ClaudeUsage{InputTokens: 10, OutputTokens: 6},
+			Model:     "claude-sonnet-4",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      511,
+			GroupID: i64p(groupID),
+			Group:   &Group{ID: groupID, RateMultiplier: 0.5},
+		},
+		User:                 &User{ID: 611},
+		Account:              &Account{ID: 711},
+		InSubscriptionPeriod: true,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, rateRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, BillingTypeBalance, usageRepo.lastLog.BillingType)
+	require.Equal(t, userRate, usageRepo.lastLog.RateMultiplier)
+	require.Equal(t, 1, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
+func TestGatewayServiceRecordUsage_BalanceOutsideSubscriptionPeriodUsesOriginalPrice(t *testing.T) {
+	groupID := int64(32)
+	userRate := 0.4
+	rateRepo := &openAIUserGroupRateRepoStub{rate: &userRate}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{})
+	svc.userGroupRateResolver = newUserGroupRateResolver(rateRepo, nil, time.Minute, nil, "service.gateway.test")
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_balance_outside_subscription_period",
+			Usage:     ClaudeUsage{InputTokens: 10, OutputTokens: 6},
+			Model:     "claude-sonnet-4",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      512,
+			GroupID: i64p(groupID),
+			Group:   &Group{ID: groupID, RateMultiplier: 0.5},
+		},
+		User:    &User{ID: 612},
+		Account: &Account{ID: 712},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 0, rateRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, BillingTypeBalance, usageRepo.lastLog.BillingType)
+	require.Equal(t, 1.0, usageRepo.lastLog.RateMultiplier)
+	require.Equal(t, 1, userRepo.deductCalls)
+}
+
+func TestGatewayServiceRecordUsageWithLongContext_BalanceInSubscriptionPeriodUsesGroupRate(t *testing.T) {
+	groupID := int64(33)
+	userRate := 0.45
+	rateRepo := &openAIUserGroupRateRepoStub{rate: &userRate}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+	svc.userGroupRateResolver = newUserGroupRateResolver(rateRepo, nil, time.Minute, nil, "service.gateway.test")
+
+	err := svc.RecordUsageWithLongContext(context.Background(), &RecordUsageLongContextInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_long_context_balance_in_subscription_period",
+			Usage:     ClaudeUsage{InputTokens: 12, OutputTokens: 8},
+			Model:     "gemini-2.5-pro",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      513,
+			GroupID: i64p(groupID),
+			Group:   &Group{ID: groupID, RateMultiplier: 0.5},
+		},
+		User:                  &User{ID: 613},
+		Account:               &Account{ID: 713},
+		InSubscriptionPeriod:  true,
+		LongContextThreshold:  200000,
+		LongContextMultiplier: 2,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, rateRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, BillingTypeBalance, usageRepo.lastLog.BillingType)
+	require.Equal(t, userRate, usageRepo.lastLog.RateMultiplier)
+}
+
 type openAIRecordUsageBestEffortLogRepoStub struct {
 	UsageLogRepository
 

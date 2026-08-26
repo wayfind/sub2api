@@ -261,6 +261,7 @@ func (s *UserSubscriptionRepoSuite) TestListActiveByUserID() {
 	user := s.mustCreateUser("listactive@test.com", service.RoleUser)
 	p1 := s.mustCreatePlan("p-act1")
 	p2 := s.mustCreatePlan("p-act2")
+	p3 := s.mustCreatePlan("p-act3-future")
 
 	s.mustCreateSubscription(user.ID, p1.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetExpiresAt(time.Now().Add(24 * time.Hour))
@@ -268,6 +269,10 @@ func (s *UserSubscriptionRepoSuite) TestListActiveByUserID() {
 	s.mustCreateSubscription(user.ID, p2.ID, func(c *dbent.UserSubscriptionCreate) {
 		c.SetStatus(service.SubscriptionStatusExpired)
 		c.SetExpiresAt(time.Now().Add(-24 * time.Hour))
+	})
+	s.mustCreateSubscription(user.ID, p3.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStartsAt(time.Now().Add(time.Hour))
+		c.SetExpiresAt(time.Now().Add(25 * time.Hour))
 	})
 
 	subs, err := s.repo.ListActiveByUserID(s.ctx, user.ID)

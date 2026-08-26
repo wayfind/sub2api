@@ -30,6 +30,7 @@ import (
 type OpenAIGatewayHandler struct {
 	gatewayService          *service.OpenAIGatewayService
 	billingCacheService     *service.BillingCacheService
+	subscriptionService     *service.SubscriptionService
 	apiKeyService           *service.APIKeyService
 	usageRecordWorkerPool   *service.UsageRecordWorkerPool
 	errorPassthroughService *service.ErrorPassthroughService
@@ -53,6 +54,7 @@ func NewOpenAIGatewayHandler(
 	gatewayService *service.OpenAIGatewayService,
 	concurrencyService *service.ConcurrencyService,
 	billingCacheService *service.BillingCacheService,
+	subscriptionService *service.SubscriptionService,
 	apiKeyService *service.APIKeyService,
 	usageRecordWorkerPool *service.UsageRecordWorkerPool,
 	errorPassthroughService *service.ErrorPassthroughService,
@@ -69,6 +71,7 @@ func NewOpenAIGatewayHandler(
 	return &OpenAIGatewayHandler{
 		gatewayService:          gatewayService,
 		billingCacheService:     billingCacheService,
+		subscriptionService:     subscriptionService,
 		apiKeyService:           apiKeyService,
 		usageRecordWorkerPool:   usageRecordWorkerPool,
 		errorPassthroughService: errorPassthroughService,
@@ -199,6 +202,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// Get subscription info (may be nil)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
@@ -371,18 +375,19 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-				InboundEndpoint:    GetInboundEndpoint(c),
-				UpstreamEndpoint:   GetUpstreamEndpoint(c, account.Platform),
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-				APIKeyService:      h.apiKeyService,
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      GetInboundEndpoint(c),
+				UpstreamEndpoint:     GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				RequestPayloadHash:   requestPayloadHash,
+				APIKeyService:        h.apiKeyService,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.responses"),
@@ -559,6 +564,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
@@ -753,18 +759,19 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-				InboundEndpoint:    GetInboundEndpoint(c),
-				UpstreamEndpoint:   GetUpstreamEndpoint(c, account.Platform),
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-				APIKeyService:      h.apiKeyService,
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      GetInboundEndpoint(c),
+				UpstreamEndpoint:     GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				RequestPayloadHash:   requestPayloadHash,
+				APIKeyService:        h.apiKeyService,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.messages"),
@@ -1149,9 +1156,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 	if err := h.billingCacheService.CheckBillingEligibility(ctx, apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
 		reqLog.Info("openai.websocket_billing_eligibility_check_failed", zap.Error(err))
-		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
+		if errors.Is(err, service.ErrBillingServiceUnavailable) {
+			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "billing service temporarily unavailable")
+		} else {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
+		}
 		return
 	}
 
@@ -1225,6 +1237,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
 
+	var lastTurnBillingErr error
 	hooks := &service.OpenAIWSIngressHooks{
 		BeforeTurn: func(turn int) error {
 			if turn == 1 {
@@ -1232,6 +1245,30 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			}
 			// 防御式清理：避免异常路径下旧槽位覆盖导致泄漏。
 			releaseTurnSlots()
+			if lastTurnBillingErr != nil {
+				return service.NewOpenAIWSClientCloseError(
+					coderws.StatusInternalError,
+					"failed to record previous turn usage",
+					lastTurnBillingErr,
+				)
+			}
+
+			// WebSocket 每一轮都相当于一次新的计费请求。重新加载订阅状态，
+			// 确保额度耗尽、订阅暂停或到期后能及时切换到正确的余额费率。
+			refreshedSubscription, refreshedState, refreshedInPeriod, billingErr := h.resolveOpenAIWSTurnBillingState(ctx, apiKey)
+			if billingErr != nil {
+				status := coderws.StatusPolicyViolation
+				reason := "billing check failed"
+				if errors.Is(billingErr, service.ErrBillingServiceUnavailable) {
+					status = coderws.StatusTryAgainLater
+					reason = "billing service temporarily unavailable"
+				}
+				return service.NewOpenAIWSClientCloseError(status, reason, billingErr)
+			}
+			subscription = refreshedSubscription
+			mergedState = refreshedState
+			inSubscriptionPeriod = refreshedInPeriod
+
 			// 非首轮 turn 需要重新抢占并发槽位，避免长连接空闲占槽。
 			userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlot(ctx, subject.UserID, subject.Concurrency)
 			if err != nil {
@@ -1258,7 +1295,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			return nil
 		},
 		AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
-			releaseTurnSlots()
+			// 槽位保留到本轮扣费完成，避免同一用户的新请求在额度写入和
+			// 合并状态缓存失效之前抢先进入。
+			defer releaseTurnSlots()
 			if turnErr != nil || result == nil {
 				return
 			}
@@ -1267,28 +1306,31 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			}
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
 			recordUpstreamSuccessMetrics(account.Platform, result.Model, result.Duration, result.FirstTokenMs)
-			h.submitUsageRecordTask(func(taskCtx context.Context) {
-				if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
-					Result:             result,
-					APIKey:             apiKey,
-					User:               apiKey.User,
-					Account:            account,
-					Subscription:       subscription,
-					FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-					InboundEndpoint:    GetInboundEndpoint(c),
-					UpstreamEndpoint:   GetUpstreamEndpoint(c, account.Platform),
-					UserAgent:          userAgent,
-					IPAddress:          clientIP,
-					RequestPayloadHash: service.HashUsageRequestPayload(firstMessage),
-					APIKeyService:      h.apiKeyService,
-				}); err != nil {
-					reqLog.Error("openai.websocket_record_usage_failed",
-						zap.Int64("account_id", account.ID),
-						zap.String("request_id", result.RequestID),
-						zap.Error(err),
-					)
-				}
+			// 长连接的下一轮会重新读取订阅额度，因此这里必须先完成本轮扣费，
+			// 再失效 L1 快照；否则异步队列会让下一轮继续使用扣费前的旧额度。
+			lastTurnBillingErr = h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      GetInboundEndpoint(c),
+				UpstreamEndpoint:     GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				RequestPayloadHash:   service.HashUsageRequestPayload(firstMessage),
+				APIKeyService:        h.apiKeyService,
 			})
+			if lastTurnBillingErr != nil {
+				reqLog.Error("openai.websocket_record_usage_failed",
+					zap.Int64("account_id", account.ID),
+					zap.String("request_id", result.RequestID),
+					zap.Error(lastTurnBillingErr),
+				)
+				return
+			}
 		},
 	}
 
@@ -1310,6 +1352,59 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		return
 	}
 	reqLog.Info("openai.websocket_ingress_closed", zap.Int64("account_id", account.ID))
+}
+
+func (h *OpenAIGatewayHandler) resolveOpenAIWSTurnBillingState(
+	ctx context.Context,
+	apiKey *service.APIKey,
+) (*service.UserSubscription, *service.MergedSubscriptionState, bool, error) {
+	if h == nil || h.subscriptionService == nil || h.billingCacheService == nil {
+		return nil, nil, false, service.ErrBillingServiceUnavailable.WithCause(
+			fmt.Errorf("websocket billing dependencies unavailable"),
+		)
+	}
+	if apiKey == nil || apiKey.User == nil {
+		return nil, nil, false, service.ErrBillingServiceUnavailable.WithCause(
+			fmt.Errorf("websocket billing API key or user missing"),
+		)
+	}
+
+	mergedState, err := h.subscriptionService.GetMergedSubscriptionState(ctx, apiKey.User.ID)
+	if err != nil && !errors.Is(err, service.ErrSubscriptionNotFound) {
+		return nil, nil, false, service.ErrBillingServiceUnavailable.WithCause(
+			fmt.Errorf("load subscription billing state: %w", err),
+		)
+	}
+	if errors.Is(err, service.ErrSubscriptionNotFound) {
+		mergedState = nil
+	}
+
+	var subscription *service.UserSubscription
+	inSubscriptionPeriod := false
+	if target := mergedState.FIFOTarget(); target != nil && target.Status == service.SubscriptionStatusActive {
+		inSubscriptionPeriod = true
+		needsMaintenance, validateErr := h.subscriptionService.ValidateMergedState(mergedState)
+		if validateErr == nil {
+			subscription = mergedState.FIFOTarget()
+			if needsMaintenance {
+				for i := range mergedState.FIFOQueue {
+					h.subscriptionService.DoWindowMaintenance(&mergedState.FIFOQueue[i])
+				}
+			}
+		} else {
+			mergedState = nil
+			if !service.IsSubscriptionUsageLimitExceeded(validateErr) {
+				inSubscriptionPeriod = false
+			}
+		}
+	} else {
+		mergedState = nil
+	}
+
+	if err := h.billingCacheService.CheckBillingEligibility(ctx, apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
+		return nil, nil, false, err
+	}
+	return subscription, mergedState, inSubscriptionPeriod, nil
 }
 
 func (h *OpenAIGatewayHandler) recoverResponsesPanic(c *gin.Context, streamStarted *bool) {

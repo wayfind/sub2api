@@ -94,6 +94,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
@@ -259,18 +260,19 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-				InboundEndpoint:    inboundEndpoint,
-				UpstreamEndpoint:   upstreamEndpoint,
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-				APIKeyService:      h.apiKeyService,
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      inboundEndpoint,
+				UpstreamEndpoint:     upstreamEndpoint,
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				RequestPayloadHash:   requestPayloadHash,
+				APIKeyService:        h.apiKeyService,
 			}); err != nil {
 				reqLog.Error("gateway.cc.record_usage_failed",
 					zap.Int64("account_id", account.ID),

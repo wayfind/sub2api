@@ -102,3 +102,27 @@ func TestBillingCacheServiceEnqueueAfterStopReturnsFalse(t *testing.T) {
 	})
 	require.False(t, enqueued)
 }
+
+type mergedSubscriptionInvalidatorStub struct {
+	userID int64
+}
+
+func (s *mergedSubscriptionInvalidatorStub) InvalidateMergedSubCache(userID int64) {
+	s.userID = userID
+}
+
+func TestFinalizePostUsageBillingInvalidatesMergedSubscriptionState(t *testing.T) {
+	cacheService := &BillingCacheService{}
+	invalidator := &mergedSubscriptionInvalidatorStub{}
+	cacheService.setMergedSubscriptionCacheInvalidator(invalidator)
+
+	finalizePostUsageBilling(&postUsageBillingParams{
+		Cost:               &CostBreakdown{TotalCost: 2, ActualCost: 1},
+		User:               &User{ID: 42},
+		APIKey:             &APIKey{ID: 7},
+		Subscription:       &UserSubscription{ID: 9, PlanID: 3},
+		IsSubscriptionBill: true,
+	}, &billingDeps{billingCacheService: cacheService})
+
+	require.Equal(t, int64(42), invalidator.userID)
+}

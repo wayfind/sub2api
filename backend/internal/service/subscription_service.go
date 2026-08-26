@@ -44,6 +44,14 @@ var (
 	ErrPlanHasActiveSubscriptions = infraerrors.Conflict("PLAN_HAS_ACTIVE_SUBSCRIPTIONS", "cannot delete plan with active subscriptions")
 )
 
+// IsSubscriptionUsageLimitExceeded reports whether a valid subscription is
+// falling back to balance billing only because one of its usage windows is full.
+func IsSubscriptionUsageLimitExceeded(err error) bool {
+	return errors.Is(err, ErrDailyLimitExceeded) ||
+		errors.Is(err, ErrWeeklyLimitExceeded) ||
+		errors.Is(err, ErrMonthlyLimitExceeded)
+}
+
 // SubscriptionService 订阅服务
 type SubscriptionService struct {
 	planRepo            SubscriptionPlanRepository
@@ -72,6 +80,9 @@ func NewSubscriptionService(planRepo SubscriptionPlanRepository, userSubRepo Use
 	}
 	svc.initSubCache(cfg)
 	svc.initMaintenanceQueue(cfg)
+	if billingCacheService != nil {
+		billingCacheService.setMergedSubscriptionCacheInvalidator(svc)
+	}
 	return svc
 }
 
@@ -1262,9 +1273,12 @@ type MergedSubscriptionState struct {
 // FIFOTarget 返回第一个未过期的活跃订阅，如果队列为空或全部过期则返回 nil。
 // 用于需要单个"代表性订阅"的场景（状态检查、展示）。
 func (s *MergedSubscriptionState) FIFOTarget() *UserSubscription {
+	if s == nil {
+		return nil
+	}
 	now := time.Now()
 	for i := range s.FIFOQueue {
-		if s.FIFOQueue[i].ExpiresAt.After(now) {
+		if !now.Before(s.FIFOQueue[i].StartsAt) && s.FIFOQueue[i].ExpiresAt.After(now) {
 			return &s.FIFOQueue[i]
 		}
 	}
@@ -1281,7 +1295,7 @@ func (s *MergedSubscriptionState) ActivePlanIDs() []int64 {
 	seen := make(map[int64]struct{}, len(s.FIFOQueue))
 	planIDs := make([]int64, 0, len(s.FIFOQueue))
 	for i := range s.FIFOQueue {
-		if !s.FIFOQueue[i].ExpiresAt.After(now) {
+		if now.Before(s.FIFOQueue[i].StartsAt) || !s.FIFOQueue[i].ExpiresAt.After(now) {
 			continue
 		}
 		pid := s.FIFOQueue[i].PlanID
@@ -1426,33 +1440,14 @@ func (s *SubscriptionService) GetMergedSubscriptionState(ctx context.Context, us
 
 // copyMergedState 深拷贝合并状态，避免缓存污染
 func (s *SubscriptionService) copyMergedState(src *MergedSubscriptionState) *MergedSubscriptionState {
-	dst := &MergedSubscriptionState{
-		TotalDailyUsage:   src.TotalDailyUsage,
-		TotalWeeklyUsage:  src.TotalWeeklyUsage,
-		TotalMonthlyUsage: src.TotalMonthlyUsage,
-		NeedsMaintenance:  src.NeedsMaintenance,
+	if src == nil {
+		return nil
 	}
-	if src.EffectiveDailyLimit != nil {
-		v := *src.EffectiveDailyLimit
-		dst.EffectiveDailyLimit = &v
-	}
-	if src.EffectiveWeeklyLimit != nil {
-		v := *src.EffectiveWeeklyLimit
-		dst.EffectiveWeeklyLimit = &v
-	}
-	if src.EffectiveMonthlyLimit != nil {
-		v := *src.EffectiveMonthlyLimit
-		dst.EffectiveMonthlyLimit = &v
-	}
-	if len(src.FIFOQueue) > 0 {
-		now := time.Now()
-		dst.FIFOQueue = make([]UserSubscription, 0, len(src.FIFOQueue))
-		for _, sub := range src.FIFOQueue {
-			if sub.ExpiresAt.After(now) {
-				dst.FIFOQueue = append(dst.FIFOQueue, sub)
-			}
-		}
-	}
+
+	// 缓存存活期间订阅可能刚好到期。重新合并过滤后的队列，确保到期订阅的
+	// 限额和用量同时从聚合值移除，而不只是从 FIFOQueue 中移除。
+	dst := mergeSubscriptions(src.FIFOQueue)
+	dst.NeedsMaintenance = src.NeedsMaintenance
 	return dst
 }
 

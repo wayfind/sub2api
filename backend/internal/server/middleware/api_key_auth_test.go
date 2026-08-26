@@ -142,6 +142,25 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 	})
 
+	t.Run("standard_mode_subscription_lookup_failure_returns_503", func(t *testing.T) {
+		cfg := &config.Config{RunMode: config.RunModeStandard}
+		apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+		subscriptionService := service.NewSubscriptionService(nil, &stubUserSubscriptionRepo{
+			listActive: func(context.Context, int64) ([]service.UserSubscription, error) {
+				return nil, errors.New("database unavailable")
+			},
+		}, nil, nil, nil, cfg)
+		router := newAuthTestRouter(apiKeyService, subscriptionService, cfg)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/t", nil)
+		req.Header.Set("x-api-key", apiKey.Key)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusServiceUnavailable, w.Code)
+		require.Contains(t, w.Body.String(), "BILLING_SERVICE_UNAVAILABLE")
+	})
+
 	t.Run("standard_mode_enforces_quota_check", func(t *testing.T) {
 		cfg := &config.Config{RunMode: config.RunModeStandard}
 		apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
@@ -185,6 +204,7 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		req.Header.Set("x-api-key", apiKey.Key)
 		router.ServeHTTP(w, req)
 		require.Equal(t, http.StatusOK, w.Code)
+		require.Contains(t, w.Body.String(), `"in_subscription_period":true`)
 
 		// 余额也耗尽时 → 拒绝
 		broke := *user
@@ -527,7 +547,10 @@ func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService
 	router := gin.New()
 	router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, cfg)))
 	router.GET("/t", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ok": true})
+		c.JSON(http.StatusOK, gin.H{
+			"ok":                     true,
+			"in_subscription_period": IsInSubscriptionPeriod(c),
+		})
 	})
 	return router
 }

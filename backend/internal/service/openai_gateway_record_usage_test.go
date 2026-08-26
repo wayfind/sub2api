@@ -251,6 +251,81 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 	require.Equal(t, 0, userRepo.deductCalls)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_BalanceInSubscriptionPeriodUsesGroupRate(t *testing.T) {
+	groupID := int64(21)
+	userRate := 0.35
+	usage := OpenAIUsage{InputTokens: 15, OutputTokens: 4, CacheReadInputTokens: 3}
+
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	rateRepo := &openAIUserGroupRateRepoStub{rate: &userRate}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, rateRepo)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_balance_in_subscription_period",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      1011,
+			GroupID: i64p(groupID),
+			Group:   &Group{ID: groupID, RateMultiplier: 0.5},
+		},
+		User:                 &User{ID: 2011},
+		Account:              &Account{ID: 3011},
+		InSubscriptionPeriod: true,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, rateRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, BillingTypeBalance, usageRepo.lastLog.BillingType)
+	require.Equal(t, userRate, usageRepo.lastLog.RateMultiplier)
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, userRate)
+	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.Equal(t, 1, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_BalanceOutsideSubscriptionPeriodUsesOriginalPrice(t *testing.T) {
+	groupID := int64(22)
+	userRate := 0.35
+	usage := OpenAIUsage{InputTokens: 10, OutputTokens: 5}
+
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	rateRepo := &openAIUserGroupRateRepoStub{rate: &userRate}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{}, rateRepo)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_balance_outside_subscription_period",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      1012,
+			GroupID: i64p(groupID),
+			Group:   &Group{ID: groupID, RateMultiplier: 0.5},
+		},
+		User:    &User{ID: 2012},
+		Account: &Account{ID: 3012},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 0, rateRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, BillingTypeBalance, usageRepo.lastLog.BillingType)
+	require.Equal(t, 1.0, usageRepo.lastLog.RateMultiplier)
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.0)
+	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.Equal(t, 1, userRepo.deductCalls)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_IncludesEndpointMetadata(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}
@@ -721,7 +796,7 @@ func TestOpenAIGatewayServiceRecordUsage_UpdatesAPIKeyQuotaWhenConfigured(t *tes
 	require.NoError(t, err)
 	require.Equal(t, 1, quotaSvc.quotaCalls)
 	require.Equal(t, 0, quotaSvc.rateLimitCalls)
-	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 7.0)
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.0)
 	require.InDelta(t, expected.ActualCost, quotaSvc.lastAmount, 1e-12)
 }
 
@@ -781,7 +856,7 @@ func TestOpenAIGatewayServiceRecordUsage_Gpt54LongContextBillsWholeSession(t *te
 	require.InDelta(t, expectedInput, usageRepo.lastLog.InputCost, 1e-10)
 	require.InDelta(t, expectedOutput, usageRepo.lastLog.OutputCost, 1e-10)
 	require.InDelta(t, expectedInput+expectedOutput, usageRepo.lastLog.TotalCost, 1e-10)
-	require.InDelta(t, (expectedInput+expectedOutput)*7.0, usageRepo.lastLog.ActualCost, 1e-10)
+	require.InDelta(t, expectedInput+expectedOutput, usageRepo.lastLog.ActualCost, 1e-10)
 	require.Equal(t, 1, userRepo.deductCalls)
 }
 
@@ -934,7 +1009,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingUpstreamModelFa
 	expectedCost, err := svc.billingService.CalculateCost("gpt-5.1-codex", UsageTokens{
 		InputTokens:  20,
 		OutputTokens: 10,
-	}, 7.0)
+	}, 1.0)
 	require.NoError(t, err)
 
 	err = svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{

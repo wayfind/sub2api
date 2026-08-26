@@ -26,6 +26,9 @@ const (
 	ContextKeySubscription ContextKey = "subscription"
 	// ContextKeyMergedSubscription 合并订阅状态上下文键（含 FIFO 队列，用于分账）
 	ContextKeyMergedSubscription ContextKey = "merged_subscription"
+	// ContextKeyInSubscriptionPeriod 标记用户当前是否处于有效订阅周期内。
+	// 即使订阅额度耗尽并回退到余额计费，该标记仍为 true，用于应用分组费率。
+	ContextKeyInSubscriptionPeriod ContextKey = "in_subscription_period"
 	// ContextKeyForcePlatform 强制平台（用于 /antigravity 路由）
 	ContextKeyForcePlatform ContextKey = "force_platform"
 )

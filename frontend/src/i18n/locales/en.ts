@@ -653,6 +653,8 @@ export default {
     namePlaceholder: 'My API Key',
     groupLabel: 'Group',
     selectGroup: 'Select a group',
+    groupDiscountSubscriptionOnly:
+      'Group discounts apply only to subscribers during an active subscription period; other users are charged the standard rate.',
     statusLabel: 'Status',
     selectStatus: 'Select status',
     saving: 'Saving...',

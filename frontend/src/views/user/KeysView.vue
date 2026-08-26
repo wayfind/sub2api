@@ -428,6 +428,10 @@
               />
             </template>
           </Select>
+          <p class="mt-1.5 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <Icon name="infoCircle" size="xs" class="mt-0.5 flex-shrink-0" />
+            <span>{{ t('keys.groupDiscountSubscriptionOnly') }}</span>
+          </p>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -973,7 +977,7 @@
       <div
         v-if="groupSelectorKeyId !== null && dropdownPosition"
         ref="dropdownRef"
-        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max min-w-[380px] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 dark:bg-dark-800 dark:ring-white/10"
+        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-[calc(100vw-1rem)] max-w-[420px] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 dark:bg-dark-800 dark:ring-white/10"
         style="pointer-events: auto !important;"
         :style="{
           top: dropdownPosition.top !== undefined ? dropdownPosition.top + 'px' : undefined,
@@ -995,6 +999,10 @@
               @click.stop
             />
           </div>
+          <p class="mt-2 flex items-start gap-1.5 whitespace-normal break-words px-0.5 text-xs text-amber-600 dark:text-amber-400">
+            <Icon name="infoCircle" size="xs" class="mt-0.5 flex-shrink-0" />
+            <span>{{ t('keys.groupDiscountSubscriptionOnly') }}</span>
+          </p>
         </div>
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
@@ -1404,6 +1412,8 @@ const openGroupSelector = (key: ApiKey) => {
     if (buttonEl) {
       const rect = buttonEl.getBoundingClientRect()
       const dropdownEstHeight = 400 // estimated max dropdown height
+      const dropdownWidth = Math.min(420, window.innerWidth - 16)
+      const dropdownLeft = Math.min(Math.max(8, rect.left), window.innerWidth - dropdownWidth - 8)
       const spaceBelow = window.innerHeight - rect.bottom
       const spaceAbove = rect.top
 
@@ -1411,13 +1421,13 @@ const openGroupSelector = (key: ApiKey) => {
         // Not enough space below, pop upward
         dropdownPosition.value = {
           bottom: window.innerHeight - rect.top + 4,
-          left: rect.left
+          left: dropdownLeft
         }
       } else {
         // Default: pop downward
         dropdownPosition.value = {
           top: rect.bottom + 4,
-          left: rect.left
+          left: dropdownLeft
         }
       }
     }

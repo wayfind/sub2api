@@ -688,7 +688,12 @@ func TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLimitExceeded_FallsBackToB
 
 	r := gin.New()
 	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, &config.Config{RunMode: config.RunModeStandard}))
-	r.GET("/v1beta/test", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+	r.GET("/v1beta/test", func(c *gin.Context) {
+		if IsInSubscriptionPeriod(c) {
+			c.Header("X-Test-In-Subscription-Period", "true")
+		}
+		c.JSON(200, gin.H{"ok": true})
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/v1beta/test", nil)
 	req.Header.Set("x-goog-api-key", apiKey.Key)
@@ -698,6 +703,45 @@ func TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLimitExceeded_FallsBackToB
 	// 订阅超限时 fallback 到余额计费，余额充足则放行
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "balance", rec.Header().Get("X-Billing-Type"))
+	require.Equal(t, "true", rec.Header().Get("X-Test-In-Subscription-Period"))
+}
+
+func TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLookupFailureReturns503(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	user := &service.User{ID: 1001, Status: service.StatusActive, Balance: 10}
+	apiKey := &service.APIKey{
+		ID:     502,
+		UserID: user.ID,
+		Key:    "google-sub-load-error",
+		Status: service.StatusActive,
+		User:   user,
+	}
+	apiKeyService := newTestAPIKeyService(fakeAPIKeyRepo{
+		getByKey: func(context.Context, string) (*service.APIKey, error) {
+			clone := *apiKey
+			return &clone, nil
+		},
+	})
+	subscriptionService := service.NewSubscriptionService(nil, fakeGoogleSubscriptionRepo{
+		listActive: func(context.Context, int64) ([]service.UserSubscription, error) {
+			return nil, errors.New("database unavailable")
+		},
+	}, nil, nil, nil, &config.Config{RunMode: config.RunModeStandard})
+
+	r := gin.New()
+	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, &config.Config{RunMode: config.RunModeStandard}))
+	r.GET("/v1beta/test", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
+
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/test", nil)
+	req.Header.Set("x-goog-api-key", apiKey.Key)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	var resp googleErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "UNAVAILABLE", resp.Error.Status)
 }
 
 // TestApiKeyAuthWithSubscriptionGoogle_SubscriptionLimitExceeded_NoBalance_Returns403 验证

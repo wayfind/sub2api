@@ -101,3 +101,27 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID int
 	}
 	return multiplier
 }
+
+// resolveUsageRateMultiplier 统一余额与订阅计费的费率规则：
+// 处于订阅周期内时使用用户专属/分组/系统默认费率，否则按原价 1.0 计费。
+func resolveUsageRateMultiplier(
+	ctx context.Context,
+	resolver *userGroupRateResolver,
+	apiKey *APIKey,
+	user *User,
+	defaultMultiplier float64,
+	inSubscriptionPeriod bool,
+) float64 {
+	if !inSubscriptionPeriod {
+		return 1.0
+	}
+	if apiKey == nil || apiKey.GroupID == nil || apiKey.Group == nil {
+		return defaultMultiplier
+	}
+
+	userID := int64(0)
+	if user != nil {
+		userID = user.ID
+	}
+	return resolver.Resolve(ctx, userID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+}
