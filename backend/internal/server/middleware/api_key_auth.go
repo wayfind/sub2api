@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -163,15 +164,22 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		var mergedState *service.MergedSubscriptionState
 
 		if subscriptionService != nil {
-			mergedState, _ = subscriptionService.GetMergedSubscriptionState(
+			var loadErr error
+			mergedState, loadErr = subscriptionService.GetMergedSubscriptionState(
 				c.Request.Context(),
 				apiKey.User.ID,
 			)
+			if loadErr != nil && !errors.Is(loadErr, service.ErrSubscriptionNotFound) {
+				AbortWithError(c, http.StatusServiceUnavailable, "BILLING_SERVICE_UNAVAILABLE", "Billing service temporarily unavailable")
+				return
+			}
 		}
 
 		// ── 6. 计费执行（skipBilling 时整块跳过） ────────────────────
 
 		hasSubscription := false
+		targetSubscription := mergedState.FIFOTarget()
+		inSubscriptionPeriod := targetSubscription != nil && targetSubscription.Status == service.SubscriptionStatusActive
 		if !skipBilling {
 			// Key 状态检查
 			switch apiKey.Status {
@@ -205,11 +213,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 
 			// 订阅模式：验证合并限额
-			if mergedState != nil && mergedState.FIFOTarget() != nil {
+			if inSubscriptionPeriod {
 				needsMaintenance, validateErr := subscriptionService.ValidateMergedState(mergedState)
 				if validateErr != nil {
 					// 订阅超限或其他错误（过期/暂停）→ 清除订阅让后续走余额扣费
 					mergedState = nil
+					if !service.IsSubscriptionUsageLimitExceeded(validateErr) {
+						inSubscriptionPeriod = false
+					}
 				} else {
 					hasSubscription = true
 					// 窗口维护异步化（不阻塞请求）
@@ -238,6 +249,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			c.Header("X-Billing-Type", "subscription")
 		} else if !skipBilling {
 			c.Header("X-Billing-Type", "balance")
+		}
+		if inSubscriptionPeriod {
+			c.Set(string(ContextKeyInSubscriptionPeriod), true)
 		}
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{
@@ -346,6 +360,17 @@ func GetMergedStateFromContext(c *gin.Context) (*service.MergedSubscriptionState
 	}
 	state, ok := value.(*service.MergedSubscriptionState)
 	return state, ok
+}
+
+// IsInSubscriptionPeriod 返回用户在请求鉴权时是否处于有效订阅周期内。
+// 该状态与本次请求是否实际扣订阅额度相互独立。
+func IsInSubscriptionPeriod(c *gin.Context) bool {
+	value, exists := c.Get(string(ContextKeyInSubscriptionPeriod))
+	if !exists {
+		return false
+	}
+	inPeriod, ok := value.(bool)
+	return ok && inPeriod
 }
 
 func setGroupContext(c *gin.Context, group *service.Group) {

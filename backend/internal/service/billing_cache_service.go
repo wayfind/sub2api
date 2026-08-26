@@ -90,6 +90,9 @@ type BillingCacheService struct {
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 
+	mergedSubInvalidatorMu sync.RWMutex
+	mergedSubInvalidator   mergedSubscriptionCacheInvalidator
+
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
 	cacheWriteStopOnce sync.Once
@@ -101,6 +104,10 @@ type BillingCacheService struct {
 	cacheWriteDropFullLastLog   int64
 	cacheWriteDropClosedCount   uint64
 	cacheWriteDropClosedLastLog int64
+}
+
+type mergedSubscriptionCacheInvalidator interface {
+	InvalidateMergedSubCache(userID int64)
 }
 
 // NewBillingCacheService 创建计费缓存服务
@@ -115,6 +122,27 @@ func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+func (s *BillingCacheService) setMergedSubscriptionCacheInvalidator(invalidator mergedSubscriptionCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.mergedSubInvalidatorMu.Lock()
+	s.mergedSubInvalidator = invalidator
+	s.mergedSubInvalidatorMu.Unlock()
+}
+
+func (s *BillingCacheService) invalidateMergedSubscriptionCache(userID int64) {
+	if s == nil || userID <= 0 {
+		return
+	}
+	s.mergedSubInvalidatorMu.RLock()
+	invalidator := s.mergedSubInvalidator
+	s.mergedSubInvalidatorMu.RUnlock()
+	if invalidator != nil {
+		invalidator.InvalidateMergedSubCache(userID)
+	}
 }
 
 // Stop 关闭缓存写入工作池

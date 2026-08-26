@@ -655,6 +655,7 @@ export default {
     namePlaceholder: '我的 API 密钥',
     groupLabel: '分组',
     selectGroup: '选择分组',
+    groupDiscountSubscriptionOnly: '分组折扣仅限订阅用户在有效订阅周期内享受；非订阅用户按原价计费。',
     statusLabel: '状态',
     selectStatus: '选择状态',
     saving: '保存中...',

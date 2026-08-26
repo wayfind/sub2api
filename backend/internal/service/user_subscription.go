@@ -32,7 +32,14 @@ type UserSubscription struct {
 }
 
 func (s *UserSubscription) IsActive() bool {
-	return s.Status == SubscriptionStatusActive && time.Now().Before(s.ExpiresAt)
+	return s.IsActiveAt(time.Now())
+}
+
+// IsActiveAt 判断订阅在指定时刻是否处于有效周期内。
+func (s *UserSubscription) IsActiveAt(now time.Time) bool {
+	return s.Status == SubscriptionStatusActive &&
+		!now.Before(s.StartsAt) &&
+		now.Before(s.ExpiresAt)
 }
 
 func (s *UserSubscription) IsExpired() bool {

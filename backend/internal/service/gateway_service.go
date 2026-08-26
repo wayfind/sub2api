@@ -7720,19 +7720,20 @@ func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID,
 
 // RecordUsageInput 记录使用量的输入参数
 type RecordUsageInput struct {
-	Result             *ForwardResult
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
-	FIFOQueue          []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
-	InboundEndpoint    string             // 入站端点（客户端请求路径）
-	UpstreamEndpoint   string             // 上游端点（标准化后的上游路径）
-	UserAgent          string             // 请求的 User-Agent
-	IPAddress          string             // 请求的客户端 IP 地址
-	RequestPayloadHash string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
-	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
-	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
+	Result               *ForwardResult
+	APIKey               *APIKey
+	User                 *User
+	Account              *Account
+	Subscription         *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
+	FIFOQueue            []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
+	InSubscriptionPeriod bool               // 即使额度耗尽回退余额，订阅周期内仍应用分组费率
+	InboundEndpoint      string             // 入站端点（客户端请求路径）
+	UpstreamEndpoint     string             // 上游端点（标准化后的上游路径）
+	UserAgent            string             // 请求的 User-Agent
+	IPAddress            string             // 请求的客户端 IP 地址
+	RequestPayloadHash   string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	ForceCacheBilling    bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
+	APIKeyService        APIKeyQuotaUpdater // 可选：用于更新API Key配额
 }
 
 // APIKeyQuotaUpdater defines the interface for updating API Key quota and rate limit usage
@@ -8059,6 +8060,9 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 	if p.IsSubscriptionBill {
 		if p.Cost.TotalCost > 0 && p.Cost.ActualCost > 0 && p.User != nil && p.APIKey != nil && p.Subscription != nil {
 			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, p.Subscription.PlanID, p.Cost.ActualCost)
+			// DB 扣费已完成，立即失效包含可变用量的 L1 合并状态，避免 TTL 内
+			// 后续请求继续使用扣费前的订阅额度。
+			deps.billingCacheService.invalidateMergedSubscriptionCache(p.User.ID)
 		}
 	} else if p.Cost.ActualCost > 0 && p.User != nil {
 		deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
@@ -8167,15 +8171,13 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
-	// 费率策略：分组费率（用户专属 > 分组默认 > 系统默认）
-	multiplier := 1.0
+	// 费率策略：订阅周期内使用分组费率；周期外余额按原价 1.0。
+	defaultMultiplier := 1.0
 	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+		defaultMultiplier = s.cfg.Default.RateMultiplier
 	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		groupDefault := apiKey.Group.RateMultiplier
-		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
-	}
+	useSubscriptionRate := subscription != nil || input.InSubscriptionPeriod
+	multiplier := resolveUsageRateMultiplier(ctx, s.userGroupRateResolver, apiKey, user, defaultMultiplier, useSubscriptionRate)
 
 	var cost *CostBreakdown
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
@@ -8353,6 +8355,7 @@ type RecordUsageLongContextInput struct {
 	Account               *Account
 	Subscription          *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
 	FIFOQueue             []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
+	InSubscriptionPeriod  bool               // 即使额度耗尽回退余额，订阅周期内仍应用分组费率
 	InboundEndpoint       string             // 入站端点（客户端请求路径）
 	UpstreamEndpoint      string             // 上游端点（标准化后的上游路径）
 	UserAgent             string             // 请求的 User-Agent
@@ -8388,15 +8391,13 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
-	// 费率策略：分组费率（用户专属 > 分组默认 > 系统默认）
-	multiplier := 1.0
+	// 费率策略：订阅周期内使用分组费率；周期外余额按原价 1.0。
+	defaultMultiplier := 1.0
 	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+		defaultMultiplier = s.cfg.Default.RateMultiplier
 	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		groupDefault := apiKey.Group.RateMultiplier
-		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
-	}
+	useSubscriptionRate := subscription != nil || input.InSubscriptionPeriod
+	multiplier := resolveUsageRateMultiplier(ctx, s.userGroupRateResolver, apiKey, user, defaultMultiplier, useSubscriptionRate)
 
 	var cost *CostBreakdown
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)

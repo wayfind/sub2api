@@ -187,6 +187,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	// Get subscription (may be nil)
 	subscription, _ := middleware.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware.IsInSubscriptionPeriod(c)
 	geminiConcurrency := NewConcurrencyHelper(h.concurrencyHelper.concurrencyService, SSEPingFormatNone, 0)
 
 	// 0) wait queue check
@@ -517,6 +518,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				Account:               account,
 				Subscription:          subscription,
 				FIFOQueue:             service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod:  inSubscriptionPeriod,
 				InboundEndpoint:       inboundEndpoint,
 				UpstreamEndpoint:      upstreamEndpoint,
 				UserAgent:             userAgent,

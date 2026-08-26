@@ -202,6 +202,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	// 获取订阅信息（可能为nil）- 提前获取用于后续检查
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	// 0. 检查wait队列是否已满
 	maxWait := service.CalculateMaxWait(subject.Concurrency)
@@ -480,19 +481,20 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.recordUpstreamMetrics(account.Platform, parsedReq.Model, result)
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-					Result:             result,
-					APIKey:             apiKey,
-					User:               apiKey.User,
-					Account:            account,
-					Subscription:       subscription,
-					FIFOQueue:          service.MergedStateFIFOQueue(mergedState),
-					InboundEndpoint:    inboundEndpoint,
-					UpstreamEndpoint:   upstreamEndpoint,
-					UserAgent:          userAgent,
-					IPAddress:          clientIP,
-					RequestPayloadHash: requestPayloadHash,
-					ForceCacheBilling:  fs.ForceCacheBilling,
-					APIKeyService:      h.apiKeyService,
+					Result:               result,
+					APIKey:               apiKey,
+					User:                 apiKey.User,
+					Account:              account,
+					Subscription:         subscription,
+					FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+					InSubscriptionPeriod: inSubscriptionPeriod,
+					InboundEndpoint:      inboundEndpoint,
+					UpstreamEndpoint:     upstreamEndpoint,
+					UserAgent:            userAgent,
+					IPAddress:            clientIP,
+					RequestPayloadHash:   requestPayloadHash,
+					ForceCacheBilling:    fs.ForceCacheBilling,
+					APIKeyService:        h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.gateway.messages"),
@@ -828,19 +830,20 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.recordUpstreamMetrics(account.Platform, parsedReq.Model, result)
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-					Result:             result,
-					APIKey:             currentAPIKey,
-					User:               currentAPIKey.User,
-					Account:            account,
-					Subscription:       currentSubscription,
-					FIFOQueue:          service.MergedStateFIFOQueue(currentMergedState),
-					InboundEndpoint:    inboundEndpoint,
-					UpstreamEndpoint:   upstreamEndpoint,
-					UserAgent:          userAgent,
-					IPAddress:          clientIP,
-					RequestPayloadHash: requestPayloadHash,
-					ForceCacheBilling:  fs.ForceCacheBilling,
-					APIKeyService:      h.apiKeyService,
+					Result:               result,
+					APIKey:               currentAPIKey,
+					User:                 currentAPIKey.User,
+					Account:              account,
+					Subscription:         currentSubscription,
+					FIFOQueue:            service.MergedStateFIFOQueue(currentMergedState),
+					InSubscriptionPeriod: inSubscriptionPeriod,
+					InboundEndpoint:      inboundEndpoint,
+					UpstreamEndpoint:     upstreamEndpoint,
+					UserAgent:            userAgent,
+					IPAddress:            clientIP,
+					RequestPayloadHash:   requestPayloadHash,
+					ForceCacheBilling:    fs.ForceCacheBilling,
+					APIKeyService:        h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.gateway.messages"),

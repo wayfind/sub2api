@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -72,18 +73,28 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		// 加载用户活跃订阅
 		var mergedState *service.MergedSubscriptionState
 		if subscriptionService != nil {
-			mergedState, _ = subscriptionService.GetMergedSubscriptionState(
+			var loadErr error
+			mergedState, loadErr = subscriptionService.GetMergedSubscriptionState(
 				c.Request.Context(),
 				apiKey.User.ID,
 			)
+			if loadErr != nil && !errors.Is(loadErr, service.ErrSubscriptionNotFound) {
+				abortWithGoogleError(c, http.StatusServiceUnavailable, "Billing service temporarily unavailable")
+				return
+			}
 		}
 
 		hasSubscription := false
-		if mergedState != nil && mergedState.FIFOTarget() != nil {
+		targetSubscription := mergedState.FIFOTarget()
+		inSubscriptionPeriod := targetSubscription != nil && targetSubscription.Status == service.SubscriptionStatusActive
+		if inSubscriptionPeriod {
 			needsMaintenance, err := subscriptionService.ValidateMergedState(mergedState)
 			if err != nil {
 				// 订阅超限 → fallback 到余额
 				mergedState = nil
+				if !service.IsSubscriptionUsageLimitExceeded(err) {
+					inSubscriptionPeriod = false
+				}
 			} else {
 				hasSubscription = true
 				c.Set(string(ContextKeyMergedSubscription), mergedState)
@@ -106,6 +117,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			c.Header("X-Billing-Type", "subscription")
 		} else {
 			c.Header("X-Billing-Type", "balance")
+		}
+		if inSubscriptionPeriod {
+			c.Set(string(ContextKeyInSubscriptionPeriod), true)
 		}
 
 		c.Set(string(ContextKeyAPIKey), apiKey)

@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -537,4 +538,12 @@ func TestValidateMergedState_ValidState_NoError(t *testing.T) {
 	needsMaint, err := svc.ValidateMergedState(state)
 	require.NoError(t, err)
 	assert.False(t, needsMaint)
+}
+
+func TestIsSubscriptionUsageLimitExceeded(t *testing.T) {
+	require.True(t, IsSubscriptionUsageLimitExceeded(ErrDailyLimitExceeded))
+	require.True(t, IsSubscriptionUsageLimitExceeded(fmt.Errorf("wrapped: %w", ErrWeeklyLimitExceeded)))
+	require.True(t, IsSubscriptionUsageLimitExceeded(ErrMonthlyLimitExceeded))
+	require.False(t, IsSubscriptionUsageLimitExceeded(ErrSubscriptionSuspended))
+	require.False(t, IsSubscriptionUsageLimitExceeded(ErrSubscriptionExpired))
 }

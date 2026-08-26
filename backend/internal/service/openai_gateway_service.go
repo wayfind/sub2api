@@ -4077,18 +4077,19 @@ func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel
 
 // OpenAIRecordUsageInput input for recording usage
 type OpenAIRecordUsageInput struct {
-	Result             *OpenAIForwardResult
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
-	FIFOQueue          []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
-	InboundEndpoint    string
-	UpstreamEndpoint   string
-	UserAgent          string // 请求的 User-Agent
-	IPAddress          string // 请求的客户端 IP 地址
-	RequestPayloadHash string
-	APIKeyService      APIKeyQuotaUpdater
+	Result               *OpenAIForwardResult
+	APIKey               *APIKey
+	User                 *User
+	Account              *Account
+	Subscription         *UserSubscription  // 可选：单个订阅（向后兼容，优先使用 FIFOQueue）
+	FIFOQueue            []UserSubscription // 可选：FIFO 分账队列（多订阅时使用）
+	InSubscriptionPeriod bool               // 即使额度耗尽回退余额，订阅周期内仍应用分组费率
+	InboundEndpoint      string
+	UpstreamEndpoint     string
+	UserAgent            string // 请求的 User-Agent
+	IPAddress            string // 请求的客户端 IP 地址
+	RequestPayloadHash   string
+	APIKeyService        APIKeyQuotaUpdater
 }
 
 // RecordUsage records usage and deducts balance
@@ -4121,20 +4122,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		CacheReadTokens:     result.Usage.CacheReadInputTokens,
 	}
 
-	// 费率策略：订阅路径用分组费率（用户专属 > 分组默认 > 系统默认），余额路径固定 7.0
-	multiplier := 7.0
-	if subscription != nil {
-		if s.cfg != nil {
-			multiplier = s.cfg.Default.RateMultiplier
-		}
-		if apiKey.GroupID != nil && apiKey.Group != nil {
-			resolver := s.userGroupRateResolver
-			if resolver == nil {
-				resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
-			}
-			multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
-		}
+	// 费率策略：订阅周期内使用分组费率；周期外余额按原价 1.0。
+	defaultMultiplier := 1.0
+	if s.cfg != nil {
+		defaultMultiplier = s.cfg.Default.RateMultiplier
 	}
+	useSubscriptionRate := subscription != nil || input.InSubscriptionPeriod
+	multiplier := resolveUsageRateMultiplier(ctx, s.userGroupRateResolver, apiKey, user, defaultMultiplier, useSubscriptionRate)
 
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
 	if result.BillingModel != "" {

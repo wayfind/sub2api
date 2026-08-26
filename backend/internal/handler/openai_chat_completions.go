@@ -85,6 +85,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	mergedState, _ := middleware2.GetMergedStateFromContext(c)
+	inSubscriptionPeriod := middleware2.IsInSubscriptionPeriod(c)
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
@@ -259,17 +260,18 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:           result,
-				APIKey:           apiKey,
-				User:             apiKey.User,
-				Account:          account,
-				Subscription:     subscription,
-				FIFOQueue:        service.MergedStateFIFOQueue(mergedState),
-				InboundEndpoint:  GetInboundEndpoint(c),
-				UpstreamEndpoint: GetUpstreamEndpoint(c, account.Platform),
-				UserAgent:        userAgent,
-				IPAddress:        clientIP,
-				APIKeyService:    h.apiKeyService,
+				Result:               result,
+				APIKey:               apiKey,
+				User:                 apiKey.User,
+				Account:              account,
+				Subscription:         subscription,
+				FIFOQueue:            service.MergedStateFIFOQueue(mergedState),
+				InSubscriptionPeriod: inSubscriptionPeriod,
+				InboundEndpoint:      GetInboundEndpoint(c),
+				UpstreamEndpoint:     GetUpstreamEndpoint(c, account.Platform),
+				UserAgent:            userAgent,
+				IPAddress:            clientIP,
+				APIKeyService:        h.apiKeyService,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.chat_completions"),
