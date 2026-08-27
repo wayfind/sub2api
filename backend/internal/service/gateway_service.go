@@ -678,6 +678,7 @@ type UpstreamFailoverError struct {
 	ResponseHeaders        http.Header // 上游响应头，用于透传 cf-ray/cf-mitigated/content-type 等诊断信息
 	ForceCacheBilling      bool        // Antigravity 粘性会话切换时设为 true
 	RetryableOnSameAccount bool        // 临时性错误（如 Google 间歇性 400、空响应），应在同一账号上重试 N 次再切换
+	OpaqueUpstreamReject   bool        // 上游 400 但 body 非结构化（纯文本/空），判定为前置层拒绝；换号次数另设小上限
 }
 
 func (e *UpstreamFailoverError) Error() string {
@@ -4695,8 +4696,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		}
 	}
 	if resp.StatusCode >= 400 {
-		// 可选：对部分 400 触发 failover（默认关闭以保持语义）
-		if resp.StatusCode == 400 && s.cfg != nil && s.cfg.Gateway.FailoverOn400 {
+		// 400 的 failover 分两类：
+		//   - 非结构化 400（前置层拒绝）：始终放行，独立小上限；
+		//   - 结构化 400 中的兼容性差异：仍由 failover_on_400 开关控制（默认关闭）。
+		if resp.StatusCode == 400 {
 			respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 			if readErr != nil {
 				// ReadAll failed, fall back to normal error handling without consuming the stream
@@ -4705,16 +4708,34 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			_ = resp.Body.Close()
 			resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
-			if s.shouldFailoverOn400(respBody) {
+			// 非结构化 400（纯文本/空 body）一律放行 failover，且不受 failover_on_400
+			// 开关约束：这类拒绝来自上游前置层（LB/WAF）而非模型 API，与请求内容无关，
+			// 换个账号通常直接成功。换号次数由 handler 层 maxOpaqueRejectSwitches 单独
+			// 限制（默认 2 次），避免大请求体被反复重发烧掉上行流量。
+			opaqueReject := isOpaqueUpstreamReject(respBody)
+			// 结构化 400 中"疑似兼容性差异"的那部分，语义未变，仍由开关控制。
+			compatReject := !opaqueReject && s.cfg != nil && s.cfg.Gateway.FailoverOn400 && s.shouldFailoverOn400(respBody)
+
+			if opaqueReject || compatReject {
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
-				if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+				logBody := s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody
+				if logBody {
 					maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
 					if maxBytes <= 0 {
 						maxBytes = 2048
 					}
 					upstreamDetail = truncateString(string(respBody), maxBytes)
+				}
+				kind := "failover_on_400"
+				if opaqueReject {
+					kind = "failover_on_400_opaque"
+					// 裸文本 400 提取不出 message，把原始 body 放进 Message 便于 ops 下钻。
+					if upstreamMsg == "" {
+						upstreamMsg = truncateString(strings.TrimSpace(string(respBody)), 256)
+					}
+					metrics.OpaqueUpstreamRejectTotal.WithLabelValues(account.Platform, "failover").Inc()
 				}
 				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 					Platform:           account.Platform,
@@ -4722,22 +4743,27 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					AccountName:        account.Name,
 					UpstreamStatusCode: resp.StatusCode,
 					UpstreamRequestID:  resp.Header.Get("x-request-id"),
-					Kind:               "failover_on_400",
+					Kind:               kind,
 					Message:            upstreamMsg,
 					Detail:             upstreamDetail,
 				})
 
-				if s.cfg.Gateway.LogUpstreamErrorBody {
+				if logBody {
 					logger.LegacyPrintf("service.gateway",
-						"Account %d: 400 error, attempting failover: %s",
+						"Account %d: 400 error (opaque=%t), attempting failover: %s",
 						account.ID,
+						opaqueReject,
 						truncateForLog(respBody, s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes),
 					)
 				} else {
-					logger.LegacyPrintf("service.gateway", "Account %d: 400 error, attempting failover", account.ID)
+					logger.LegacyPrintf("service.gateway", "Account %d: 400 error (opaque=%t), attempting failover", account.ID, opaqueReject)
 				}
 				s.handleFailoverSideEffects(ctx, resp, account)
-				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody}
+				return nil, &UpstreamFailoverError{
+					StatusCode:           resp.StatusCode,
+					ResponseBody:         respBody,
+					OpaqueUpstreamReject: opaqueReject,
+				}
 			}
 		}
 		return s.handleErrorResponse(ctx, resp, c, account)
@@ -6546,6 +6572,19 @@ func (s *GatewayService) isThinkingBlockSignatureError(respBody []byte) bool {
 	}
 
 	return false
+}
+
+// isOpaqueUpstreamReject 判断一个上游 400 是否为"给不出理由的拒绝"。
+//
+// 模型 API 在挑请求毛病时一定会给出结构化 JSON 说明哪里错了（Anthropic / OpenAI /
+// 各家中转均如此）；而上游前置层（负载均衡、WAF、反向代理）在自己拦下请求时，
+// 往往只回一个裸状态文本，例如金山云 ELB 的 `Bad Request`（11 字节 text/plain）。
+//
+// 后者与请求内容无关——实测同一请求换个账号即可成功，因此应当放行 failover。
+// 判据保守：仅当 body 为空、或根本不是合法 JSON 时才认定为前置层拒绝。
+func isOpaqueUpstreamReject(respBody []byte) bool {
+	trimmed := bytes.TrimSpace(respBody)
+	return len(trimmed) == 0 || !json.Valid(trimmed)
 }
 
 func (s *GatewayService) shouldFailoverOn400(respBody []byte) bool {
