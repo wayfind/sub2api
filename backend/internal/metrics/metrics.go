@@ -63,6 +63,18 @@ var (
 		Help: "Classified errors (same source as ops_error_logs) by platform, model, phase, type, severity and business-limited flag.",
 	}, []string{"platform", "model", "phase", "type", "severity", "business_limited"})
 
+	// OpaqueUpstreamRejectTotal 上游返回"非结构化 400"（纯文本/空 body）的次数。
+	//
+	// 这类 400 给不出任何拒绝理由，实测均来自上游前置层（LB/WAF），而非模型 API 对
+	// 请求本身的校验——同一请求换个账号往往直接成功。据此放行 failover，并用本指标
+	// 观测其发生率与救回率。
+	//   - platform: 账号平台
+	//   - outcome:  "failover"（已换号重试）| "exhausted"（换号上限用尽，仍失败）
+	OpaqueUpstreamRejectTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "sub2api_opaque_upstream_reject_total",
+		Help: "Upstream 400 responses with a non-structured (plain-text/empty) body, by platform and failover outcome.",
+	}, []string{"platform", "outcome"})
+
 	// StreamTruncationTotal 流式中途截断次数，按成因区分（项2/5）。
 	// cause: "upstream"（上游静默截断，补发 SSE error）| "client"（客户端主动断）。
 	StreamTruncationTotal = promauto.NewCounterVec(prometheus.CounterOpts{

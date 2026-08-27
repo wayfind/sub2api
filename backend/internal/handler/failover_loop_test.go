@@ -727,3 +727,56 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		require.Equal(t, FailoverContinue, action)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// 非结构化 400（上游前置层拒绝）的独立换号上限
+// ---------------------------------------------------------------------------
+
+func newOpaqueRejectErr() *service.UpstreamFailoverError {
+	return &service.UpstreamFailoverError{
+		StatusCode:           400,
+		ResponseBody:         []byte("Bad Request"),
+		OpaqueUpstreamReject: true,
+	}
+}
+
+func TestHandleFailoverError_OpaqueReject(t *testing.T) {
+	t.Run("上限内正常换号", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		m := &mockTempUnscheduler{}
+		for i := 1; i <= maxOpaqueRejectSwitches; i++ {
+			action := fs.HandleFailoverError(context.Background(), m, int64(i), "anthropic", newOpaqueRejectErr())
+			require.Equal(t, FailoverContinue, action, "第 %d 次应继续换号", i)
+			require.Equal(t, i, fs.OpaqueRejectSwitches)
+			require.Equal(t, i, fs.SwitchCount)
+		}
+	})
+
+	t.Run("超过上限即耗尽,不吃满 MaxSwitches", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		m := &mockTempUnscheduler{}
+		for i := 1; i <= maxOpaqueRejectSwitches; i++ {
+			require.Equal(t, FailoverContinue,
+				fs.HandleFailoverError(context.Background(), m, int64(i), "anthropic", newOpaqueRejectErr()))
+		}
+		action := fs.HandleFailoverError(context.Background(), m, 99, "anthropic", newOpaqueRejectErr())
+		require.Equal(t, FailoverExhausted, action)
+		require.Equal(t, maxOpaqueRejectSwitches, fs.OpaqueRejectSwitches)
+		// 通用上限是 10，这里必须在 2 次就停下，证明走的是独立小上限
+		require.Less(t, fs.SwitchCount, fs.MaxSwitches)
+	})
+
+	t.Run("非 opaque 错误不占用 opaque 配额", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		m := &mockTempUnscheduler{}
+		for i := 1; i <= 5; i++ {
+			require.Equal(t, FailoverContinue,
+				fs.HandleFailoverError(context.Background(), m, int64(i), "anthropic", newTestFailoverErr(500, false, false)))
+		}
+		require.Equal(t, 0, fs.OpaqueRejectSwitches)
+		// opaque 配额未被消耗，仍可再换 maxOpaqueRejectSwitches 次
+		require.Equal(t, FailoverContinue,
+			fs.HandleFailoverError(context.Background(), m, 6, "anthropic", newOpaqueRejectErr()))
+		require.Equal(t, 1, fs.OpaqueRejectSwitches)
+	})
+}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/metrics"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"go.uber.org/zap"
@@ -33,6 +34,13 @@ const (
 	maxSameAccountRetries = 3
 	// sameAccountRetryDelay 同账号重试间隔
 	sameAccountRetryDelay = 500 * time.Millisecond
+	// maxOpaqueRejectSwitches 针对"上游非结构化 400"（前置层拒绝，见
+	// service.isOpaqueUpstreamReject）的换号上限，独立于 MaxSwitches 且刻意取小值。
+	//
+	// 这类拒绝多为上游前置层的偶发抖动，换一次号基本就能救回；而承载它的请求体常有
+	// 数 MB（长会话 agent loop），走满通用的 10 次上限意味着几十 MB 无谓上行流量和
+	// 十次上游往返。2 次是"抖动能救回、真坏的请求也烧不了多少"的折中。
+	maxOpaqueRejectSwitches = 2
 	// singleAccountBackoffDelay 单账号分组 503 退避重试固定延时。
 	// Service 层在 SingleAccountRetry 模式下已做充分原地重试（最多 3 次、总等待 30s），
 	// Handler 层只需短暂间隔后重新进入 Service 层即可。
@@ -43,6 +51,7 @@ const (
 type FailoverState struct {
 	SwitchCount           int
 	MaxSwitches           int
+	OpaqueRejectSwitches  int
 	FailedAccountIDs      map[int64]struct{}
 	SameAccountRetryCount map[int64]int
 	LastFailoverErr       *service.UpstreamFailoverError
@@ -98,6 +107,20 @@ func (s *FailoverState) HandleFailoverError(
 
 	// 加入失败列表
 	s.FailedAccountIDs[accountID] = struct{}{}
+
+	// 非结构化 400（前置层拒绝）走独立的小上限，先于通用上限判定
+	if failoverErr.OpaqueUpstreamReject {
+		if s.OpaqueRejectSwitches >= maxOpaqueRejectSwitches {
+			metrics.OpaqueUpstreamRejectTotal.WithLabelValues(platform, "exhausted").Inc()
+			logger.FromContext(ctx).Warn("gateway.failover_opaque_reject_exhausted",
+				zap.Int64("account_id", accountID),
+				zap.Int("opaque_reject_switches", s.OpaqueRejectSwitches),
+				zap.Int("opaque_reject_switch_max", maxOpaqueRejectSwitches),
+			)
+			return FailoverExhausted
+		}
+		s.OpaqueRejectSwitches++
+	}
 
 	// 检查是否耗尽
 	if s.SwitchCount >= s.MaxSwitches {
